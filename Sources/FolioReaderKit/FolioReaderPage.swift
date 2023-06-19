@@ -724,7 +724,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             }()
             
             let position = FolioReaderReadPosition(
-                deviceId: UIDevice().name,
+                deviceId: UIDevice.current.name,
                 structuralStyle: structuralStyle,
                 positionTrackingStyle: structuralTrackingTocLevel,
                 structuralRootPageNumber: structuralRootPageNumber,

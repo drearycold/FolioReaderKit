@@ -254,7 +254,7 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
     }
 
     func setSliderVal() {
-        slider.value = Float(scrollTop() / height())
+        slider.setValue(Float(scrollTop() / height()), animated: true)
     }
 
     // MARK: - utility methods
