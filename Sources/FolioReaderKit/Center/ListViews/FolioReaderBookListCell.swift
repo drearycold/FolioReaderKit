@@ -59,24 +59,44 @@ class FolioReaderBookListCell: UICollectionViewCell {
                 height: 28
             )
         } else {
-            self.titleLabel.frame = .init(x: 16, y: 8, width: self.frame.width - 16, height: 32)
+            self.titleLabel.frame = .init(
+                x: 16,
+                y: 4,
+                width: self.frame.width - 120 - 16 - 8,
+                height: 56
+            )
+            self.titleLabel.font = UIFont(name: "Avenir", size: 18.0)
             self.titleLabel.textAlignment = .left
+            self.titleLabel.numberOfLines = 2
+            self.titleLabel.lineBreakMode = .byWordWrapping
+            self.titleLabel.adjustsFontSizeToFitWidth = true
 
             self.coverImage.frame = .zero
             
             self.positionLabel.frame = .init(
-                x: self.frame.width - 120 - 16,
+                x: self.frame.width - 120 - 16 + 8,
                 y: 2,
-                width: 120,
-                height: 28
+                width: 120 - 8,
+                height: 40
             )
             self.positionLabel.textAlignment = .right
+            self.positionLabel.numberOfLines = 2
+            self.positionLabel.lineBreakMode = .byWordWrapping
+            self.positionLabel.adjustsFontSizeToFitWidth = true
+            
+            if #available(iOS 14.0, *) {
+                self.titleLabel.lineBreakStrategy = .pushOut
+                self.positionLabel.lineBreakStrategy = .pushOut
+            } else {
+                // Fallback on earlier versions
+            }
+            
             
             self.percentageLabel.frame = .init(
                 x: self.frame.width - 120 - 16,
                 y: self.positionLabel.frame.maxY + 4,
                 width: 120,
-                height: 28
+                height: 16
             )
         }
         
