@@ -89,7 +89,7 @@ class FolioReaderNavigationPageVC: UIPageViewController {
         //let navBackground = self.folioReader.isNight(self.readerConfig.nightModeMenuBackground, self.readerConfig.daysModeNavBackground)
         let navBackground = self.readerConfig.themeModeMenuBackground[self.folioReader.themeMode]
         let tintColor = self.readerConfig.tintColor
-        let navText = self.folioReader.isNight(UIColor.white, UIColor.black)
+        let navText = self.readerConfig.themeModeTextColor[self.folioReader.themeMode]
         let font = UIFont(name: "Avenir-Light", size: 17)!
         setTranslucentNavigation(false, color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
         

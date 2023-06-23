@@ -467,6 +467,10 @@ internal extension UIViewController {
         navBar?.isTranslucent = translucent
         navBar?.tintColor = tintColor
         navBar?.titleTextAttributes = [NSAttributedString.Key.foregroundColor: titleColor, NSAttributedString.Key.font: font]
+        
+        if let segmentedControl = self.navigationItem.titleView as? UISegmentedControl {
+            segmentedControl.setTitleTextAttributes([.foregroundColor: titleColor], for: .normal)
+        }
     }
 }
 /**

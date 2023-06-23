@@ -609,15 +609,17 @@ extension FolioReader {
                 }
             }
             
-            provider.folioReaderReadPosition(self, allByBookId: bookId)
-                .forEach {
-                    guard $0.takePrecedence else { return }
-                    folioLogger("savedPositionForCurrentBook clear")
-                    $0.takePrecedence = false
-                    provider.folioReaderReadPosition(self, bookId: bookId, set: $0, completion: nil)
-                }
-            
-            provider.folioReaderReadPosition(self, bookId: bookId, set: position, completion: nil)
+            DispatchQueue.global().async {
+                provider.folioReaderReadPosition(self, allByBookId: bookId)
+                    .forEach {
+                        guard $0.takePrecedence else { return }
+                        folioLogger("savedPositionForCurrentBook clear")
+                        $0.takePrecedence = false
+                        provider.folioReaderReadPosition(self, bookId: bookId, set: $0, completion: nil)
+                    }
+                
+                provider.folioReaderReadPosition(self, bookId: bookId, set: position, completion: nil)
+            }
         }
     }
     
