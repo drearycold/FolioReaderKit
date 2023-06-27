@@ -739,13 +739,18 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             position.bookProgress = self.getBookProgress()
             position.bookName = self.book.title ?? self.book.name ?? "Unnamed Book"
             if self.folioReader.structuralStyle == .bundle,
-                let bookRootTocIndex = self.getBundleRootTocIndex(),
+               let bookRootTocIndex = self.getBundleRootTocIndex(),
                let bookRootToc = self.book.bundleRootTableOfContents[safe: bookRootTocIndex] {
                 position.bookName = bookRootToc.title
             }
-            position.bundleProgress = self.getBundleProgress()
-
-            completion?(position)
+            
+            DispatchQueue.global().async {
+                position.bundleProgress = self.getBundleProgress()
+                
+                DispatchQueue.main.async {
+                    completion?(position)
+                }
+            }
         }
     }
     
