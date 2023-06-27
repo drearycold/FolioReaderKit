@@ -75,6 +75,7 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
     var frame: CGRect {
         didSet {
             self.slider.frame = frame
+            self.slider.maximumValue = Float(frame.height)
             if frame.height > frame.width {
                 slider.transform = CGAffineTransform(rotationAngle: CGFloat(Double.pi / 2))
             } else {
@@ -254,7 +255,12 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
     }
 
     func setSliderVal() {
-        slider.setValue(Float(scrollTop() / height()), animated: true)
+        let value = Float(Int(scrollTop() / height() * CGFloat(slider.maximumValue)))
+        guard value != slider.value
+        else {
+            return
+        }
+        slider.setValue(value, animated: true)
     }
 
     // MARK: - utility methods
