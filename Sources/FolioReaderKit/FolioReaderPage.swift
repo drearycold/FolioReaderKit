@@ -696,7 +696,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             }
             #if DEBUG
             if cfi.isEmpty, self.pageNumber > 1 {
-                let alertController = UIAlertController(title: "Empty CFI \(self.pageNumber ?? 0)", message: message, preferredStyle: .alert)
+                let alertController = UIAlertController(title: "Empty CFI pageNumber=\(self.pageNumber ?? 0)", message: message, preferredStyle: .alert)
                 alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: { action in
                     
                 }))

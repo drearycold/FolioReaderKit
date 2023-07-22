@@ -407,10 +407,29 @@ open class FolioReaderWebView: WKWebView {
             self.setMenuVisible(false)
             self.clearTextSelection()
 
-            mDictView.title = selectedText
-            mDictView.view.tintColor = self.readerConfig.tintColor
+            var json = [
+                "word": selectedText,
+                "backgroundColor": self.readerConfig.themeModeBackground[self.folioReader.themeMode].hexString(false)]
+            if self.folioReader.nightMode {
+                json["textColor"] = self.readerConfig.themeModeTextColor[self.folioReader.themeMode].hexString(false)
+            }
+            var title = ""
+            do {
+                title = String(data: try JSONEncoder().encode(json), encoding: .utf8) ?? selectedText
+            } catch {
+                title = selectedText
+            }
+            mDictView.title = title
+            mDictView.view.backgroundColor = self.readerConfig.themeModeBackground[self.folioReader.themeMode]
+            
             let nav = UINavigationController(rootViewController: mDictView)
             nav.navigationBar.isTranslucent = false
+            nav.navigationBar.tintColor = self.readerConfig.themeModeTextColor[self.folioReader.themeMode]
+            nav.navigationBar.backgroundColor = self.readerConfig.themeModeBackground[self.folioReader.themeMode]
+            nav.navigationBar.barTintColor = self.readerConfig.themeModeNavBackground[self.folioReader.themeMode]
+            nav.navigationBar.titleTextAttributes = [
+                .foregroundColor: self.readerConfig.themeModeTextColor[self.folioReader.themeMode]
+            ]
 
             guard let readerContainer = self.readerContainer else { return }
             readerContainer.show(nav, sender: nil)
@@ -570,6 +589,8 @@ open class FolioReaderWebView: WKWebView {
         
         menuController.menuItems = menuItems
         menuController.update()
+        
+        UIMenuController.installTo(responder: self)
     }
     
     open func setMenuVisible(_ menuVisible: Bool, animated: Bool = true, andRect rect: CGRect = CGRect.zero) {
