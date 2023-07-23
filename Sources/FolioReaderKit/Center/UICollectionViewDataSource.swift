@@ -38,7 +38,7 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         
         cell.setup(withReaderContainer: readerContainer)
         cell.pageNumber = indexPath.row+1
-        cell.layoutAdapting = true
+        cell.layoutAdapting = "Initializing..."
         
         cell.webView?.scrollView.delegate = self
         if #available(iOS 11.0, *) {

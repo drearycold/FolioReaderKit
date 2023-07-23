@@ -363,7 +363,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
 
     func segmentView(_ segmentView: SMSegmentView, didSelectSegmentAtIndex index: Int) {
         guard let currentPage = self.folioReader.readerCenter?.currentPage,
-              currentPage.layoutAdapting == false else { return }
+              currentPage.layoutAdapting == nil else { return }
 
         if segmentView.tag == 1 {   //Theme Mode
 

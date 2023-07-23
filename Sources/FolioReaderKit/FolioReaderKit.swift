@@ -660,7 +660,7 @@ extension FolioReader {
               let readerCenter = self.readerCenter,
               let currentPage = readerCenter.currentPage,
               let webView = currentPage.webView,
-              currentPage.layoutAdapting == false,
+              currentPage.layoutAdapting == nil,
               webView.isHidden == false
         else {
             //haven't finished loading, do not overwrite position

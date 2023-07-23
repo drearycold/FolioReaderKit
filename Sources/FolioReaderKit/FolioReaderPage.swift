@@ -53,6 +53,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     open var panDeadZoneLeft: UIView?
     open var panDeadZoneRight: UIView?
     open var loadingView = UIActivityIndicatorView()
+    open var loadingLabelView = UILabel()
 
     open var writingMode = "horizontal-tb"
     
@@ -70,7 +71,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             
             updateCurrentChapterName()
             
-            guard layoutAdapting == false else { return }       //FIXME: prevent overriding last known good position
+            guard layoutAdapting == nil else { return }       //FIXME: prevent overriding last known good position
             
             getAndRecordScrollPosition()
         }
@@ -85,12 +86,15 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     fileprivate var firstLoadReloaded = false
     
     private var adView: UIView? = nil
-    private var adViewConstraintsToDeactivate = [NSLayoutConstraint]()
+    private var constraintsWithAdView = [NSLayoutConstraint]()
+    private var constraintsWithoutAdView = [NSLayoutConstraint]()
     
-    var layoutAdapting = false {
+    var layoutAdapting: String? = nil {
         didSet {
-            if layoutAdapting {
+            if let layoutAdapting = layoutAdapting {
                 loadingView.startAnimating()
+                loadingLabelView.text = layoutAdapting
+                loadingLabelView.isHidden = false
                 
 //                self.folioReader.delegate?.folioReaderAdPresent?(self.folioReader)
                 
@@ -102,36 +106,38 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                     
                     self.contentView.addSubview(adView)
                     
-                    NSLayoutConstraint.deactivate(adViewConstraintsToDeactivate)
+                    NSLayoutConstraint.deactivate(constraintsWithAdView.filter({ $0.isActive }))
+                    NSLayoutConstraint.deactivate(constraintsWithoutAdView.filter({ $0.isActive }))
                     
                     if folioReader.readerCenter?.menuBarController.presentingViewController != nil {
-                        adViewConstraintsToDeactivate = [
+                        constraintsWithAdView = [
                             adView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 70)  //navbar + padding
                         ]
                     } else {
-                        adViewConstraintsToDeactivate = [
+                        constraintsWithAdView = [
                             adView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
                         ]
                     }
                     
                     NSLayoutConstraint.activate([
                         adView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+                        loadingLabelView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
                         loadingView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-                        loadingView.topAnchor.constraint(equalTo: adView.bottomAnchor, constant: 32)
+                        loadingLabelView.topAnchor.constraint(equalTo: adView.bottomAnchor, constant: 32),
+                        loadingView.topAnchor.constraint(equalTo: loadingLabelView.bottomAnchor, constant: 16)
                     ])
-                    NSLayoutConstraint.activate(adViewConstraintsToDeactivate)
+                    NSLayoutConstraint.activate(constraintsWithAdView)
                     
                     self.adView = adView
                 } else {
-                    let constraint = loadingView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
-                    constraint.priority = .defaultLow
-                    adViewConstraintsToDeactivate = [
-                        constraint
-                    ]
-                    NSLayoutConstraint.activate(adViewConstraintsToDeactivate)
+                    NSLayoutConstraint.deactivate(constraintsWithAdView.filter({ $0.isActive }))
+                    NSLayoutConstraint.deactivate(constraintsWithoutAdView.filter({ $0.isActive }))
+                    NSLayoutConstraint.activate(constraintsWithoutAdView)
                 }
             } else {
                 loadingView.stopAnimating()
+                loadingLabelView.text = nil
+                loadingLabelView.isHidden = true
                 adView?.removeFromSuperview()
                 adView = nil
             }
@@ -255,6 +261,23 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         NSLayoutConstraint.activate([
             loadingView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
         ])
+        
+        loadingLabelView.text = "Initializing..."
+        loadingLabelView.textColor = readerConfig.themeModeTextColor[folioReader.themeMode]
+        loadingLabelView.translatesAutoresizingMaskIntoConstraints = false
+        self.contentView.addSubview(loadingLabelView)
+        NSLayoutConstraint.activate([
+            loadingLabelView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+        ])
+        
+        let constraintLoadingView = loadingView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
+        constraintLoadingView.priority = .defaultLow
+        let constraintLoadingLabelView = loadingLabelView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
+        constraintsWithAdView = [
+            constraintLoadingView,
+            constraintLoadingLabelView
+        ]
+        NSLayoutConstraint.activate(constraintsWithAdView)
         
         // Remove all gestures before adding new one
         webView?.gestureRecognizers?.forEach({ gesture in
@@ -477,10 +500,12 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         
         preprocessor.append("document.body.style.minHeight = null;")
         
+        self.layoutAdapting = "Preparing Document Structure..."
         self.webView?.js(preprocessor) {_ in
             guard self.pageNumber == pageNumber else { folioLogger("bridgeFinished pageNumberMisMatch \(pageNumber) vs \(self.pageNumber!)"); return }
 
             folioLogger("bridgeFinished pageNumber=\(String(describing: self.pageNumber)) size=\(String(describing: self.book.spine.spineReferences[self.pageNumber-1].resource.size))")
+            
             self.updateOverflowStyle(delay: 0.2) {
                 guard self.pageNumber == pageNumber else { folioLogger("bridgeFinished pageNumberMisMatch updateOverflowStyle \(pageNumber) vs \(self.pageNumber!)"); return }
                 folioLogger("bridgeFinished updateOverflowStyle pageNumber=\(pageNumber)")
@@ -507,7 +532,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                                 
                                 guard self.pageNumber == pageNumber else { folioLogger("bridgeFinished pageNumberMisMatch beforeShow \(pageNumber) vs \(self.pageNumber!)"); return }
                                 
-                                self.layoutAdapting = false
+                                self.layoutAdapting = nil
                                 webView.isHidden = false
                                 
                                 self.delegate?.pageDidLoad?(self)
@@ -627,7 +652,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
 //                // Do nothing
 //                // MARK: - FIXME
 //            } else {
-        guard !(webView.isHidden || layoutAdapting) else { return }
+        guard !(webView.isHidden || layoutAdapting != nil) else { return }
         
         guard updateWebViewScrollPosition else { return }
         getAndRecordScrollPosition()
@@ -642,7 +667,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     func getAndRecordScrollPosition() {
         getWebViewScrollPosition { position in
             //prevent overwriting last known good cfi
-            if self.layoutAdapting {
+            if self.layoutAdapting != nil {
                 return
             }
             
@@ -1155,7 +1180,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         guard let readerCenter = self.folioReader.readerCenter, let webView = webView else { return }
         let currentPageNumber = readerCenter.currentPageNumber
         
-        self.layoutAdapting = true
+        self.layoutAdapting = "Changing Document Layout..."
 
         // Get internal page offset before layout change
         self.updatePageOffsetRate()
@@ -1186,7 +1211,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                     self.updatePageInfo() {
                         self.updateScrollPosition(delay: self.delaySec()) {
                             self.updateStyleBackgroundPadding(delay: self.delaySec()) {
-                                self.layoutAdapting = false
+                                self.layoutAdapting = nil
                             }
                         }
                     }
@@ -1198,7 +1223,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     func updateOverflowStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
         guard let readerCenter = self.folioReader.readerCenter, let webView = webView else { return }
         
-        self.layoutAdapting = true
+        self.layoutAdapting = "Preparing Document Layout..."
         
         webView.js(
 """
@@ -1268,7 +1293,7 @@ writingMode
     func updateRuntimStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
         guard let readerCenter = self.folioReader.readerCenter, let webView = webView else { return }
 
-        self.layoutAdapting = true
+        self.layoutAdapting = "Preparing Document Style..."
         self.updatePageOffsetRate()
         webView.js(
 """
@@ -1316,6 +1341,7 @@ writingMode
         ) { _ in
             let delaySec = self.delaySec() + bySecond
             delay(delaySec) {
+                self.layoutAdapting = "Almost Ready..."
                 self.updatePageInfo {
                     delay(delaySec) {
                         self.updateStyleBackgroundPadding(delay: delaySec, completion: completion != nil ? completion : {
@@ -1323,7 +1349,7 @@ writingMode
                                 self.scrollWebViewByPageOffsetRate()
                                 delay(delaySec) {
                                     self.updatePageOffsetRate()
-                                    self.layoutAdapting = false
+                                    self.layoutAdapting = nil
                                     self.updatePageInfo()
                                 }
                             }
@@ -1335,6 +1361,8 @@ writingMode
     }
     
     func updateStyleBackgroundPadding(delay bySecond: Double, tryShrinking: Bool = true, completion: (() -> Void)? = nil) {
+        self.layoutAdapting = "Finalizing..."
+        
         var minScreenCount = 1
         if self.byWritingMode(self.readerConfig.scrollDirection == .horitonzalWithPagedContent, true) {
             minScreenCount = self.totalPages ?? minScreenCount
@@ -1385,7 +1413,7 @@ writingMode
     func updateViewerLayout(delay bySecond: Double) {
         guard let readerCenter = self.folioReader.readerCenter else { return }
         
-        self.layoutAdapting = true
+        self.layoutAdapting = "Updating Document Layout..."
         self.updatePageOffsetRate()
         
         webView?.js(
@@ -1401,7 +1429,7 @@ writingMode
                         self.scrollWebViewByPageOffsetRate()
                         delay(0.2) {
                             self.updatePageOffsetRate()
-                            self.layoutAdapting = false
+                            self.layoutAdapting = nil
                             self.updatePageInfo()
                         }
                     }
@@ -1640,6 +1668,8 @@ writingMode
     }
     
     func injectHighlights(completion: (() -> Void)? = nil) {
+        self.layoutAdapting = "Preparing Document Annotations..."
+        
         guard let bookId = (self.book.name as NSString?)?.deletingPathExtension,
               let folioReaderHighlightProvider = self.folioReader.delegate?.folioReaderHighlightProvider?(self.folioReader),
               let highlights = folioReaderHighlightProvider.folioReaderHighlight(self.folioReader, allByBookId: bookId, andPage: pageNumber as NSNumber?).map({ hl -> FolioReaderHighlight in
@@ -1850,7 +1880,7 @@ writingMode
     open func handleAnchor(_ anchor: String, offsetInWindow: CGFloat, avoidBeginningAnchors: Bool, animated: Bool, completion: (() -> Void)? = nil) {
         guard !anchor.isEmpty else { return }
         
-        guard let webView = webView, webView.isHidden == false, self.layoutAdapting == false else {
+        guard let webView = webView, webView.isHidden == false, self.layoutAdapting == nil else {
             delay(0.1) {
                 self.handleAnchor(anchor, offsetInWindow: offsetInWindow, avoidBeginningAnchors: avoidBeginningAnchors, animated: animated, completion: completion)
             }
@@ -2002,7 +2032,7 @@ extension FolioReaderPage {
     }
     
     func waitForLayoutFinish(completion: @escaping () -> Void, retry: Int = 99) {
-        if layoutAdapting, retry > 0 {
+        if layoutAdapting != nil, retry > 0 {
             delay(0.1) {
                 self.waitForLayoutFinish(completion: completion, retry: retry - 1)
             }

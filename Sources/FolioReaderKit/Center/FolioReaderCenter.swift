@@ -328,8 +328,8 @@ open class FolioReaderCenter: UIViewController {
         
         let currentIndexPath = getCurrentIndexPath()
         
-        if currentPage.layoutAdapting == false {
-            currentPage.layoutAdapting = true
+        if currentPage.layoutAdapting == nil {
+            currentPage.layoutAdapting = "Transitioning..."
             currentPage.updatePageOffsetRate()
         }
         let pageOffsetRate = currentPage.pageOffsetRate
@@ -370,7 +370,7 @@ open class FolioReaderCenter: UIViewController {
                                     delay(0.2) {
                                         folioLogger("TRANS3 pageOffsetRate=\(currentPage.pageOffsetRate) contentSize=\(currentPage.webView?.scrollView.contentSize ?? .zero) contentOffset=\(currentPage.webView?.scrollView.contentOffset ?? .zero)")
                                         currentPage.updatePageOffsetRate()
-                                        currentPage.layoutAdapting = false
+                                        currentPage.layoutAdapting = nil
                                         folioLogger("TRANS4 pageOffsetRate=\(currentPage.pageOffsetRate) contentSize=\(currentPage.webView?.scrollView.contentSize ?? .zero) contentOffset=\(currentPage.webView?.scrollView.contentOffset ?? .zero)")
                                         currentPage.updatePageInfo()
                                     }

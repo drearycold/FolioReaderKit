@@ -241,7 +241,7 @@ extension FolioReaderProfileMenu {
                 guard let page = $0 as? FolioReaderPage else { return }
                 
                 page.webView?.isHidden = true
-                page.layoutAdapting = true
+                page.layoutAdapting = "Applying Profile..."
                 page.webView?.reload()
             }
             
