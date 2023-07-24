@@ -616,6 +616,20 @@ open class FolioReaderWebView: WKWebView {
     
     // MARK: - Java Script Bridge
     
+    @available(iOS 13.0.0, *)
+    open func js(_ script: String) async -> String? {
+        if let result = try? await evaluateJavaScript(script) {
+            let output = "\(result)"
+            if output.isEmpty {
+                return nil
+            } else {
+                return output
+            }
+        } else {
+            return nil
+        }
+    }
+    
     open func js(_ script: String, completion: JSCallback? = nil) {
         evaluateJavaScript(script) { result, error in
             let output: String?

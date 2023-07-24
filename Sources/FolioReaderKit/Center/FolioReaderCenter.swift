@@ -31,7 +31,6 @@ open class FolioReaderCenter: UIViewController {
     
     let collectionViewLayout = FolioReaderCenterLayout()
     var loadingView: UIActivityIndicatorView!
-    var pages: [String]!
     var totalPages: Int = 0
     var tempFragment: String?
     var tempOffset: CGPoint?
@@ -180,6 +179,7 @@ open class FolioReaderCenter: UIViewController {
         
         // Register cell classes
         collectionView.register(FolioReaderPage.self, forCellWithReuseIdentifier: kReuseCellIdentifier)
+        collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: kReusePrologueCellIdentifier)
 
         enableScrollBetweenChapters(scrollEnabled: true)
         if readerConfig.debug.contains(.borderHighlight) {

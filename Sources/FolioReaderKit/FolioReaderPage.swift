@@ -101,7 +101,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                 if pageNumber > 1 {
                     guard self.adView == nil,
                           let adView = self.folioReader.delegate?.folioReaderAdView?(self.folioReader)
-                            
                     else { return }
                     
                     self.contentView.addSubview(adView)
@@ -111,11 +110,15 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                     
                     if folioReader.readerCenter?.menuBarController.presentingViewController != nil {
                         constraintsWithAdView = [
-                            adView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 70)  //navbar + padding
+                            adView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 70),  //navbar + padding
+                            loadingLabelView.topAnchor.constraint(equalTo: adView.bottomAnchor, constant: 32),
+                            loadingView.topAnchor.constraint(equalTo: loadingLabelView.bottomAnchor, constant: 16),
                         ]
                     } else {
                         constraintsWithAdView = [
-                            adView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
+                            adView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+                            loadingLabelView.topAnchor.constraint(equalTo: adView.bottomAnchor, constant: 32),
+                            loadingView.topAnchor.constraint(equalTo: loadingLabelView.bottomAnchor, constant: 16),
                         ]
                     }
                     
@@ -123,8 +126,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                         adView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
                         loadingLabelView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
                         loadingView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-                        loadingLabelView.topAnchor.constraint(equalTo: adView.bottomAnchor, constant: 32),
-                        loadingView.topAnchor.constraint(equalTo: loadingLabelView.bottomAnchor, constant: 16)
                     ])
                     NSLayoutConstraint.activate(constraintsWithAdView)
                     
@@ -270,14 +271,11 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             loadingLabelView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
         ])
         
-        let constraintLoadingView = loadingView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
-        constraintLoadingView.priority = .defaultLow
-        let constraintLoadingLabelView = loadingLabelView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
-        constraintsWithAdView = [
-            constraintLoadingView,
-            constraintLoadingLabelView
+        constraintsWithoutAdView = [
+            loadingLabelView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            loadingView.centerYAnchor.constraint(equalTo: loadingLabelView.centerYAnchor, constant: 30),
         ]
-        NSLayoutConstraint.activate(constraintsWithAdView)
+        NSLayoutConstraint.activate(constraintsWithoutAdView)
         
         // Remove all gestures before adding new one
         webView?.gestureRecognizers?.forEach({ gesture in

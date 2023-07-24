@@ -18,8 +18,8 @@ open class FolioReaderContainer: UIViewController {
     public var epubPath: String
     public var book: FRBook
     
-    public var centerNavigationController: UINavigationController?
-    public var centerViewController: FolioReaderCenter?
+    public var centerNavigationController: UINavigationController!
+    public var centerViewController: FolioReaderCenter!
     public var audioPlayer: FolioReaderAudioPlayer?
     
     public var readerConfig: FolioReaderConfig
@@ -122,28 +122,27 @@ open class FolioReaderContainer: UIViewController {
         let hideBars = readerConfig.hideBars
         self.readerConfig.shouldHideNavigationOnTap = ((hideBars == true) ? true : self.readerConfig.shouldHideNavigationOnTap)
 
-        self.centerViewController = FolioReaderCenter(withContainer: self)
-
-        if let rootViewController = self.centerViewController {
-            self.centerNavigationController = UINavigationController(rootViewController: rootViewController)
-            if readerConfig.debug.contains(.borderHighlight) {
-                rootViewController.view.layer.borderWidth = 6
-                rootViewController.view.layer.borderColor = UIColor.green.cgColor
-            }
+        let rootViewController = FolioReaderCenter(withContainer: self)
+        let centerNavigationController = UINavigationController(rootViewController: rootViewController)
+        
+        if readerConfig.debug.contains(.borderHighlight) {
+            rootViewController.view.layer.borderWidth = 6
+            rootViewController.view.layer.borderColor = UIColor.green.cgColor
         }
+        self.centerViewController = rootViewController
 
-        self.centerNavigationController?.setNavigationBarHidden(self.readerConfig.shouldHideNavigationOnTap, animated: false)
-        if let _centerNavigationController = self.centerNavigationController {
-            self.view.addSubview(_centerNavigationController.view)
-            self.addChild(_centerNavigationController)
-            if readerConfig.debug.contains(.borderHighlight) {
-                _centerNavigationController.view.layer.borderWidth = 4
-                _centerNavigationController.view.layer.borderColor = UIColor.blue.cgColor
-                _centerNavigationController.navigationBar.layer.borderWidth = 6
-                _centerNavigationController.navigationBar.layer.borderColor = UIColor.yellow.cgColor
-            }
+        centerNavigationController.setNavigationBarHidden(self.readerConfig.shouldHideNavigationOnTap, animated: false)
+        self.view.addSubview(centerNavigationController.view)
+        self.addChild(centerNavigationController)
+        if readerConfig.debug.contains(.borderHighlight) {
+            centerNavigationController.view.layer.borderWidth = 4
+            centerNavigationController.view.layer.borderColor = UIColor.blue.cgColor
+            centerNavigationController.navigationBar.layer.borderWidth = 6
+            centerNavigationController.navigationBar.layer.borderColor = UIColor.yellow.cgColor
         }
-        self.centerNavigationController?.didMove(toParent: self)
+        centerNavigationController.didMove(toParent: self)
+        
+        self.centerNavigationController = centerNavigationController
 
         if (self.readerConfig.hideBars == true) {
             self.readerConfig.shouldHideNavigationOnTap = false
