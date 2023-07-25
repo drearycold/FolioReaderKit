@@ -127,16 +127,22 @@ open class FolioReaderWebView: WKWebView {
     @objc func share(_ sender: UIMenuController?) {
         guard let sender = sender else { return }
         
+        guard let currentPage = self.folioReader.readerCenter?.currentPage,
+              let webView = currentPage.webView
+        else {
+            return
+        }
+        
         let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
         let shareImage = UIAlertAction(title: self.readerConfig.localizedShareImageQuote, style: .default, handler: { (action) -> Void in
-            if self.isSharingHighlight {
-                self.js("getHighlightContent()") { textToShare in
+            if webView.isSharingHighlight {
+                webView.js("getHighlightContent()") { textToShare in
                     guard let textToShare = textToShare else { return }
                     self.folioReader.readerCenter?.presentQuoteShare(textToShare)
                 }
             } else {
-                self.js("getSelectedText()") { textToShare in
+                webView.js("getSelectedText()") { textToShare in
                     guard let textToShare = textToShare else { return }
                     self.folioReader.readerCenter?.presentQuoteShare(textToShare)
 
@@ -147,13 +153,13 @@ open class FolioReaderWebView: WKWebView {
         })
 
         let shareText = UIAlertAction(title: self.readerConfig.localizedShareTextQuote, style: .default) { (action) -> Void in
-            if self.isSharingHighlight {
-                self.js("getHighlightContent()") { textToShare in
+            if webView.isSharingHighlight {
+                webView.js("getHighlightContent()") { textToShare in
                     guard let textToShare = textToShare else { return }
                     self.folioReader.readerCenter?.shareHighlight(textToShare, rect: sender.menuFrame)
                 }
             } else {
-                self.js("getSelectedText()") { textToShare in
+                webView.js("getSelectedText()") { textToShare in
                     guard let textToShare = textToShare else { return }
                     self.folioReader.readerCenter?.shareHighlight(textToShare, rect: sender.menuFrame)
                 }
@@ -372,7 +378,12 @@ open class FolioReaderWebView: WKWebView {
     }
     
     @objc func updateHighlightNote (_ sender: UIMenuController?) {
-        js("getHighlightId()") { highlightId in
+        guard let currentPage = self.folioReader.readerCenter?.currentPage,
+              let webView = currentPage.webView
+        else {
+            return
+        }
+        webView.js("getHighlightId()") { highlightId in
             guard
                 let highlightId = highlightId,
                 let highlightNote = self.folioReader.delegate?.folioReaderHighlightProvider?(self.folioReader).folioReaderHighlight(self.folioReader, getById: highlightId)
@@ -384,7 +395,12 @@ open class FolioReaderWebView: WKWebView {
     }
 
     @objc func define(_ sender: UIMenuController?) {
-        js("getSelectedText()") { selectedText in
+        guard let currentPage = self.folioReader.readerCenter?.currentPage,
+              let webView = currentPage.webView
+        else {
+            return
+        }
+        webView.js("getSelectedText()") { selectedText in
             guard let selectedText = selectedText else { return }
 
             self.setMenuVisible(false)
@@ -400,7 +416,12 @@ open class FolioReaderWebView: WKWebView {
     }
 
     @objc func lookup(_ sender: UIMenuController?) {
-        js("getSelectedText()") { selectedText in
+        guard let currentPage = self.folioReader.readerCenter?.currentPage,
+              let webView = currentPage.webView
+        else {
+            return
+        }
+        webView.js("getSelectedText()") { selectedText in
             guard let selectedText = selectedText else { return }
             guard let mDictView = self.mDictView else { return }
 
@@ -437,7 +458,12 @@ open class FolioReaderWebView: WKWebView {
     }
     
     @objc func reference(_ sender: UIMenuController?) {
-        js("getSelectedTextCFI()") { selJsonStr in
+        guard let currentPage = self.folioReader.readerCenter?.currentPage,
+              let webView = currentPage.webView
+        else {
+            return
+        }
+        webView.js("getSelectedTextCFI()") { selJsonStr in
             guard let selJsonData = selJsonStr?.data(using: .utf8),
                   let selJson = try? JSONSerialization.jsonObject(with: selJsonData) as? [String:String],
                   let selectedText = selJson["sel"],
@@ -590,7 +616,9 @@ open class FolioReaderWebView: WKWebView {
         menuController.menuItems = menuItems
         menuController.update()
         
-        UIMenuController.installTo(responder: self)
+        if let readerContainer = self.folioReader.readerContainer {
+            UIMenuController.installTo(responder: readerContainer)
+        }
     }
     
     open func setMenuVisible(_ menuVisible: Bool, animated: Bool = true, andRect rect: CGRect = CGRect.zero) {
@@ -649,7 +677,7 @@ open class FolioReaderWebView: WKWebView {
             {
                 // skip debugPrint - html hasn't loaded yet
             } else if let error = error {
-                debugPrint("evaluateJavaScript(\(script)) returned an error:", error)
+                debugPrint("evaluateJavaScript(\(script)) returned an error:", error, "url:", self.url?.absoluteString ?? "NOURL")
             }
             completion?(output)
         }

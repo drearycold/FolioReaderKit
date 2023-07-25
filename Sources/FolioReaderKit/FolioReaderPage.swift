@@ -98,7 +98,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                 
 //                self.folioReader.delegate?.folioReaderAdPresent?(self.folioReader)
                 
-                if pageNumber > 1 {
+                if pageNumber != 1 {
                     guard self.adView == nil,
                           let adView = self.folioReader.delegate?.folioReaderAdView?(self.folioReader)
                     else { return }
@@ -106,7 +106,12 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                     self.contentView.addSubview(adView)
                     
                     NSLayoutConstraint.deactivate(constraintsWithAdView.filter({ $0.isActive }))
-                    NSLayoutConstraint.deactivate(constraintsWithoutAdView.filter({ $0.isActive }))
+                    let activeConstraints = constraintsWithoutAdView.filter({ $0.isActive })
+                    
+                    NSLayoutConstraint.deactivate(activeConstraints)
+                    
+                    loadingLabelView.removeFromSuperview()
+                    self.contentView.addSubview(loadingLabelView)
                     
                     if folioReader.readerCenter?.menuBarController.presentingViewController != nil {
                         constraintsWithAdView = [
