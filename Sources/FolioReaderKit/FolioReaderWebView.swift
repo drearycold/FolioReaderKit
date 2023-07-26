@@ -445,12 +445,18 @@ open class FolioReaderWebView: WKWebView {
             
             let nav = UINavigationController(rootViewController: mDictView)
             nav.navigationBar.isTranslucent = false
+            nav.isToolbarHidden = false
+            nav.view.backgroundColor = mDictView.view.backgroundColor
+            
             nav.navigationBar.tintColor = self.readerConfig.themeModeTextColor[self.folioReader.themeMode]
             nav.navigationBar.backgroundColor = self.readerConfig.themeModeBackground[self.folioReader.themeMode]
             nav.navigationBar.barTintColor = self.readerConfig.themeModeNavBackground[self.folioReader.themeMode]
             nav.navigationBar.titleTextAttributes = [
                 .foregroundColor: self.readerConfig.themeModeTextColor[self.folioReader.themeMode]
             ]
+            nav.toolbar.tintColor = nav.navigationBar.tintColor
+            nav.toolbar.backgroundColor = nav.navigationBar.backgroundColor
+            nav.toolbar.barTintColor = nav.navigationBar.barTintColor
 
             guard let readerContainer = self.readerContainer else { return }
             readerContainer.show(nav, sender: nil)
