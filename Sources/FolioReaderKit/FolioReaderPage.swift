@@ -52,9 +52,9 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     open var panDeadZoneBot: UIView?
     open var panDeadZoneLeft: UIView?
     open var panDeadZoneRight: UIView?
-    open var loadingView = UIActivityIndicatorView()
-    open var loadingLabelView = UILabel()
-
+    
+    var activityView: FolioReaderPageActivity!
+    
     open var writingMode = "horizontal-tb"
     
     open var pageOffsetRate: CGFloat = 0 {
@@ -85,67 +85,21 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     fileprivate var menuIsVisible = false
     fileprivate var firstLoadReloaded = false
     
-    private var adView: UIView? = nil
-    private var constraintsWithAdView = [NSLayoutConstraint]()
-    private var constraintsWithoutAdView = [NSLayoutConstraint]()
-    
-    var layoutAdapting: String? = nil {
+     var layoutAdapting: String? = nil {
         didSet {
             if let layoutAdapting = layoutAdapting {
-                loadingView.startAnimating()
-                loadingLabelView.text = layoutAdapting
-                loadingLabelView.isHidden = false
-                
-//                self.folioReader.delegate?.folioReaderAdPresent?(self.folioReader)
-                
                 if pageNumber != 1 {
-                    guard self.adView == nil,
-                          let adView = self.folioReader.delegate?.folioReaderAdView?(self.folioReader)
-                    else { return }
-                    
-                    self.contentView.addSubview(adView)
-                    
-                    NSLayoutConstraint.deactivate(constraintsWithAdView.filter({ $0.isActive }))
-                    let activeConstraints = constraintsWithoutAdView.filter({ $0.isActive })
-                    
-                    NSLayoutConstraint.deactivate(activeConstraints)
-                    
-                    loadingLabelView.removeFromSuperview()
-                    self.contentView.addSubview(loadingLabelView)
-                    
-                    if folioReader.readerCenter?.menuBarController.presentingViewController != nil {
-                        constraintsWithAdView = [
-                            adView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 70),  //navbar + padding
-                            loadingLabelView.topAnchor.constraint(equalTo: adView.bottomAnchor, constant: 32),
-                            loadingView.topAnchor.constraint(equalTo: loadingLabelView.bottomAnchor, constant: 16),
-                        ]
-                    } else {
-                        constraintsWithAdView = [
-                            adView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-                            loadingLabelView.topAnchor.constraint(equalTo: adView.bottomAnchor, constant: 32),
-                            loadingView.topAnchor.constraint(equalTo: loadingLabelView.bottomAnchor, constant: 16),
-                        ]
+                    if activityView.adView == nil {
+                        activityView.adView = self.folioReader.delegate?.folioReaderAdView?(self.folioReader)
                     }
                     
-                    NSLayoutConstraint.activate([
-                        adView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-                        loadingLabelView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-                        loadingView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-                    ])
-                    NSLayoutConstraint.activate(constraintsWithAdView)
+                    activityView.activate(layoutAdapting, activityView.adView != nil)
                     
-                    self.adView = adView
                 } else {
-                    NSLayoutConstraint.deactivate(constraintsWithAdView.filter({ $0.isActive }))
-                    NSLayoutConstraint.deactivate(constraintsWithoutAdView.filter({ $0.isActive }))
-                    NSLayoutConstraint.activate(constraintsWithoutAdView)
+                    activityView.activate(layoutAdapting, false)
                 }
             } else {
-                loadingView.stopAnimating()
-                loadingLabelView.text = nil
-                loadingLabelView.isHidden = true
-                adView?.removeFromSuperview()
-                adView = nil
+                activityView.deactivate()
             }
             
         }
@@ -169,7 +123,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
 
     public override init(frame: CGRect) {
         // Init explicit attributes with a default value. The `setup` function MUST be called to configure the current object with valid attributes.
-        self.readerContainer = FolioReaderContainer(withConfig: FolioReaderConfig(), folioReader: FolioReader(), epubPath: "")
+        // self.readerContainer = FolioReaderContainer(withConfig: FolioReaderConfig(), folioReader: FolioReader(), epubPath: "")
         super.init(frame: frame)
         self.backgroundColor = UIColor.clear
 
@@ -257,30 +211,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             colorView.backgroundColor = self.readerConfig.nightModeBackground
             webView?.scrollView.addSubview(colorView)
         }
-
-        loadingView.style = folioReader.isNight(.white, .gray)
-        loadingView.hidesWhenStopped = true
-        loadingView.startAnimating()
-        loadingView.translatesAutoresizingMaskIntoConstraints = false
-        self.contentView.addSubview(loadingView)
-        
-        NSLayoutConstraint.activate([
-            loadingView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-        ])
-        
-        loadingLabelView.text = "Initializing..."
-        loadingLabelView.textColor = readerConfig.themeModeTextColor[folioReader.themeMode]
-        loadingLabelView.translatesAutoresizingMaskIntoConstraints = false
-        self.contentView.addSubview(loadingLabelView)
-        NSLayoutConstraint.activate([
-            loadingLabelView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-        ])
-        
-        constraintsWithoutAdView = [
-            loadingLabelView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            loadingView.centerYAnchor.constraint(equalTo: loadingLabelView.centerYAnchor, constant: 30),
-        ]
-        NSLayoutConstraint.activate(constraintsWithoutAdView)
         
         // Remove all gestures before adding new one
         webView?.gestureRecognizers?.forEach({ gesture in
@@ -290,6 +220,18 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         tapGestureRecognizer.numberOfTapsRequired = 1
         tapGestureRecognizer.delegate = self
         webView?.addGestureRecognizer(tapGestureRecognizer)
+        
+        if activityView == nil {
+            activityView = FolioReaderPageActivity(folioReader: readerContainer.folioReader)
+            activityView.translatesAutoresizingMaskIntoConstraints = false
+            self.contentView.addSubview(activityView)
+            NSLayoutConstraint.activate([
+                activityView.centerXAnchor.constraint(equalTo: self.contentView.centerXAnchor),
+                activityView.centerYAnchor.constraint(equalTo: self.contentView.centerYAnchor),
+                activityView.widthAnchor.constraint(equalTo: self.contentView.widthAnchor),
+                activityView.heightAnchor.constraint(equalTo: self.contentView.heightAnchor)
+            ])
+        }
     }
 
     required public init?(coder aDecoder: NSCoder) {
