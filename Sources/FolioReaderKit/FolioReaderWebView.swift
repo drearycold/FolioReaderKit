@@ -543,14 +543,20 @@ open class FolioReaderWebView: WKWebView {
         isSharingHighlight = onHighlight
 
         let colors = UIImage(readerImageNamed: "colors-marker")
-        let share = UIImage(readerImageNamed: "share-marker")
+        var share = UIImage(readerImageNamed: "share-marker")
+        if #available(iOS 13.0, *) {
+            share = share?.withTintColor(self.readerConfig.themeModeTextColor[self.folioReader.themeMode])
+        }
         let remove = UIImage(readerImageNamed: "no-marker")
         let yellow = UIImage(readerImageNamed: "yellow-marker")
         let green = UIImage(readerImageNamed: "green-marker")
         let blue = UIImage(readerImageNamed: "blue-marker")
         let pink = UIImage(readerImageNamed: "pink-marker")
         let underline = UIImage(readerImageNamed: "underline-marker")
-        let mdictImage = UIImage(readerImageNamed: "icon-dictionary")
+        var mdictImage = UIImage(readerImageNamed: "icon-dictionary")
+        if #available(iOS 13.0, *) {
+            mdictImage = mdictImage?.withTintColor(self.readerConfig.themeModeTextColor[self.folioReader.themeMode])
+        }
 
         let menuController = UIMenuController.shared
 
