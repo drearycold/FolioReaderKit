@@ -15,7 +15,7 @@ open class FolioReaderWebView: WKWebView {
     var isColors = false
     var isSharingHighlight = false
     
-    var mDictView : UIViewController?
+    var mDictView : UINavigationController?
     
     open var additionalMenuItems = [UIMenuItem]()
     
@@ -440,26 +440,13 @@ open class FolioReaderWebView: WKWebView {
             } catch {
                 title = selectedText
             }
-            mDictView.title = title
-            mDictView.view.backgroundColor = self.readerConfig.themeModeBackground[self.folioReader.themeMode]
             
-            let nav = UINavigationController(rootViewController: mDictView)
-            nav.navigationBar.isTranslucent = false
-            nav.isToolbarHidden = false
-            nav.view.backgroundColor = mDictView.view.backgroundColor
+            mDictView.title = selectedText
+            self.folioReader.readerCenter?.pageDelegate?.pageStyleChanged?(currentPage, self.folioReader)
             
-            nav.navigationBar.tintColor = self.readerConfig.themeModeTextColor[self.folioReader.themeMode]
-            nav.navigationBar.backgroundColor = self.readerConfig.themeModeBackground[self.folioReader.themeMode]
-            nav.navigationBar.barTintColor = self.readerConfig.themeModeNavBackground[self.folioReader.themeMode]
-            nav.navigationBar.titleTextAttributes = [
-                .foregroundColor: self.readerConfig.themeModeTextColor[self.folioReader.themeMode]
-            ]
-            nav.toolbar.tintColor = nav.navigationBar.tintColor
-            nav.toolbar.backgroundColor = nav.navigationBar.backgroundColor
-            nav.toolbar.barTintColor = nav.navigationBar.barTintColor
-
             guard let readerContainer = self.readerContainer else { return }
-            readerContainer.show(nav, sender: nil)
+//            readerContainer.show(mDictView, sender: nil)
+            readerContainer.present(mDictView, animated: true)
         }
     }
     
@@ -496,7 +483,7 @@ open class FolioReaderWebView: WKWebView {
         self.clearTextSelection()
     }
 
-    open func setMDictView(mDictView: UIViewController) {
+    open func setMDictView(mDictView: UINavigationController) {
         self.mDictView = mDictView
     }
     

@@ -35,6 +35,8 @@ import WebKit
      - parameter recognizer: The tap recognizer
      */
     @objc optional func pageTap(_ recognizer: UITapGestureRecognizer)
+    
+    @objc optional func pageStyleChanged(_ page: FolioReaderPage, _ reader: FolioReader)
 }
 
 open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestureRecognizerDelegate, WKScriptMessageHandler {
