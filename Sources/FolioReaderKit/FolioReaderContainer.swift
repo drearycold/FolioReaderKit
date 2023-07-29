@@ -95,17 +95,6 @@ open class FolioReaderContainer: UIViewController {
     override open func viewDidLoad() {
         super.viewDidLoad()
 
-        do {
-            guard let archive = Archive(url: URL(fileURLWithPath: self.epubPath), accessMode: .read, preferredEncoding: .utf8) else { throw FolioReaderError.errorInContainer }
-            folioLogger("BEFORE readEpub")
-            let parsedBook = try FREpubParserArchive(book: FRBook(), archive: archive).readEpubLight(epubPath: self.epubPath)
-            folioLogger("AFTER readEpub")
-
-            self.book = parsedBook
-        } catch {
-            self.errorOnLoad = true
-        }
-        
         //let canChangeScrollDirection = self.readerConfig.canChangeScrollDirection
         //self.readerConfig.canChangeScrollDirection = self.readerConfig.isDirection(canChangeScrollDirection, canChangeScrollDirection, false)
 
@@ -163,87 +152,119 @@ open class FolioReaderContainer: UIViewController {
         }
     }
 
+    override open func viewWillAppear(_ animated: Bool) {
+        defer {
+            super.viewWillAppear(animated)
+        }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+
+//                do {
+//                    guard let archive = Archive(url: URL(fileURLWithPath: self.epubPath), accessMode: .read, preferredEncoding: .utf8) else { throw FolioReaderError.errorInContainer }
+//                    folioLogger("BEFORE readEpub")
+//                    let parsedBook = try FREpubParserArchive(book: FRBook(), archive: archive).readEpubLight(epubPath: self.epubPath)
+//                    folioLogger("AFTER readEpub")
+//
+//                    self.book = parsedBook
+//                } catch {
+//                    self.errorOnLoad = true
+//                }
+            
+            do {
+                guard let archive = Archive(url: URL(fileURLWithPath: self.epubPath), accessMode: .read, preferredEncoding: .utf8) else { throw FolioReaderError.errorInContainer }
+                
+//                    guard let archive = self.book.epubArchive else { throw FolioReaderError.errorInContainer }
+                
+                folioLogger("BEFORE readEpub")
+                let parsedBook = try FREpubParserArchive(book: self.book, archive: archive).readEpub(epubPath: self.epubPath)
+                folioLogger("AFTER readEpub")
+
+                self.book = parsedBook
+                
+                self.folioReader.isReaderOpen = true
+                
+                // Reload data
+                DispatchQueue.main.async {
+                    if let position = self.readerConfig.savedPositionForCurrentBook {
+                        self.folioReader.structuralStyle = position.structuralStyle
+                        self.folioReader.structuralTrackingTocLevel = position.positionTrackingStyle
+                        self.folioReader.readerCenter?.currentWebViewScrollPositions[position.pageNumber - 1] = position
+                        position.takePrecedence = true
+                        self.folioReader.savedPositionForCurrentBook = position
+                    }
+
+                    let structuralTrackingTocLevel = self.folioReader.structuralTrackingTocLevel
+                    self.book.updateBundleInfo(rootTocLevel: structuralTrackingTocLevel.rawValue)
+                    
+                    //FIXME: temp fix for highlights
+                    self.tempFixForHighlights()
+                    
+                    // Add audio player if needed
+                    if self.book.hasAudio || self.readerConfig.enableTTS {
+                        self.addAudioPlayer()
+                    }
+                    
+                    self.folioReader.delegate?.folioReader?(self.folioReader, didFinishedLoading: self.book)
+                    
+                    self.centerViewController.reloadData()
+                    self.folioReader.isReaderReady = true
+                }
+            } catch {
+                self.errorOnLoad = true
+                self.alert(message: error.localizedDescription)
+            }
+            
+            if (self.errorOnLoad == true) {
+                self.dismiss()
+            }
+        }
+    }
+    
     override open func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
         if !self.folioReader.isReaderOpen {
-            DispatchQueue.global(qos: .userInitiated).async {
-
-                do {
-                    guard let archive = self.book.epubArchive else { throw FolioReaderError.errorInContainer }
-                    folioLogger("BEFORE readEpub")
-                    let parsedBook = try FREpubParserArchive(book: self.book, archive: archive).readEpub(epubPath: self.epubPath)
-                    folioLogger("AFTER readEpub")
-
-                    self.book = parsedBook
-                    
-                    self.folioReader.isReaderOpen = true
-                    
-                    // Reload data
-                    DispatchQueue.main.async {
-                        if let position = self.readerConfig.savedPositionForCurrentBook {
-                            self.folioReader.structuralStyle = position.structuralStyle
-                            self.folioReader.structuralTrackingTocLevel = position.positionTrackingStyle
-                            self.folioReader.readerCenter?.currentWebViewScrollPositions[position.pageNumber - 1] = position
-                            position.takePrecedence = true
-                            self.folioReader.savedPositionForCurrentBook = position
-                        }
-
-                        let structuralTrackingTocLevel = self.folioReader.structuralTrackingTocLevel
-                        self.book.updateBundleInfo(rootTocLevel: structuralTrackingTocLevel.rawValue)
-                        
-                        //FIXME: temp fix for highlights
-                        if let highlightProvider = self.folioReader.delegate?.folioReaderHighlightProvider?(self.folioReader),
-                           let bookId = (self.book.name as NSString?)?.deletingPathExtension {
-                            highlightProvider.folioReaderHighlight(self.folioReader, allByBookId: bookId, andPage: nil)
-                                .filter {
-                                    $0.spineName == nil || $0.spineName.isEmpty || $0.spineName == "TODO" || $0.cfiStart?.hasPrefix("/2") == false || $0.cfiEnd?.hasPrefix("/2") == false
-                                }.forEach { highlight in
-                                    if highlight.spineName == "TODO", highlight.page > 1 {
-                                        highlight.page -= 1
-                                    }
-                                    if let resHref = self.book.spine.spineReferences[safe: highlight.page - 1]?.resource.href,
-                                       let opfUrl = URL(string: self.book.opfResource.href),
-                                       let resUrl = URL(string: resHref, relativeTo: opfUrl) {
-                                        highlight.spineName = resUrl.absoluteString.replacingOccurrences(of: "//", with: "")
-                                        while highlight.spineName.hasPrefix("/") {
-                                            highlight.spineName.removeFirst()
-                                        }
-                                        if let cfiStart = highlight.cfiStart, cfiStart.hasPrefix("/2") == false {
-                                            highlight.cfiStart = "/2\(cfiStart)"
-                                        }
-                                        if let cfiEnd = highlight.cfiEnd, cfiEnd.hasPrefix("/2") == false {
-                                            highlight.cfiEnd = "/2\(cfiEnd)"
-                                        }
-                                        highlight.date += 0.001
-                                    }
-                                    print("\(#function) fixHighlight \(highlight.page) \(highlight.spineName) \(highlight.cfiStart) \(highlight.cfiEnd) \(highlight.style) \(highlight.content.prefix(10))")
-                                    highlightProvider.folioReaderHighlight(self.folioReader, added: highlight, completion: nil)
-                                }
-                        }
-                        
-                        // Add audio player if needed
-                        if self.book.hasAudio || self.readerConfig.enableTTS {
-                            self.addAudioPlayer()
-                        }
-                        
-                        self.folioReader.delegate?.folioReader?(self.folioReader, didFinishedLoading: self.book)
-                        
-                        self.centerViewController?.reloadData()
-                        self.folioReader.isReaderReady = true
-                    }
-                } catch {
-                    self.errorOnLoad = true
-                    self.alert(message: error.localizedDescription)
-                }
-            }
         }
         
-        if (self.errorOnLoad == true) {
-            self.dismiss()
-        }
+//        if (self.errorOnLoad == true) {
+//            self.dismiss()
+//        }
     }
 
+    func tempFixForHighlights() {
+        guard let highlightProvider = self.folioReader.delegate?.folioReaderHighlightProvider?(self.folioReader),
+           let bookId = (self.book.name as NSString?)?.deletingPathExtension
+        else {
+            return
+        }
+        
+        highlightProvider.folioReaderHighlight(self.folioReader, allByBookId: bookId, andPage: nil)
+            .filter {
+                $0.spineName == nil || $0.spineName.isEmpty || $0.spineName == "TODO" || $0.cfiStart?.hasPrefix("/2") == false || $0.cfiEnd?.hasPrefix("/2") == false
+            }.forEach { highlight in
+                if highlight.spineName == "TODO", highlight.page > 1 {
+                    highlight.page -= 1
+                }
+                if let resHref = self.book.spine.spineReferences[safe: highlight.page - 1]?.resource.href,
+                   let opfUrl = URL(string: self.book.opfResource.href),
+                   let resUrl = URL(string: resHref, relativeTo: opfUrl) {
+                    highlight.spineName = resUrl.absoluteString.replacingOccurrences(of: "//", with: "")
+                    while highlight.spineName.hasPrefix("/") {
+                        highlight.spineName.removeFirst()
+                    }
+                    if let cfiStart = highlight.cfiStart, cfiStart.hasPrefix("/2") == false {
+                        highlight.cfiStart = "/2\(cfiStart)"
+                    }
+                    if let cfiEnd = highlight.cfiEnd, cfiEnd.hasPrefix("/2") == false {
+                        highlight.cfiEnd = "/2\(cfiEnd)"
+                    }
+                    highlight.date += 0.001
+                }
+                print("\(#function) fixHighlight \(highlight.page) \(highlight.spineName) \(highlight.cfiStart) \(highlight.cfiEnd) \(highlight.style) \(highlight.content.prefix(10))")
+                highlightProvider.folioReaderHighlight(self.folioReader, added: highlight, completion: nil)
+            }
+    }
+    
     /**
      Initialize the media player
      */
