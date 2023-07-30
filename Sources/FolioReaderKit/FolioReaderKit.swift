@@ -165,7 +165,7 @@ public class FolioReader: NSObject {
         return (self.readerContainer?.book.spine.isRtl == true && (true || self.readerContainer?.readerConfig.scrollDirection == .horitonzalWithPagedContent))
     }
 
-    func isNight<T>(_ f: T, _ l: T) -> T {
+    open func isNight<T>(_ f: T, _ l: T) -> T {
         return (self.nightMode == true ? f : l)
     }
 
