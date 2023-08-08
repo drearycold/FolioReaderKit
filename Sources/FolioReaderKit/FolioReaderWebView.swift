@@ -428,19 +428,6 @@ open class FolioReaderWebView: WKWebView {
             self.setMenuVisible(false)
             self.clearTextSelection()
 
-            var json = [
-                "word": selectedText,
-                "backgroundColor": self.readerConfig.themeModeBackground[self.folioReader.themeMode].hexString(false)]
-            if self.folioReader.nightMode {
-                json["textColor"] = self.readerConfig.themeModeTextColor[self.folioReader.themeMode].hexString(false)
-            }
-            var title = ""
-            do {
-                title = String(data: try JSONEncoder().encode(json), encoding: .utf8) ?? selectedText
-            } catch {
-                title = selectedText
-            }
-            
             mDictView.title = selectedText
             self.folioReader.readerCenter?.pageDelegate?.pageStyleChanged?(currentPage, self.folioReader)
             

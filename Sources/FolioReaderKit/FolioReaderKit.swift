@@ -196,7 +196,7 @@ extension FolioReader {
     ///   - config: FolioReader configuration.
     ///   - shouldRemoveEpub: Boolean to remove the epub or not. Default true.
     ///   - animated: Pass true to animate the presentation; otherwise, pass false.
-    open func presentReader(parentViewController: UIViewController, withEpubPath epubPath: String, andConfig config: FolioReaderConfig, animated: Bool = true, folioReaderCenterDelegate: FolioReaderCenterDelegate?) {
+    public func presentReader(parentViewController: UIViewController, withEpubPath epubPath: String, andConfig config: FolioReaderConfig, animated: Bool = true, folioReaderCenterDelegate: FolioReaderCenterDelegate?) {
         let readerContainer = FolioReaderContainer(withConfig: config, folioReader: self, epubPath: epubPath)
         readerContainer.modalPresentationStyle = .fullScreen
         self.readerContainer = readerContainer
@@ -205,7 +205,7 @@ extension FolioReader {
         addObservers()
     }
     
-    open func prepareReader(parentViewController: UIViewController, withEpubPath epubPath: String, andConfig config: FolioReaderConfig, animated: Bool = true, folioReaderCenterDelegate: FolioReaderCenterDelegate?) {
+    public func prepareReader(parentViewController: UIViewController, withEpubPath epubPath: String, andConfig config: FolioReaderConfig, animated: Bool = true, folioReaderCenterDelegate: FolioReaderCenterDelegate?) {
         let readerContainer = FolioReaderContainer(withConfig: config, folioReader: self, epubPath: epubPath)
         self.readerContainer = readerContainer
         
@@ -218,7 +218,7 @@ extension FolioReader {
 extension FolioReader {
 
     /// Check if current theme is Night mode
-    open var nightMode: Bool {
+    public var nightMode: Bool {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(nightMode: false) ?? false
         }
@@ -239,7 +239,7 @@ extension FolioReader {
         }
     }
     
-    open var themeMode: Int {
+    public var themeMode: Int {
         get {
             return delegate?.folioReaderPreferenceProvider?(self).preference(themeMode: 1) ?? 1
         }
@@ -296,7 +296,7 @@ extension FolioReader {
         }
     }
 
-    open var currentFont: String {
+    public var currentFont: String {
         get {
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentFont: "Georgia") ?? "Georgia"
         }
@@ -310,7 +310,7 @@ extension FolioReader {
     public static let DefaultFontSize = FolioReader.FontSizes[3]
     
     /// Check current font size. Default .m
-    open var currentFontSize: String {
+    public var currentFontSize: String {
         get {
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentFontSize: FolioReader.DefaultFontSize) ?? FolioReader.DefaultFontSize
         }
@@ -320,12 +320,12 @@ extension FolioReader {
         }
     }
     
-    open var currentFontSizeOnly: Int {
+    public var currentFontSizeOnly: Int {
         return Int(Double(currentFontSize.replacingOccurrences(of: "px", with: "")) ?? 20)
     }
 
     public static let DefaultFontWeight = "500"
-    open var currentFontWeight: String {
+    public var currentFontWeight: String {
         get {
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentFontWeight: "500") ?? "500"
         }
@@ -336,7 +336,7 @@ extension FolioReader {
     }
     
     /// Check current audio rate, the speed of speech voice. Default 0
-    open var currentAudioRate: Int {
+    public var currentAudioRate: Int {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(currentAudioRate: 1) ?? 1
         }
@@ -346,7 +346,7 @@ extension FolioReader {
     }
 
     /// Check the current highlight style.Default 0
-    open var currentHighlightStyle: Int {
+    public var currentHighlightStyle: Int {
         get {
             return delegate?.folioReaderPreferenceProvider?(self)
                 .preference(currentHighlightStyle: FolioReaderHighlightStyle.yellow.rawValue)
@@ -358,7 +358,7 @@ extension FolioReader {
     }
 
     /// Check the current Media Overlay or TTS style
-    open var currentMediaOverlayStyle: MediaOverlayStyle {
+    public var currentMediaOverlayStyle: MediaOverlayStyle {
         get {
             guard let rawValue = delegate?.folioReaderPreferenceProvider?(self).preference(currentMediaOverlayStyle: MediaOverlayStyle.default.rawValue),
                 let style = MediaOverlayStyle(rawValue: rawValue) else {
@@ -371,11 +371,11 @@ extension FolioReader {
         }
     }
 
-    open var defaultScrollDirection: FolioReaderScrollDirection {
+    public var defaultScrollDirection: FolioReaderScrollDirection {
         self.readerContainer?.book.spine.isRtl == true ? .horitonzalWithPagedContent : .horizontalWithScrollContent
     }
     /// Check the current scroll direction. Default .defaultVertical
-    open var currentScrollDirection: Int {
+    public var currentScrollDirection: Int {
         get {
             return delegate?.folioReaderPreferenceProvider?(self)
                 .preference(currentScrollDirection: defaultScrollDirection.rawValue)
@@ -389,7 +389,7 @@ extension FolioReader {
         }
     }
 
-    open var currentNavigationMenuIndex: Int {
+    public var currentNavigationMenuIndex: Int {
         get {
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentNavigationMenuIndex: 0) ?? 0
         }
@@ -398,7 +398,7 @@ extension FolioReader {
         }
     }
     
-    open var currentAnnotationMenuIndex: Int {
+    public var currentAnnotationMenuIndex: Int {
         get {
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentAnnotationMenuIndex: 0) ?? 0
         }
@@ -411,7 +411,7 @@ extension FolioReader {
      0: Grid
      1: List
      */
-    open var currentNavigationMenuBookListSyle: NavigationMenuBookListStyle {
+    public var currentNavigationMenuBookListSyle: NavigationMenuBookListStyle {
         get {
             guard self.structuralStyle == .bundle else {
                 return .List
@@ -427,7 +427,7 @@ extension FolioReader {
         }
     }
     
-    open var currentVMarginLinked: Bool {
+    public var currentVMarginLinked: Bool {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(currentVMarginLinked: true) ?? true
         }
@@ -439,7 +439,7 @@ extension FolioReader {
     public var defaultMarginTop: Int {
         (self.readerCenter?.traitCollection ?? UIScreen.main.traitCollection).verticalSizeClass == .regular ? 10 : 5    //5% for regular size, otherwise 2.5%
     }
-    open var currentMarginTop: Int {
+    public var currentMarginTop: Int {
         get {
             let defaults = self.defaultMarginTop
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentMarginTop: defaults) ?? defaults
@@ -458,7 +458,7 @@ extension FolioReader {
     public var defaultMarginBottom: Int {
         (self.readerCenter?.traitCollection ?? UIScreen.main.traitCollection).verticalSizeClass == .regular ? 10 : 5    //5% for regular size, otherwise 2.5%
     }
-    open var currentMarginBottom: Int {
+    public var currentMarginBottom: Int {
         get {
             let defaults = defaultMarginBottom
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentMarginBottom: defaults) ?? defaults
@@ -474,7 +474,7 @@ extension FolioReader {
         }
     }
 
-    open var currentHMarginLinked: Bool {
+    public var currentHMarginLinked: Bool {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(currentHMarginLinked: true) ?? true
         }
@@ -486,7 +486,7 @@ extension FolioReader {
     public var defaultMarginLeft: Int {
         (self.readerCenter?.traitCollection ?? UIScreen.main.traitCollection).horizontalSizeClass == .regular ? 30 : 5    //15% for regular size, otherwise 2.5%
     }
-    open var currentMarginLeft: Int {
+    public var currentMarginLeft: Int {
         get {
             let defaults = self.defaultMarginLeft
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentMarginLeft: defaults) ?? defaults
@@ -505,7 +505,7 @@ extension FolioReader {
     public var defaultMarginRight: Int {
         (self.readerCenter?.traitCollection ?? UIScreen.main.traitCollection).horizontalSizeClass == .regular ? 30 : 5     //15% for regular size, otherwise 2.5%
     }
-    open var currentMarginRight: Int {
+    public var currentMarginRight: Int {
         get {
             let defaults = self.defaultMarginRight
             return delegate?.folioReaderPreferenceProvider?(self).preference(currentMarginRight: defaults) ?? defaults
@@ -522,7 +522,7 @@ extension FolioReader {
     }
     
     public static let DefaultLetterSpacing = 2
-    open var currentLetterSpacing: Int {
+    public var currentLetterSpacing: Int {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(currentLetterSpacing: 2) ?? 2
         }
@@ -533,7 +533,7 @@ extension FolioReader {
     }
     
     public static let DefaultLineHeight = 3
-    open var currentLineHeight: Int {
+    public var currentLineHeight: Int {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(currentLineHeight: 3) ?? 3
         }
@@ -545,7 +545,7 @@ extension FolioReader {
 
     //in em
     public static let DefaultTextIndent = 2
-    open var currentTextIndent: Int {
+    public var currentTextIndent: Int {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(currentTextIndent: 2) ?? 2
         }
@@ -555,7 +555,7 @@ extension FolioReader {
         }
     }
     
-    open var doWrapPara: Bool {
+    public var doWrapPara: Bool {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(doWrapPara: false) ?? false
         }
@@ -564,7 +564,7 @@ extension FolioReader {
         }
     }
     
-    open var doClearClass: Bool {
+    public var doClearClass: Bool {
         get {
             delegate?.folioReaderPreferenceProvider?(self).preference(doClearClass: true) ?? true
         }
@@ -573,7 +573,7 @@ extension FolioReader {
         }
     }
     
-    open var styleOverride: StyleOverrideTypes {
+    public var styleOverride: StyleOverrideTypes {
         get {
             guard let rawValue = delegate?.folioReaderPreferenceProvider?(self).preference(styleOverride: StyleOverrideTypes.PNode.rawValue),
                   let value = StyleOverrideTypes(rawValue: rawValue) else {
@@ -624,7 +624,7 @@ extension FolioReader {
         }
     }
     
-    open var structuralStyle: FolioReaderStructuralStyle {
+    public var structuralStyle: FolioReaderStructuralStyle {
         get {
             guard let rawValue = delegate?.folioReaderPreferenceProvider?(self).preference(structuralStyle: FolioReaderStructuralStyle.atom.rawValue),
                   let value = FolioReaderStructuralStyle(rawValue: rawValue) else {
@@ -637,7 +637,7 @@ extension FolioReader {
         }
     }
     
-    open var structuralTrackingTocLevel: FolioReaderPositionTrackingStyle {
+    public var structuralTrackingTocLevel: FolioReaderPositionTrackingStyle {
         get {
             guard let rawValue = delegate?.folioReaderPreferenceProvider?(self).preference(structuralTocLevel: FolioReaderPositionTrackingStyle.linear.rawValue),
                   let value = FolioReaderPositionTrackingStyle(rawValue: rawValue) else {
@@ -683,7 +683,7 @@ extension FolioReader {
     }
 
     /// Closes and save the reader current instance.
-    open func close() {
+    public func close() {
         self.saveReaderState() {
             self.isReaderOpen = false
             self.isReaderReady = false
@@ -757,112 +757,6 @@ extension FolioReader {
             """
         }
         
-        
-        for fontName in UIFont.fontNames(forFamilyName: currentFont) {
-            continue
-//            if let fontURL = readerCenter?.userFonts[fontName] {
-            guard let fontDescriptor = readerConfig?.userFontDescriptors[fontName] else {
-                continue
-            }
-//                let ctFont = CTFontCreateWithName(fontName as CFString, CGFloat(currentFontSizeOnly), nil)
-//                let ctFontSymbolicTrait = CTFontGetSymbolicTraits(ctFont)
-//                let ctFontTraits = CTFontCopyTraits(ctFont)
-//                let ctFontURL = unsafeBitCast(CTFontDescriptorCopyAttribute(fontDescriptor, kCTFontURLAttribute), to: CFURL.self)
-            guard let ctFontURL = CTFontDescriptorCopyAttribute(fontDescriptor, kCTFontURLAttribute),
-                  CFGetTypeID(ctFontURL) == CFURLGetTypeID(),
-                  let fontURL = ctFontURL as? URL else {
-                continue
-            }
-            var isItalic = false
-            var isBold = false
-            
-            var cssFontWeight = "normal"
-            
-            if let ctFontTraits = CTFontDescriptorCopyAttribute(fontDescriptor, kCTFontTraitsAttribute), CFGetTypeID(ctFontTraits) == CFDictionaryGetTypeID() {
-                if let ctFontSymbolicTrait = CFDictionaryGetValue(
-                    (ctFontTraits as! CFDictionary),
-                    unsafeBitCast(kCTFontSymbolicTrait, to: UnsafeRawPointer.self))  {
-                    
-                    var symTraitVal = UInt32()
-                    CFNumberGetValue(unsafeBitCast(ctFontSymbolicTrait, to: CFNumber.self), CFNumberType.intType, &symTraitVal)
-                    
-                    isItalic = symTraitVal & CTFontSymbolicTraits.traitItalic.rawValue > 0
-                    isBold = symTraitVal & CTFontSymbolicTraits.traitBold.rawValue > 0
-                    
-                    cssFontWeight = isBold ? "bold" : "normal"
-                }
-//                let isItalic = ctFontSymbolicTrait.contains(.traitItalic)
-//                let isBold = ctFontSymbolicTrait.contains(.traitBold)
-                
-                
-                if let weightRef = CFDictionaryGetValue(
-                    (ctFontTraits as! CFDictionary),
-                    unsafeBitCast(kCTFontWeightTrait, to: UnsafeRawPointer.self)) {
-                    
-                    var weightValue = Float()
-                    CFNumberGetValue(unsafeBitCast(weightRef, to: CFNumber.self), CFNumberType.floatType, &weightValue)
-                    if weightValue < -0.49 {
-                        cssFontWeight = "100"   //thin
-                    } else if weightValue < -0.29 {
-                        cssFontWeight = "200"   //extralight
-                    } else if weightValue < -0.19 {
-                        cssFontWeight = "300"   //light
-                    } else if weightValue < 0.01 {
-                        cssFontWeight = "400"   //normal
-                    } else if weightValue < 0.21 {
-                        cssFontWeight = "500"   //medium
-                    } else if weightValue < 0.31 {
-                        cssFontWeight = "600"   //semibold
-                    } else if weightValue < 0.41 {
-                        cssFontWeight = "700"   //bold
-                    } else if weightValue < 0.61 {
-                        cssFontWeight = "800"   //extrabold
-                    } else {
-                        cssFontWeight = "900"   //heavy
-                    }
-                }
-            }
-            
-            //prepare font hardlink
-            guard let resourceBasePath = self.readerContainer?.book.smils.basePath else {
-                continue
-            }
-            if self.readerContainer?.readerConfig.debug.contains(.htmlStyling) ?? false {
-                print("generateRuntimeStyle \(resourceBasePath)")
-            }
-            
-            let folioResPath = resourceBasePath.appendingPathComponent("_folio_res")
-
-            let toFontPath = folioResPath.appendingPathComponent(fontURL.lastPathComponent)
-
-            do {
-                if !FileManager.default.fileExists(atPath: folioResPath) {
-                    try FileManager.default.createDirectory(atPath: folioResPath, withIntermediateDirectories: false, attributes: nil)
-                }
-                
-                if self.readerContainer?.readerConfig.debug.contains(.htmlStyling) ?? false  {
-                    print("generateRuntimeStyle linkItem \(fontURL.path) \(toFontPath)")
-                }
-
-                if FileManager.default.fileExists(atPath: toFontPath) {
-                    try FileManager.default.removeItem(atPath: toFontPath)
-                }
-                try FileManager.default.linkItem(atPath: fontURL.path, toPath: toFontPath)
-            } catch {
-                continue
-            }
-            
-            style += """
-            
-            @font-face {
-                font-family: \(currentFont);
-                font-style: \(isItalic ? "italic" : "normal");
-                font-weight: \(cssFontWeight);
-                src: url('\(toFontPath)');
-            }
-            
-            """
-        }
         
         return style
     }
@@ -953,37 +847,6 @@ extension FolioReader {
                     } else {
                         cssFontWeight = "900"   //heavy
                     }
-                }
-            }
-            
-            if false {
-                //prepare font hardlink
-                guard let resourceBasePath = self.readerContainer?.book.smils.basePath else {
-                    return nil
-                }
-                if self.readerContainer?.readerConfig.debug.contains(.htmlStyling) ?? false {
-                    print("generateRuntimeStyle \(resourceBasePath)")
-                }
-                
-                let folioResPath = resourceBasePath.appendingPathComponent("_folio_res")
-                
-                let toFontPath = folioResPath.appendingPathComponent(fontURL.lastPathComponent)
-                
-                do {
-                    if !FileManager.default.fileExists(atPath: folioResPath) {
-                        try FileManager.default.createDirectory(atPath: folioResPath, withIntermediateDirectories: false, attributes: nil)
-                    }
-                    
-                    if self.readerContainer?.readerConfig.debug.contains(.htmlStyling) ?? false  {
-                        print("generateRuntimeStyle linkItem \(fontURL.path) \(toFontPath)")
-                    }
-                    
-                    if FileManager.default.fileExists(atPath: toFontPath) {
-                        try FileManager.default.removeItem(atPath: toFontPath)
-                    }
-                    try FileManager.default.linkItem(atPath: fontURL.path, toPath: toFontPath)
-                } catch {
-                    return ""
                 }
             }
             

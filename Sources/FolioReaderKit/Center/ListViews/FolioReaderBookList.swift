@@ -383,7 +383,7 @@ class FolioReaderBookList: UICollectionViewController {
 }
 
 extension FolioReaderBookList {
-    open func pickRandomTopic() {
+    public func pickRandomTopic() {
         guard let index = self.tocItems.indices.randomElement(),
               let section = self.sectionTocItems.indices.randomElement(),
               let sectionItem = self.sectionTocItems[section].1.indices.randomElement()

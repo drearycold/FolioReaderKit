@@ -118,7 +118,7 @@ extension FolioReaderCenter {
         )
     }
 
-    open func changePageWith(page: Int, andFragment fragment: String, animated: Bool = false, completion: (() -> Void)? = nil) {
+    public func changePageWith(page: Int, andFragment fragment: String, animated: Bool = false, completion: (() -> Void)? = nil) {
         if readerConfig.debug.contains(.functionTrace) { folioLogger("ENTER") }
 
         if (self.currentPageNumber == page) {
@@ -134,7 +134,7 @@ extension FolioReaderCenter {
         }
     }
 
-    open func changePageWith(href: String, animated: Bool = false, completion: (() -> Void)? = nil) {
+    public func changePageWith(href: String, animated: Bool = false, completion: (() -> Void)? = nil) {
         if readerConfig.debug.contains(.functionTrace) { folioLogger("ENTER") }
 
         guard let item = self.book.resources.findByHref(href)?.spineIndices.first else { return }
@@ -146,7 +146,7 @@ extension FolioReaderCenter {
         })
     }
 
-    open func changePageWith(href: String, andAudioMarkID markID: String) {
+    public func changePageWith(href: String, andAudioMarkID markID: String) {
         if readerConfig.debug.contains(.functionTrace) { folioLogger("ENTER") }
 
         if recentlyScrolled { return } // if user recently scrolled, do not change pages or scroll the webview
@@ -166,7 +166,7 @@ extension FolioReaderCenter {
         }
     }
 
-    open func changePageWith(indexPath: IndexPath, retryDelaySec: Double = 0.4, animated: Bool = false, completion: (() -> Void)? = nil) {
+    public func changePageWith(indexPath: IndexPath, retryDelaySec: Double = 0.4, animated: Bool = false, completion: (() -> Void)? = nil) {
         if readerConfig.debug.contains(.functionTrace) { folioLogger("ENTER") }
 
         guard indexPathIsValid(indexPath) else {
@@ -206,7 +206,7 @@ extension FolioReaderCenter {
 //        }
     }
     
-    open func changePageWith(href: String, pageItem: Int, animated: Bool = false, completion: (() -> Void)? = nil) {
+    public func changePageWith(href: String, pageItem: Int, animated: Bool = false, completion: (() -> Void)? = nil) {
         if readerConfig.debug.contains(.functionTrace) { folioLogger("ENTER") }
 
         changePageWith(href: href, animated: animated) {

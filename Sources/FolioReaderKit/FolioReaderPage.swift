@@ -430,8 +430,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
 
     open func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        guard let readerCenter = self.folioReader.readerCenter,
-              let webView = webView as? FolioReaderWebView,
+        guard let webView = webView as? FolioReaderWebView,
               let pageNumber = self.pageNumber else {
             return
         }
@@ -503,9 +502,10 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             }
         }
 
-        let direction: ScrollDirection = self.folioReader.needsRTLChange ? .positive(withConfiguration: self.readerConfig) : .negative(withConfiguration: self.readerConfig)
-
 //        For what purpose?
+//        let direction: ScrollDirection = self.folioReader.needsRTLChange ? .positive(withConfiguration: self.readerConfig) : .negative(withConfiguration: self.readerConfig)
+
+
 //        if (self.folioReader.readerCenter?.pageScrollDirection == direction &&
 //            self.folioReader.readerCenter?.isScrolling == true &&
 //            self.readerConfig.scrollDirection != .horizontalWithVerticalContent) {
@@ -1168,7 +1168,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
 
     func updateOverflowStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
-        guard let readerCenter = self.folioReader.readerCenter, let webView = webView else { return }
+        guard let webView = webView else { return }
         
         self.layoutAdapting = "Preparing Document Layout..."
         
@@ -1238,7 +1238,7 @@ writingMode
     }
     
     func updateRuntimStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
-        guard let readerCenter = self.folioReader.readerCenter, let webView = webView else { return }
+        guard let webView = webView else { return }
 
         self.layoutAdapting = "Preparing Document Style..."
         self.updatePageOffsetRate()
@@ -1358,12 +1358,12 @@ writingMode
     }
     
     func updateViewerLayout(delay bySecond: Double) {
-        guard let readerCenter = self.folioReader.readerCenter else { return }
+        guard let webView = webView else { return }
         
         self.layoutAdapting = "Updating Document Layout..."
         self.updatePageOffsetRate()
         
-        webView?.js(
+        webView.js(
         """
             document.body.style.minHeight = null;
             document.body.style.minWidth = null;
@@ -1601,6 +1601,7 @@ writingMode
             FileManager.default.createFile(atPath: tempFile.path, contents: response.suffix(response.count - "bridgeFinished ".count).data(using: .utf8), attributes: nil)
         }
         var prefix = [String]();
+        prefix.append("__DUMMY__")      //supress warning
 //        prefix.append("getVisibleCFI")
 //        prefix.append("injectHighlight")
 //        prefix.append("highlightStringCFI")
@@ -1681,7 +1682,7 @@ writingMode
                 highlight.tocFamilyTitles = highlightChapterNames.reversed()
                 highlight.date += 0.001
                 
-                print("\(#function) fixHighlight \(boundingRect) \(highlight.tocFamilyTitles) \(highlight.content)")
+                print("\(#function) fixHighlight \(boundingRect) \(highlight.tocFamilyTitles) \(highlight.content!)")
                 folioReaderHighlightProvider.folioReaderHighlight(self.folioReader, added: highlight, completion: nil)
             }
         }
@@ -1691,21 +1692,19 @@ writingMode
         let encodedData = ((try? JSONEncoder().encode([highlight])) ?? .init()).base64EncodedString()
         
         self.webView?.js("relocateHighlights('\(encodedData)')") { results in
-            var results = results
+            guard let results = results else { return }
             
             defer {
                 print("\(#function) results=\(results)")
             }
             
-            guard let resultsData = results?.data(using: .utf8),
+            guard let resultsData = results.data(using: .utf8),
                   let result = try? JSONDecoder().decode([NodeBoundingClientRect].self, from: resultsData).first
             else {
                 completion?(highlight, FolioReaderHighlightError.runtimeError("Unknown Exception"))
                 return
             }
             
-            results = result.err
-
             guard let highlightData = result.err.data(using: .utf8)
             else {
                 completion?(highlight, FolioReaderHighlightError.runtimeError("Unknown Exception"))

@@ -260,7 +260,7 @@ open class FolioReaderContainer: UIViewController {
                     }
                     highlight.date += 0.001
                 }
-                print("\(#function) fixHighlight \(highlight.page) \(highlight.spineName) \(highlight.cfiStart) \(highlight.cfiEnd) \(highlight.style) \(highlight.content.prefix(10))")
+                print("\(#function) fixHighlight \(highlight.page) \(highlight.spineName ?? "Nil") \(highlight.cfiStart ?? "Nil") \(highlight.cfiEnd ?? "Nil") \(highlight.style ?? "Nil") \(highlight.content.prefix(10))")
                 highlightProvider.folioReaderHighlight(self.folioReader, added: highlight, completion: nil)
             }
     }
