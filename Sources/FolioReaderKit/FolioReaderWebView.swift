@@ -519,7 +519,7 @@ open class FolioReaderWebView: WKWebView {
         let colors = UIImage(readerImageNamed: "colors-marker")
         var share = UIImage(readerImageNamed: "share-marker")
         if #available(iOS 13.0, *) {
-            share = share?.withTintColor(.white)
+            share = share?.withTintColor(UITraitCollection.current.userInterfaceStyle == .dark ? .white : .black)
         }
         let remove = UIImage(readerImageNamed: "no-marker")
         let yellow = UIImage(readerImageNamed: "yellow-marker")
@@ -529,7 +529,7 @@ open class FolioReaderWebView: WKWebView {
         let underline = UIImage(readerImageNamed: "underline-marker")
         var mdictImage = UIImage(readerImageNamed: "icon-dictionary")
         if #available(iOS 13.0, *) {
-            mdictImage = mdictImage?.withTintColor(.white)
+            mdictImage = mdictImage?.withTintColor(UITraitCollection.current.userInterfaceStyle == .dark ? .white : .black)
         }
 
         let menuController = UIMenuController.shared
