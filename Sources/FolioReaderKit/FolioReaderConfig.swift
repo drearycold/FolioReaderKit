@@ -208,6 +208,9 @@ open class FolioReaderConfig: NSObject {
     /// Display book title in navbar
     open var displayTitle = false
 
+    /// Show the reader-level close button in the navigation bar.
+    open var showCloseButton = true
+
     /// Hide the page indicator
     open var hidePageIndicator = false
 

@@ -4,9 +4,13 @@ import ReadiumGCDWebServer
 
 @MainActor
 final class NavigationBarVisibilityTests: XCTestCase {
-    private func makeReaderCenter(hideBars: Bool = false) -> (FolioReaderCenter, FolioReaderNavigationController) {
+    private func makeReaderCenter(
+        hideBars: Bool = false,
+        showCloseButton: Bool = true
+    ) -> (FolioReaderCenter, FolioReaderNavigationController) {
         let readerConfig = FolioReaderConfig()
         readerConfig.hideBars = hideBars
+        readerConfig.showCloseButton = showCloseButton
 
         let folioReader = FolioReader()
         let readerContainer = FolioReaderContainer(
@@ -96,5 +100,24 @@ final class NavigationBarVisibilityTests: XCTestCase {
         waitForMainQueue()
 
         XCTAssertTrue(navigationController.isNavigationBarHidden)
+    }
+
+    func testConfigureNavBarButtonsShowsCloseButtonByDefault() {
+        let (readerCenter, _) = makeReaderCenter()
+
+        readerCenter.configureNavBarButtons()
+
+        XCTAssertEqual(readerCenter.navigationItem.leftBarButtonItems?.count, 3)
+        XCTAssertTrue(readerCenter.navigationItem.leftBarButtonItems?.first?.target === readerCenter)
+        XCTAssertEqual(readerCenter.navigationItem.leftBarButtonItems?.first?.action, #selector(FolioReaderCenter.closeReader(_:)))
+    }
+
+    func testConfigureNavBarButtonsCanHideCloseButton() {
+        let (readerCenter, _) = makeReaderCenter(showCloseButton: false)
+
+        readerCenter.configureNavBarButtons()
+
+        XCTAssertEqual(readerCenter.navigationItem.leftBarButtonItems?.count, 2)
+        XCTAssertFalse(readerCenter.navigationItem.leftBarButtonItems?.contains { $0.action == #selector(FolioReaderCenter.closeReader(_:)) } ?? true)
     }
 }
