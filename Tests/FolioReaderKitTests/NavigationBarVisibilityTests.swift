@@ -6,11 +6,13 @@ import ReadiumGCDWebServer
 final class NavigationBarVisibilityTests: XCTestCase {
     private func makeReaderCenter(
         hideBars: Bool = false,
-        showCloseButton: Bool = true
+        showCloseButton: Bool = true,
+        forceBottomMenuTabBar: Bool = false
     ) -> (FolioReaderCenter, FolioReaderNavigationController) {
         let readerConfig = FolioReaderConfig()
         readerConfig.hideBars = hideBars
         readerConfig.showCloseButton = showCloseButton
+        readerConfig.forceBottomMenuTabBar = forceBottomMenuTabBar
 
         let folioReader = FolioReader()
         let readerContainer = FolioReaderContainer(
@@ -119,5 +121,27 @@ final class NavigationBarVisibilityTests: XCTestCase {
 
         XCTAssertEqual(readerCenter.navigationItem.leftBarButtonItems?.count, 2)
         XCTAssertFalse(readerCenter.navigationItem.leftBarButtonItems?.contains { $0.action == #selector(FolioReaderCenter.closeReader(_:)) } ?? true)
+    }
+
+    func testConfigureMenuTabBarPlacementUsesTabBarModeOnModernIOS() {
+        guard #available(iOS 18.0, *) else { return }
+        let (readerCenter, _) = makeReaderCenter()
+        let tabBarController = UITabBarController()
+
+        readerCenter.configureMenuTabBarPlacement(tabBarController)
+
+        XCTAssertEqual(tabBarController.mode, .tabBar)
+        XCTAssertFalse(tabBarController.traitOverrides.contains(UITraitHorizontalSizeClass.self))
+    }
+
+    func testConfigureMenuTabBarPlacementCanForceBottomPlacementOnModernIPadOS() {
+        guard #available(iOS 18.0, *) else { return }
+        let (readerCenter, _) = makeReaderCenter(forceBottomMenuTabBar: true)
+        let tabBarController = UITabBarController()
+
+        readerCenter.configureMenuTabBarPlacement(tabBarController)
+
+        XCTAssertEqual(tabBarController.mode, .tabBar)
+        XCTAssertEqual(tabBarController.traitOverrides.horizontalSizeClass, .compact)
     }
 }

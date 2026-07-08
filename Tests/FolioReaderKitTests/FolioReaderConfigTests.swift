@@ -44,5 +44,6 @@ class FolioReaderConfigTests: XCTestCase {
         XCTAssertTrue(config.canChangeFontStyle)
         XCTAssertTrue(config.allowSharing)
         XCTAssertTrue(config.showCloseButton)
+        XCTAssertFalse(config.forceBottomMenuTabBar)
     }
 }

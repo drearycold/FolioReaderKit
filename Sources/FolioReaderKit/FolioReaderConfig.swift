@@ -211,6 +211,9 @@ open class FolioReaderConfig: NSObject {
     /// Show the reader-level close button in the navigation bar.
     open var showCloseButton = true
 
+    /// Force the reader settings menu tabs to use a bottom tab bar on iPadOS.
+    open var forceBottomMenuTabBar = false
+
     /// Hide the page indicator
     open var hidePageIndicator = false
 

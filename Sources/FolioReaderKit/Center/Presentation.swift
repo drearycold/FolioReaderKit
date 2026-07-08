@@ -103,6 +103,7 @@ extension FolioReaderCenter {
         menuBarController.view.backgroundColor = .clear
         menuBarController.modalPresentationStyle = .custom
         menuBarController.selectedIndex = lastMenuSelectedIndex
+        configureMenuTabBarPlacement(menuBarController)
         
         let newAnimator = FolioModalTransitionAnimator(modalViewController: menuBarController)
         newAnimator.isDragable = false
@@ -116,6 +117,16 @@ extension FolioReaderCenter {
         menuBarController.transitioningDelegate = newAnimator
         
         self.present(menuBarController, animated: true, completion: nil)
+    }
+
+    @MainActor
+    func configureMenuTabBarPlacement(_ tabBarController: UITabBarController) {
+        if #available(iOS 18.0, *) {
+            tabBarController.mode = .tabBar
+            if readerConfig.forceBottomMenuTabBar {
+                tabBarController.traitOverrides.horizontalSizeClass = .compact
+            }
+        }
     }
 
     /**
