@@ -118,8 +118,6 @@ a { text-decoration: none; }
 pre { white-space: pre-wrap; }
 @page {
     margin: 0 0 !important;
-    margin-top: 1em !important;
-    margin-bottom: 1em !important;
 }
 table, ol, il { text-align: -webkit-auto; }
 h1 ,h2 ,h3 ,h4 ,h5 ,h6 {

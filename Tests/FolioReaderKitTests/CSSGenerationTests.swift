@@ -74,4 +74,22 @@ class CSSGenerationTests: XCTestCase {
         // Without user font descriptors set, this should be empty
         XCTAssertTrue(userFontFaces.isEmpty)
     }
+
+    func testBundledPageStyleDoesNotForceTopOrBottomPageMargins() {
+        let source = FolioReaderScript.cssInjection.source
+
+        XCTAssertTrue(source.contains("@page"))
+        XCTAssertTrue(source.contains("margin: 0 0 !important;"))
+        XCTAssertFalse(source.contains("margin-top: 1em !important;"))
+        XCTAssertFalse(source.contains("margin-bottom: 1em !important;"))
+    }
+
+    func testZeroBodyPaddingClassesEmitZeroPadding() {
+        let source = FolioReaderScript.cssInjection.source
+
+        XCTAssertTrue(source.contains(".folioStyleBodyPaddingLeft0 { padding-left: 0.0vw !important;"))
+        XCTAssertTrue(source.contains(".folioStyleBodyPaddingRight0 { padding-right: 0.0vw !important;"))
+        XCTAssertTrue(source.contains(".folioStyleBodyPaddingTop0 { padding-top: 0.0vh !important;"))
+        XCTAssertTrue(source.contains(".folioStyleBodyPaddingBottom0 { padding-bottom: 0.0vh !important;"))
+    }
 }

@@ -211,6 +211,12 @@ open class FolioReaderConfig: NSObject {
     /// Hide the page indicator
     open var hidePageIndicator = false
 
+    /// Reserve safe-area/status-bar height inside each page frame.
+    open var reserveSafeAreaInsidePageFrame = true
+
+    /// Reserve page-indicator height inside each page frame.
+    open var reservePageIndicatorInsidePageFrame = true
+
     /// Go to saved position when open a book
     open var loadSavedPositionForCurrentBook = true
     
