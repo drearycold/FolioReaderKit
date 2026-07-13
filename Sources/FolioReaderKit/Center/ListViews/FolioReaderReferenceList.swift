@@ -8,7 +8,6 @@
 
 import UIKit
 import FolioEPUBCore
-import SwiftSoup
 
 class FolioReaderReferenceList: UITableViewController {
 
@@ -52,91 +51,19 @@ class FolioReaderReferenceList: UITableViewController {
     }
 
     func loadSection(bookId: String, book: FRBook, pageNumber: Int, refText: String, deepest: FolioReaderBookmark) async -> [FolioReaderBookmark] {
-        let accumulator = DataAccumulator()
-        
-        guard let epubArchive = await book.getThreadEpubArchive(),
-              let spine = book.spine.spineReferences[safe: pageNumber - 1],
-              let opfResource = book.opfResource,
-              let opfURL = URL(fileURLWithPath: opfResource.href, isDirectory: false) as URL?,
-              let spineURL = URL(fileURLWithPath: spine.resource.href, isDirectory: false, relativeTo: opfURL) as URL?
-        else { return [] }
-        
-        let entryPath = spineURL.path.trimmingCharacters(in: ["/"])
-        guard let epubEntry = book.archiveEntriesCache[entryPath],
-              let _ = try? await epubArchive.extract(epubEntry, consumer: { data in
-                  accumulator.append(data)
-              }),
-              let epubEntryString = String(data: accumulator.result, encoding: .utf8),
-              let document = try? SwiftSoup.parse(epubEntryString),
-              let _ = try? document.attr("CFI", "/\(pageNumber * 2)")
-        else { return [] }
-        
-        tagCFItoDoc(document)
-        
-        guard let bookmarks = try? document.getElementsMatchingOwnText(Pattern.compile(refText))
-                .map({ element -> [FolioReaderBookmark] in
-                    var bookmarks = [FolioReaderBookmark]()
-                    
-                    guard let pos = try? element.attr("CFI") else { return bookmarks }
-                    let bookmark = FolioReaderBookmark()
-                    bookmark.date = .init()
-                    bookmark.bookId = bookId
-                    bookmark.page = pageNumber
-                    bookmark.pos_type = "epubcfi"
-                    bookmark.pos = "epubcfi(" + pos + ")"
-                    guard bookmark < deepest else { return bookmarks }
-                    
-                    let textNodes = element.textNodes()
-                    let offsetByOne = textNodes.first?.previousSibling() != nil     //Possible bug: first text node (before first child element) is omitted
-                    for i in 0..<textNodes.count {
-                        var elementOwnText = textNodes[i].getWholeText()
-                        guard elementOwnText.contains(refText) else { continue }
-                        
-                        var prevSibling = textNodes[i].previousSibling()
-                        while let text = (prevSibling as? TextNode)?.text() ?? (try? (prevSibling as? Element)?.text()),
-                              text.contains(refText) == false {
-                            elementOwnText.insert(contentsOf: text.trimmingCharacters(in: .whitespacesAndNewlines), at: elementOwnText.startIndex)
-                            prevSibling = prevSibling?.previousSibling()
-                        }
-                        
-                        var nextSibling = textNodes[i].nextSibling()
-                        while let text = (nextSibling as? TextNode)?.text() ?? (try? (nextSibling as? Element)?.text()),
-                              text.contains(refText) == false {
-                            elementOwnText.insert(contentsOf: text.trimmingCharacters(in: .whitespacesAndNewlines), at: elementOwnText.endIndex)
-                            nextSibling = nextSibling?.nextSibling()
-                        }
-                        
-                        if elementOwnText.count > 200 {
-                            var findRangeStart = elementOwnText.startIndex
-                            
-                            while let refRange = elementOwnText.range(of: refText, options: [], range: findRangeStart..<elementOwnText.endIndex, locale: nil),
-                                  let bookmark = bookmark.copy() as? FolioReaderBookmark {
-                                var bmStart = refRange.lowerBound
-                                var bmEnd = refRange.upperBound
-                                let _ = elementOwnText.formIndex(&bmStart, offsetBy: -30, limitedBy: elementOwnText.startIndex)
-                                let _ = elementOwnText.formIndex(&bmEnd, offsetBy: 70, limitedBy: elementOwnText.endIndex)
-                                
-                                bookmark.title = (bmStart > elementOwnText.startIndex ? "..." : "")
-                                + String(elementOwnText[bmStart..<bmEnd])
-                                + (bmEnd < elementOwnText.endIndex ? "..." : "")
-                                bookmark.pos = "epubcfi(" + pos + "/\(i*2 + 1 + (offsetByOne ? 2 : 0)):\(bmStart.utf16Offset(in: elementOwnText))" + ")"
-                                bookmarks.append(bookmark)
-                                
-                                findRangeStart = bmEnd
-                            }
-                        } else if let bookmark = bookmark.copy() as? FolioReaderBookmark,
-                                  let bmStart = elementOwnText.range(of: refText)?.upperBound {
-                            bookmark.title = elementOwnText.trimmingCharacters(in: .whitespacesAndNewlines)
-                            bookmark.pos = "epubcfi(" + pos + "/\(i*2 + 1 + (offsetByOne ? 2 : 0)):\(bmStart.utf16Offset(in: elementOwnText))" + ")"
-                            bookmarks.append(bookmark)
-                        }
-                    }
-                    
-                    return bookmarks
-                }).flatMap({ $0 })
-        else { return [] }
-
-        return bookmarks
+        let resolver = FolioReaderReferenceResolver(book: book)
+        return await resolver.reverseLookup(text: refText, on: pageNumber,
+                                            beforeCFI: deepest.page == pageNumber ? deepest.pos : nil)
+            .map { result in
+                let bookmark = FolioReaderBookmark()
+                bookmark.date = .init()
+                bookmark.bookId = bookId
+                bookmark.page = result.page
+                bookmark.pos_type = "epubcfi"
+                bookmark.pos = result.cfi ?? ""
+                bookmark.title = result.context ?? ""
+                return bookmark
+            }
     }
     
     func loadSections() {
@@ -177,16 +104,6 @@ class FolioReaderReferenceList: UITableViewController {
                     }
                 }
             }
-        }
-    }
-    
-    func tagCFItoDoc(_ element: Element) {
-        guard let cfi = try? element.attr("CFI") else { return }
-        let children = element.children()
-        for i in children.startIndex..<children.endIndex {
-            guard let _ = try? children[i].attr("CFI", cfi + "/" + ((i+1)*2).description)
-            else { continue }
-            tagCFItoDoc(children[i])
         }
     }
     

@@ -224,14 +224,8 @@ class WebViewMenuManager: NSObject {
             webView.clearTextSelection()
             webView.setMenuVisible(false)
             
-            guard let readerCenter = webView.readerContainer?.centerViewController,
-                  let bookmarkBarButtonItem = readerCenter.navigationItem.leftBarButtonItems?[safe: 2],
-                  let selector = bookmarkBarButtonItem.action else { return }
-            
-            readerCenter.tempRefText = selectedText
-            readerCenter.tempRefCFI = selectedCFI
-            webView.folioReader.currentAnnotationMenuIndex = 0
-            UIApplication.shared.sendAction(selector, to: readerCenter, from: bookmarkBarButtonItem, for: nil)
+            guard let readerCenter = webView.readerContainer?.centerViewController else { return }
+            readerCenter.presentReferenceList(selectedText: selectedText, selectedCFI: selectedCFI)
         }
     }
     

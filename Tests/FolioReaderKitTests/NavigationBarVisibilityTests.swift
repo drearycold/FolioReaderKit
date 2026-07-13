@@ -109,9 +109,13 @@ final class NavigationBarVisibilityTests: XCTestCase {
 
         readerCenter.configureNavBarButtons()
 
-        XCTAssertEqual(readerCenter.navigationItem.leftBarButtonItems?.count, 3)
-        XCTAssertTrue(readerCenter.navigationItem.leftBarButtonItems?.first?.target === readerCenter)
-        XCTAssertEqual(readerCenter.navigationItem.leftBarButtonItems?.first?.action, #selector(FolioReaderCenter.closeReader(_:)))
+        let buttons = readerCenter.navigationItem.leftBarButtonItems ?? []
+        XCTAssertEqual(buttons.map(\.action), [
+            #selector(FolioReaderCenter.closeReader(_:)),
+            #selector(FolioReaderCenter.presentChapterList(_:)),
+            #selector(FolioReaderCenter.presentBookmarkList(_:))
+        ])
+        XCTAssertTrue(buttons.allSatisfy { $0.target === readerCenter })
     }
 
     func testConfigureNavBarButtonsCanHideCloseButton() {
@@ -119,8 +123,39 @@ final class NavigationBarVisibilityTests: XCTestCase {
 
         readerCenter.configureNavBarButtons()
 
-        XCTAssertEqual(readerCenter.navigationItem.leftBarButtonItems?.count, 2)
-        XCTAssertFalse(readerCenter.navigationItem.leftBarButtonItems?.contains { $0.action == #selector(FolioReaderCenter.closeReader(_:)) } ?? true)
+        let buttons = readerCenter.navigationItem.leftBarButtonItems ?? []
+        XCTAssertEqual(buttons.map(\.action), [
+            #selector(FolioReaderCenter.presentChapterList(_:)),
+            #selector(FolioReaderCenter.presentBookmarkList(_:))
+        ])
+        XCTAssertTrue(buttons.allSatisfy { $0.target === readerCenter })
+    }
+
+    func testReferencePresentationDoesNotDependOnCloseButton() {
+        let (readerCenter, _) = makeReaderCenter(showCloseButton: false)
+
+        let navigationController = readerCenter.presentReferenceList(
+            selectedText: "Selected text",
+            selectedCFI: "/4/2:3"
+        )
+
+        XCTAssertEqual(readerCenter.tempRefText, "Selected text")
+        XCTAssertEqual(readerCenter.tempRefCFI, "/4/2:3")
+        XCTAssertEqual(readerCenter.folioReader.preferences.currentAnnotationMenuIndex, 0)
+        let pageController = navigationController.viewControllers.first as? FolioReaderAnnotationPageVC
+        XCTAssertEqual(pageController?.segmentedControlItems.first, "Reference")
+    }
+
+    func testBookmarkPresentationWithoutReferenceKeepsOriginalTabs() {
+        let (readerCenter, _) = makeReaderCenter()
+
+        let navigationController = readerCenter.presentBookmarkList()
+
+        let pageController = navigationController.viewControllers.first as? FolioReaderAnnotationPageVC
+        XCTAssertEqual(pageController?.segmentedControlItems, [
+            readerCenter.readerConfig.localizedBookmarksTitle,
+            readerCenter.readerConfig.localizedHighlightsTitle
+        ])
     }
 
     func testConfigureMenuTabBarPlacementUsesTabBarModeOnModernIOS() {

@@ -43,6 +43,11 @@ extension FolioReaderCenter {
     }
 
     @objc func presentBookmarkList(_ sender: UIBarButtonItem) {
+        _ = presentBookmarkList()
+    }
+
+    @discardableResult
+    func presentBookmarkList() -> FolioReaderNavigationController {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
         folioReader.saveReaderState()
@@ -66,6 +71,15 @@ extension FolioReaderCenter {
         let nav = FolioReaderNavigationController(rootViewController: pageController)
 
         present(nav, animated: true, completion: nil)
+        return nav
+    }
+
+    @discardableResult
+    func presentReferenceList(selectedText: String, selectedCFI: String) -> FolioReaderNavigationController {
+        tempRefText = selectedText
+        tempRefCFI = selectedCFI
+        folioReader.preferences.currentAnnotationMenuIndex = 0
+        return presentBookmarkList()
     }
     
     /**
