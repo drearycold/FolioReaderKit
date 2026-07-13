@@ -7,11 +7,13 @@ final class NavigationBarVisibilityTests: XCTestCase {
     private func makeReaderCenter(
         hideBars: Bool = false,
         showCloseButton: Bool = true,
+        enableSearch: Bool = true,
         forceBottomMenuTabBar: Bool = false
     ) -> (FolioReaderCenter, FolioReaderNavigationController) {
         let readerConfig = FolioReaderConfig()
         readerConfig.hideBars = hideBars
         readerConfig.showCloseButton = showCloseButton
+        readerConfig.enableSearch = enableSearch
         readerConfig.forceBottomMenuTabBar = forceBottomMenuTabBar
 
         let folioReader = FolioReader()
@@ -113,7 +115,8 @@ final class NavigationBarVisibilityTests: XCTestCase {
         XCTAssertEqual(buttons.map(\.action), [
             #selector(FolioReaderCenter.closeReader(_:)),
             #selector(FolioReaderCenter.presentChapterList(_:)),
-            #selector(FolioReaderCenter.presentBookmarkList(_:))
+            #selector(FolioReaderCenter.presentBookmarkList(_:)),
+            #selector(FolioReaderCenter.presentSearch(_:))
         ])
         XCTAssertTrue(buttons.allSatisfy { $0.target === readerCenter })
     }
@@ -125,6 +128,21 @@ final class NavigationBarVisibilityTests: XCTestCase {
 
         let buttons = readerCenter.navigationItem.leftBarButtonItems ?? []
         XCTAssertEqual(buttons.map(\.action), [
+            #selector(FolioReaderCenter.presentChapterList(_:)),
+            #selector(FolioReaderCenter.presentBookmarkList(_:)),
+            #selector(FolioReaderCenter.presentSearch(_:))
+        ])
+        XCTAssertTrue(buttons.allSatisfy { $0.target === readerCenter })
+    }
+
+    func testConfigureNavBarButtonsCanDisableSearch() {
+        let (readerCenter, _) = makeReaderCenter(enableSearch: false)
+
+        readerCenter.configureNavBarButtons()
+
+        let buttons = readerCenter.navigationItem.leftBarButtonItems ?? []
+        XCTAssertEqual(buttons.map(\.action), [
+            #selector(FolioReaderCenter.closeReader(_:)),
             #selector(FolioReaderCenter.presentChapterList(_:)),
             #selector(FolioReaderCenter.presentBookmarkList(_:))
         ])

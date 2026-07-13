@@ -24,6 +24,25 @@ final class FolioReaderReferenceResolverTests: XCTestCase {
         XCTAssertEqual(Set(results.compactMap(\.cfi)).count, 3)
     }
 
+    func testReverseLookupIgnoresCaseAndDiacritics() async {
+        let resolver = makeResolver(html: "<html><body><p>CAFÉ cafe\u{301} cafe</p></body></html>")
+
+        let results = await resolver.reverseLookup(text: "cafe", before: nil)
+
+        XCTAssertEqual(results.count, 3)
+        XCTAssertEqual(Set(results.compactMap(\.cfi)).count, 3)
+    }
+
+    func testReverseLookupKeepsBeforeCFICutoffInclusive() async {
+        let resolver = makeResolver(html: "<html><body><p>term then term then term</p></body></html>")
+        let allResults = await resolver.reverseLookup(text: "term", before: nil)
+        let cutoff = FolioReaderLocatorQuery(cfi: allResults[1].cfi, page: 1)
+
+        let results = await resolver.reverseLookup(text: "term", before: cutoff)
+
+        XCTAssertEqual(results, Array(allResults.prefix(2)))
+    }
+
     func testReverseLookupReturnsEmptyWhenThereIsNoMatch() async {
         let resolver = makeResolver(html: "<html><body><p>unrelated text</p></body></html>")
 

@@ -211,6 +211,12 @@ open class FolioReaderConfig: NSObject {
     /// Show the reader-level close button in the navigation bar.
     open var showCloseButton = true
 
+    /// Show the built-in EPUB search button and interface.
+    open var enableSearch = true
+
+    /// Maximum number of search results displayed by the built-in search interface.
+    open var searchResultLimit = 500
+
     /// Force the reader settings menu tabs to use a bottom tab bar on iPadOS.
     open var forceBottomMenuTabBar = false
 
@@ -253,6 +259,14 @@ open class FolioReaderConfig: NSObject {
     open var localizedHighlightsTitle = NSLocalizedString("Highlights", comment: "")
 
     open var localizedBookmarksTitle = NSLocalizedString("Bookmarks", comment: "")
+
+    open var localizedSearchTitle = NSLocalizedString("Search", comment: "")
+    open var localizedSearchPlaceholder = NSLocalizedString("Search this book", comment: "")
+    open var localizedSearchChapter = NSLocalizedString("Chapter", comment: "")
+    open var localizedSearchInitial = NSLocalizedString("Enter a keyword to search this book", comment: "")
+    open var localizedSearchLoading = NSLocalizedString("Searching…", comment: "")
+    open var localizedSearchNoResults = NSLocalizedString("No results", comment: "")
+    open var localizedSearchResultsTruncated = NSLocalizedString("Showing the first results", comment: "")
     
     /// Localizes Content title
     open var localizedContentsTitle = NSLocalizedString("Contents", comment: "")

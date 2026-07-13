@@ -15,15 +15,17 @@ class FolioReaderReferenceList: UITableViewController {
     fileprivate var sectionBookmarks = [Int: [FolioReaderBookmark]]()
     fileprivate var readerConfig: FolioReaderConfig
     fileprivate var folioReader: FolioReader
+    private var referenceResolver: FolioReaderReferenceResolver?
 
     fileprivate var addingBookmarkPos: String?
     fileprivate var editingBookmarkPos: String?
     
     private let dateFormatter = DateFormatter()
     
-    init(folioReader: FolioReader, readerConfig: FolioReaderConfig) {
+    init(folioReader: FolioReader, readerConfig: FolioReaderConfig, referenceResolver: FolioReaderReferenceResolver? = nil) {
         self.readerConfig = readerConfig
         self.folioReader = folioReader
+        self.referenceResolver = referenceResolver
 
         super.init(style: UITableView.Style.plain)
     }
@@ -51,9 +53,16 @@ class FolioReaderReferenceList: UITableViewController {
     }
 
     func loadSection(bookId: String, book: FRBook, pageNumber: Int, refText: String, deepest: FolioReaderBookmark) async -> [FolioReaderBookmark] {
-        let resolver = FolioReaderReferenceResolver(book: book)
-        return await resolver.reverseLookup(text: refText, on: pageNumber,
-                                            beforeCFI: deepest.page == pageNumber ? deepest.pos : nil)
+        let resolver: FolioReaderReferenceResolver
+        if let referenceResolver = referenceResolver {
+            resolver = referenceResolver
+        } else {
+            let newResolver = FolioReaderReferenceResolver(book: book)
+            referenceResolver = newResolver
+            resolver = newResolver
+        }
+        let beforeCFI = deepest.page == pageNumber ? deepest.pos : nil
+        return await resolver.reverseLookup(text: refText, on: pageNumber, beforeCFI: beforeCFI)
             .map { result in
                 let bookmark = FolioReaderBookmark()
                 bookmark.date = .init()
@@ -74,6 +83,8 @@ class FolioReaderReferenceList: UITableViewController {
         
         let currentPageNumber = readerCenter.currentPageNumber
         guard currentPageNumber > 0 else { return }
+
+        referenceResolver = FolioReaderReferenceResolver(book: readerCenter.book, textLocator: readerCenter.textLocator)
         
         var startPageNumber = 1
         if self.folioReader.structuralStyle == .bundle,

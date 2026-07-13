@@ -122,6 +122,10 @@ open class FolioReaderCenter: UIViewController {
         return readerContainer.book
     }
 
+    lazy var textLocator: FolioReaderTextLocator = {
+        FolioReaderTextLocator(book: book)
+    }()
+
     var folioReader: FolioReader {
         guard let readerContainer = readerContainer else { return FolioReader() }
         return readerContainer.folioReader

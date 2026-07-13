@@ -46,6 +46,21 @@ extension FolioReaderCenter {
         _ = presentBookmarkList()
     }
 
+    @objc func presentSearch(_ sender: UIBarButtonItem) {
+        _ = presentSearch()
+    }
+
+    @discardableResult
+    func presentSearch() -> FolioReaderNavigationController? {
+        guard readerConfig.enableSearch else { return nil }
+
+        folioReader.saveReaderState()
+        let search = FolioReaderSearchList(folioReader: folioReader, readerConfig: readerConfig)
+        let nav = FolioReaderNavigationController(rootViewController: search)
+        present(nav, animated: true, completion: nil)
+        return nav
+    }
+
     @discardableResult
     func presentBookmarkList() -> FolioReaderNavigationController {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
