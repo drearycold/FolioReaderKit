@@ -68,7 +68,23 @@ final class FolioReaderSearchList: UITableViewController, UISearchResultsUpdatin
 
         configureStatusView()
         updateStatus()
-        setCloseButton(withConfiguration: readerConfig, folioReader: folioReader)
+        setCloseButton(withConfiguration: readerConfig,
+                       folioReader: folioReader,
+                       action: #selector(closeSearch(_:)))
+    }
+
+    @objc func closeSearch(_ sender: UIBarButtonItem) {
+        stopSearching()
+        navigationController?.dismiss(animated: true)
+    }
+
+    private func stopSearching() {
+        queryGeneration += 1
+        searchTask?.cancel()
+        searchController?.searchResultsUpdater = nil
+        searchController?.searchBar.delegate = nil
+        searchController?.searchBar.resignFirstResponder()
+        searchController?.isActive = false
     }
 
     func updateSearchResults(for searchController: UISearchController) {
@@ -241,7 +257,9 @@ final class FolioReaderSearchList: UITableViewController, UISearchResultsUpdatin
 
         readerCenter.currentPage?.pushNavigateWebViewScrollPositions()
         folioReader.saveReaderState()
-        dismiss(animated: true) { [weak readerCenter] in
+        stopSearching()
+        let dismissalController = navigationController ?? self
+        dismissalController.dismiss(animated: true) { [weak readerCenter] in
             readerCenter?.changePageWith(page: result.page, andFragment: cfi, animated: true)
         }
     }

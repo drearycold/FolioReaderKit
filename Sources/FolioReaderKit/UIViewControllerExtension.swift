@@ -9,10 +9,13 @@ import UIKit
 
 internal extension UIViewController {
     
-    func setCloseButton(withConfiguration readerConfig: FolioReaderConfig, folioReader: FolioReader? = nil) {
+    func setCloseButton(withConfiguration readerConfig: FolioReaderConfig,
+                        folioReader: FolioReader? = nil,
+                        action: Selector? = nil) {
         let color = folioReader?.preferences.navTextColor() ?? readerConfig.tintColor
         let closeImage = UIImage(readerImageNamed: "icon-navbar-close")?.imageTintColor(color)?.withRenderingMode(.alwaysOriginal)
-        self.navigationItem.leftBarButtonItem = UIBarButtonItem(image: closeImage, style: .plain, target: self, action: #selector(dismiss as () -> Void))
+        let closeAction = action ?? #selector(dismiss as () -> Void)
+        self.navigationItem.leftBarButtonItem = UIBarButtonItem(image: closeImage, style: .plain, target: self, action: closeAction)
     }
     
     @objc func dismiss() {

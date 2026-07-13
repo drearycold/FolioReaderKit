@@ -1,4 +1,5 @@
 import XCTest
+import ReadiumGCDWebServer
 @testable import FolioReaderKit
 
 @MainActor
@@ -39,6 +40,61 @@ final class FolioReaderSearchListTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 450_000_000)
 
         XCTAssertEqual(list.sections.first?.results, [newResult])
+    }
+
+    func testCloseButtonUsesSearchSpecificAction() {
+        let list = FolioReaderSearchList(folioReader: FolioReader(), readerConfig: FolioReaderConfig())
+        list.loadViewIfNeeded()
+
+        XCTAssertTrue(list.navigationItem.leftBarButtonItem?.target === list)
+        XCTAssertEqual(list.navigationItem.leftBarButtonItem?.action, #selector(FolioReaderSearchList.closeSearch(_:)))
+
+        list.closeSearch(list.navigationItem.leftBarButtonItem!)
+
+        XCTAssertNil(list.searchController.searchResultsUpdater)
+        XCTAssertNil(list.searchController.searchBar.delegate)
+    }
+
+    func testSelectingResultStopsSearchUpdatesBeforeDismissal() async {
+        let config = FolioReaderConfig()
+        let folioReader = FolioReader()
+        let container = FolioReaderContainer(
+            withConfig: config,
+            folioReader: folioReader,
+            epubPath: "",
+            webServer: ReadiumGCDWebServer()
+        )
+        let readerCenter = FolioReaderCenter(withContainer: container)
+        container.centerViewController = readerCenter
+        readerCenter.loadViewIfNeeded()
+
+        let result = FolioReaderLocatorResult(page: 1, cfi: "epubcfi(/2/2:6)", context: "term result")
+        let list = FolioReaderSearchList(
+            folioReader: folioReader,
+            readerConfig: config,
+            resolver: StubSearchResolver(results: [result])
+        )
+        list.loadViewIfNeeded()
+        let searchNavigationController = FolioReaderNavigationController(rootViewController: list)
+        searchNavigationController.loadViewIfNeeded()
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        let host = UIViewController()
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+        host.present(searchNavigationController, animated: false)
+
+        list.searchController.searchBar.text = "term"
+        list.updateSearchResults(for: list.searchController)
+        try? await Task.sleep(nanoseconds: 450_000_000)
+
+        list.tableView(list.tableView, didSelectRowAt: IndexPath(row: 0, section: 0))
+
+        XCTAssertNil(list.searchController.searchResultsUpdater)
+        XCTAssertNil(list.searchController.searchBar.delegate)
     }
 }
 
