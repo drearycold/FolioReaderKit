@@ -11,6 +11,12 @@ import FolioEPUBCore
 
 class FolioReaderReferenceList: UITableViewController {
 
+    static func referenceHighlightRange(for query: String, in title: String) -> NSRange? {
+        FolioReaderTextLocator.matchingRanges(of: query, in: title).first.map { range in
+            NSRange(range, in: title)
+        }
+    }
+
     fileprivate var sections = [Int]()
     fileprivate var sectionBookmarks = [Int: [FolioReaderBookmark]]()
     fileprivate var readerConfig: FolioReaderConfig
@@ -252,8 +258,7 @@ class FolioReaderReferenceList: UITableViewController {
         titleAttributedString.addAttribute(NSAttributedString.Key.foregroundColor, value: textColor, range: titleRange)
         
         if let refText = self.folioReader.readerCenter?.tempRefText {
-            let firstRange = nsTitle.range(of: refText)
-            if firstRange.length > 0 {
+            if let firstRange = Self.referenceHighlightRange(for: refText, in: bookmark.title) {
                 titleAttributedString.addAttribute(.kern, value: NSNumber(1.4), range: firstRange)
                 titleAttributedString.addAttribute(.font, value: UIFont(name: "Avenir-Black", size: 17) ?? .boldSystemFont(ofSize: 17), range: firstRange)
             }

@@ -4,6 +4,12 @@ import FolioEPUBCore
 
 @MainActor
 final class FolioReaderReferenceListTests: XCTestCase {
+    func testReferenceHighlightIgnoresCaseAndDiacritics() {
+        let range = FolioReaderReferenceList.referenceHighlightRange(for: "cafe", in: "CAFÉ")
+
+        XCTAssertEqual(range, NSRange(location: 0, length: 4))
+    }
+
     func testLoadSectionKeepsMatchesInTheirRequestedPageGroup() async {
         let pages = [
             "<html><body><p>term on page one</p></body></html>",
