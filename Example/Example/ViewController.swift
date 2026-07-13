@@ -8,6 +8,8 @@
 
 import UIKit
 import FolioReaderKit
+import FolioEPUBCore
+import ReadiumGCDWebServer
 
 class ViewController: UIViewController {
 
@@ -195,186 +197,194 @@ class FolioReaderUserDefaultsPreferenceProvider: FolioReaderDummyPreferenceProvi
         self.defaults.register(defaults: defaults)
     }
 
-    override func preference(nightMode defaults: Bool) -> Bool {
+    override func preference(stringFor key: String, default defaultValue: String) -> String {
+        return self.defaults.value(forKey: key) as? String ?? super.preference(stringFor: key, default: defaultValue)
+    }
+
+    override func preference(setString value: String, for key: String) {
+        self.defaults.set(value, forKey: key)
+    }
+
+    func preference(nightMode defaults: Bool) -> Bool {
         return self.defaults.bool(forKey: kNightMode)
     }
     
-    override func preference(setNightMode value: Bool){
+    func preference(setNightMode value: Bool){
         self.defaults.set(value, forKey: kNightMode)
     }
     
-    override func preference(themeMode defaults: Int) -> Int {
+    func preference(themeMode defaults: Int) -> Int {
         return self.defaults.integer(forKey: kThemeMode)
     }
-    override func preference(setThemeMode value: Int) {
+    func preference(setThemeMode value: Int) {
         self.defaults.set(value, forKey: kThemeMode)
     }
     
-    override func preference(currentFont defaults: String) -> String {
+    func preference(currentFont defaults: String) -> String {
         return self.defaults.value(forKey: kCurrentFontFamily) as? String ?? defaults
     }
-    override func preference(setCurrentFont value: String) {
+    func preference(setCurrentFont value: String) {
         self.defaults.set(value, forKey: kCurrentFontFamily)
     }
     
-    override func preference(currentFontSize defaults: String) -> String {
+    func preference(currentFontSize defaults: String) -> String {
         return self.defaults.value(forKey: kCurrentFontSize) as? String ?? defaults
     }
-    override func preference(setCurrentFontSize value: String) {
+    func preference(setCurrentFontSize value: String) {
         self.defaults.set(value, forKey: kCurrentFontSize)
     }
     
-    override func preference(currentFontWeight defaults: String) -> String {
+    func preference(currentFontWeight defaults: String) -> String {
         return self.defaults.value(forKey: kCurrentFontWeight) as? String ?? defaults
     }
-    override func preference(setCurrentFontWeight value: String) {
+    func preference(setCurrentFontWeight value: String) {
         self.defaults.set(value, forKey: kCurrentFontWeight)
     }
     
-    override func preference(currentAudioRate defaults: Int) -> Int {
+    func preference(currentAudioRate defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentAudioRate)
     }
-    override func preference(setCurrentAudioRate value: Int) {
+    func preference(setCurrentAudioRate value: Int) {
         self.defaults.set(value, forKey: kCurrentAudioRate)
     }
     
-    override func preference(currentHighlightStyle defaults: Int) -> Int {
+    func preference(currentHighlightStyle defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentHighlightStyle)
     }
-    override func preference(setCurrentHighlightStyle value: Int) {
+    func preference(setCurrentHighlightStyle value: Int) {
         self.defaults.set(value, forKey: kCurrentHighlightStyle)
     }
     
-    override func preference(currentMediaOverlayStyle defaults: Int) -> Int {
+    func preference(currentMediaOverlayStyle defaults: Int) -> Int {
         return self.defaults.value(forKey: kCurrentMediaOverlayStyle) as? Int ?? defaults
     }
-    override func preference(setCurrentMediaOverlayStyle value: Int) {
+    func preference(setCurrentMediaOverlayStyle value: Int) {
         self.defaults.set(value, forKey: kCurrentMediaOverlayStyle)
     }
     
-    override func preference(currentScrollDirection defaults: Int) -> Int {
+    func preference(currentScrollDirection defaults: Int) -> Int {
         return self.defaults.value(forKey: kCurrentScrollDirection) as? Int ?? defaults
     }
-    override func preference(setCurrentScrollDirection value: Int) {
+    func preference(setCurrentScrollDirection value: Int) {
         self.defaults.set(value, forKey: kCurrentScrollDirection)
     }
     
-    override func preference(currentNavigationMenuIndex defaults: Int) -> Int {
+    func preference(currentNavigationMenuIndex defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentTOCMenu)
     }
-    override func preference(setCurrentNavigationMenuIndex value: Int) {
+    func preference(setCurrentNavigationMenuIndex value: Int) {
         self.defaults.set(value, forKey: kCurrentTOCMenu)
     }
 
-    override func preference(currentAnnotationMenuIndex defaults: Int) -> Int {
+    func preference(currentAnnotationMenuIndex defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentAnnotationMenuIndex)
     }
-    override func preference(setCurrentAnnotationMenuIndex value: Int) {
+    func preference(setCurrentAnnotationMenuIndex value: Int) {
         self.defaults.set(value, forKey: kCurrentAnnotationMenuIndex)
     }
 
-    override func preference(currentNavigationMenuBookListStyle defaults: Int) -> Int {
+    func preference(currentNavigationMenuBookListStyle defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentNavigationMenuBookListStyle)
     }
-    override func preference(setCurrentNavigationMenuBookListStyle value: Int) {
+    func preference(setCurrentNavigationMenuBookListStyle value: Int) {
         self.defaults.set(value, forKey: kCurrentNavigationMenuBookListStyle)
     }
     
-    override func preference(currentMarginTop defaults: Int) -> Int {
+    func preference(currentMarginTop defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentMarginTop)
     }
-    override func preference(setCurrentMarginTop value: Int) {
+    func preference(setCurrentMarginTop value: Int) {
         self.defaults.set(value, forKey: kCurrentMarginTop)
     }
     
-    override func preference(currentMarginBottom defaults: Int) -> Int {
+    func preference(currentMarginBottom defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentMarginBottom)
     }
-    override func preference(setCurrentMarginBottom value: Int) {
+    func preference(setCurrentMarginBottom value: Int) {
         self.defaults.set(value, forKey: kCurrentMarginBottom)
     }
     
-    override func preference(currentMarginLeft defaults: Int) -> Int {
+    func preference(currentMarginLeft defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentMarginLeft)
     }
-    override func preference(setCurrentMarginLeft value: Int) {
+    func preference(setCurrentMarginLeft value: Int) {
         self.defaults.set(value, forKey: kCurrentMarginLeft)
     }
     
-    override func preference(currentMarginRight defaults: Int) -> Int {
+    func preference(currentMarginRight defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentMarginRight)
     }
-    override func preference(setCurrentMarginRight value: Int) {
+    func preference(setCurrentMarginRight value: Int) {
         self.defaults.set(value, forKey: kCurrentMarginRight)
     }
 
-    override func preference(currentVMarginLinked defaults: Bool) -> Bool {
+    func preference(currentVMarginLinked defaults: Bool) -> Bool {
         return self.defaults.bool(forKey: kCurrentVMarginLinked)
     }
-    override func preference(setCurrentVMarginLinked value: Bool) {
+    func preference(setCurrentVMarginLinked value: Bool) {
         self.defaults.set(value, forKey: kCurrentVMarginLinked)
     }
 
-    override func preference(currentHMarginLinked defaults: Bool) -> Bool {
+    func preference(currentHMarginLinked defaults: Bool) -> Bool {
         return self.defaults.bool(forKey: kCurrentHMarginLinked)
     }
-    override func preference(setCurrentHMarginLinked value: Bool) {
+    func preference(setCurrentHMarginLinked value: Bool) {
         self.defaults.set(value, forKey: kCurrentHMarginLinked)
     }
     
-    override func preference(currentLetterSpacing defaults: Int) -> Int {
+    func preference(currentLetterSpacing defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentLetterSpacing)
     }
-    override func preference(setCurrentLetterSpacing value: Int) {
+    func preference(setCurrentLetterSpacing value: Int) {
         self.defaults.set(value, forKey: kCurrentLetterSpacing)
     }
     
-    override func preference(currentLineHeight defaults: Int) -> Int {
+    func preference(currentLineHeight defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentLineHeight)
     }
-    override func preference(setCurrentLineHeight value: Int) {
+    func preference(setCurrentLineHeight value: Int) {
         self.defaults.set(value, forKey: kCurrentLineHeight)
     }
     
-    override func preference(doWrapPara defaults: Bool) -> Bool {
+    func preference(doWrapPara defaults: Bool) -> Bool {
         return self.defaults.bool(forKey: kDoWrapPara)
     }
-    override func preference(setDoWrapPara value: Bool) {
+    func preference(setDoWrapPara value: Bool) {
         self.defaults.set(value, forKey: kDoWrapPara)
     }
     
-    override func preference(doClearClass defaults: Bool) -> Bool {
+    func preference(doClearClass defaults: Bool) -> Bool {
         return self.defaults.bool(forKey: kDoClearClass)
     }
-    override func preference(setDoClearClass value: Bool) {
+    func preference(setDoClearClass value: Bool) {
         self.defaults.set(value, forKey: kDoClearClass)
     }
     
-    override func preference(currentTextIndent defaults: Int) -> Int {
+    func preference(currentTextIndent defaults: Int) -> Int {
         return self.defaults.integer(forKey: kCurrentTextIndent)
     }
-    override func preference(setCurrentTextIndent value: Int) {
+    func preference(setCurrentTextIndent value: Int) {
         self.defaults.set(value, forKey: kCurrentTextIndent)
     }
 
-    override func preference(styleOverride defaults: Int) -> Int {
+    func preference(styleOverride defaults: Int) -> Int {
         return self.defaults.integer(forKey: kStyleOverride)
     }
-    override func preference(setStyleOverride value: Int) {
+    func preference(setStyleOverride value: Int) {
         self.defaults.set(value, forKey: kStyleOverride)
     }
 
-    override func preference(structuralStyle defaults: Int) -> Int {
+    func preference(structuralStyle defaults: Int) -> Int {
         return self.defaults.integer(forKey: kStructuralStyle)
     }
-    override func preference(setStructuralStyle value: Int) {
+    func preference(setStructuralStyle value: Int) {
         self.defaults.set(value, forKey: kStructuralStyle)
     }
 
-    override func preference(structuralTocLevel defaults: Int) -> Int {
+    func preference(structuralTocLevel defaults: Int) -> Int {
         return self.defaults.integer(forKey: kStructuralTocLevel)
     }
-    override func preference(setStructuralTocLevel value: Int) {
+    func preference(setStructuralTocLevel value: Int) {
         self.defaults.set(value, forKey: kStructuralTocLevel)
     }
     

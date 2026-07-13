@@ -23,7 +23,13 @@ final class FolioReaderTextLocator {
         self.documentProvider = documentProvider
     }
 
-    func resolve(text: String, page: Int, beforeCFI: String? = nil, limit: Int? = nil) async -> [FolioReaderLocatorResult] {
+    func resolve(text: String,
+                 page: Int,
+                 beforeCFI: String? = nil,
+                 afterCFI: String? = nil,
+                 beforeCFIExclusive: String? = nil,
+                 limit: Int? = nil,
+                 direction: FolioReaderSearchDirection = .forward) async -> [FolioReaderLocatorResult] {
         guard text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
               limit.map({ $0 > 0 }) ?? true,
               let document = await document(for: page) else {
@@ -31,13 +37,17 @@ final class FolioReaderTextLocator {
         }
 
         let href = book.spine.spineReferences[safe: page - 1]?.resource.href
-        let matches = Self.resolve(text: text, in: document, page: page, href: href,
-                                   tocPath: tocPathForPage(page), limit: limit)
-        guard let boundaryCFI = beforeCFI else { return matches }
-        return matches.filter { result in
-            guard let cfi = result.cfi else { return true }
-            return Self.compare(cfi: cfi, isBeforeOrEqualTo: boundaryCFI)
-        }
+        let matches = Self.resolve(text: text,
+                                   in: document,
+                                   page: page,
+                                   href: href,
+                                   tocPath: tocPathForPage(page),
+                                   beforeCFI: beforeCFI,
+                                   afterCFI: afterCFI,
+                                   beforeCFIExclusive: beforeCFIExclusive,
+                                   limit: limit,
+                                   direction: direction)
+        return matches
     }
 
     static func resolve(text: String, in html: String, page: Int, href: String?, tocPath: [String], limit: Int? = nil) -> [FolioReaderLocatorResult] {
@@ -53,23 +63,54 @@ final class FolioReaderTextLocator {
               text.isEmpty == false,
               limit.map({ $0 > 0 }) ?? true else { return [] }
 
-        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
         var ranges = [Range<String.Index>]()
-        var searchStart = text.startIndex
-        while searchStart < text.endIndex,
-              Task.isCancelled == false,
-              let range = text.range(of: query, options: options,
-                                     range: searchStart..<text.endIndex, locale: nil) {
+        _ = forEachMatchingRange(of: query, in: text, direction: .forward) { range in
             ranges.append(range)
-            if let limit = limit, ranges.count >= limit { break }
-            if range.upperBound == searchStart {
-                guard searchStart < text.endIndex else { break }
-                searchStart = text.index(after: searchStart)
-            } else {
-                searchStart = range.upperBound
-            }
+            return limit.map { ranges.count < $0 } ?? true
         }
         return ranges
+    }
+
+    @discardableResult
+    private static func forEachMatchingRange(of query: String,
+                                             in text: String,
+                                             direction: FolioReaderSearchDirection,
+                                             visit: (Range<String.Index>) -> Bool) -> Bool {
+        guard query.isEmpty == false, text.isEmpty == false else { return true }
+
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        switch direction {
+        case .forward:
+            var searchStart = text.startIndex
+            while searchStart < text.endIndex,
+                  Task.isCancelled == false,
+                  let range = text.range(of: query,
+                                         options: options,
+                                         range: searchStart..<text.endIndex,
+                                         locale: nil) {
+                guard visit(range) else { return false }
+                if range.upperBound == searchStart {
+                    guard searchStart < text.endIndex else { break }
+                    searchStart = text.index(after: searchStart)
+                } else {
+                    searchStart = range.upperBound
+                }
+            }
+        case .backward:
+            var searchEnd = text.endIndex
+            let backwardOptions = options.union(.backwards)
+            while text.startIndex < searchEnd,
+                  Task.isCancelled == false,
+                  let range = text.range(of: query,
+                                         options: backwardOptions,
+                                         range: text.startIndex..<searchEnd,
+                                         locale: nil) {
+                guard visit(range) else { return false }
+                guard range.lowerBound < searchEnd else { break }
+                searchEnd = range.lowerBound
+            }
+        }
+        return Task.isCancelled == false
     }
 
     private func document(for page: Int) async -> Document? {
@@ -100,42 +141,67 @@ final class FolioReaderTextLocator {
         cacheLock.unlock()
     }
 
-    private static func resolve(text: String, in document: Document, page: Int, href: String?, tocPath: [String], limit: Int? = nil) -> [FolioReaderLocatorResult] {
+    private static func resolve(text: String,
+                                in document: Document,
+                                page: Int,
+                                href: String?,
+                                tocPath: [String],
+                                beforeCFI: String? = nil,
+                                afterCFI: String? = nil,
+                                beforeCFIExclusive: String? = nil,
+                                limit: Int? = nil,
+                                direction: FolioReaderSearchDirection = .forward) -> [FolioReaderLocatorResult] {
         guard let body = document.body() else { return [] }
 
         var results = [FolioReaderLocatorResult]()
-        for element in (try? body.getAllElements()) ?? Elements() {
+        let elements = (try? body.getAllElements()) ?? Elements()
+        let elementsToVisit = direction == .forward ? Array(elements) : Array(elements.reversed())
+        for element in elementsToVisit {
             if Task.isCancelled { return [] }
             guard isBodyTextElement(element) else { continue }
 
             guard let elementCFI = try? element.attr("CFI") else { continue }
             let nodes = element.textNodes()
             let offsetByOne = nodes.first?.previousSibling() != nil
-            for (index, node) in nodes.enumerated() {
+            let indexedNodes = nodes.enumerated().map { $0 }
+            let nodesToVisit = direction == .forward ? indexedNodes : Array(indexedNodes.reversed())
+            for (index, node) in nodesToVisit {
                 if Task.isCancelled { return [] }
                 let ownText = node.getWholeText()
-                let remainingLimit = limit.map { $0 - results.count }
-                if remainingLimit == 0 { return results }
-                for range in matchingRanges(of: text, in: ownText, limit: remainingLimit) {
-                    if Task.isCancelled { return [] }
+                if let limit, results.count >= limit { return results }
+                _ = forEachMatchingRange(of: text, in: ownText, direction: direction) { range in
+                    if Task.isCancelled { return false }
                     let contextStart = ownText.index(range.lowerBound, offsetBy: -30, limitedBy: ownText.startIndex) ?? ownText.startIndex
                     let contextEnd = ownText.index(range.upperBound, offsetBy: 70, limitedBy: ownText.endIndex) ?? ownText.endIndex
                     let prefix = contextStart > ownText.startIndex ? "..." : ""
                     let suffix = contextEnd < ownText.endIndex ? "..." : ""
                     let context = prefix + ownText[contextStart..<contextEnd] + suffix
                     let nodeCFI = "\(elementCFI)/\(index * 2 + 1 + (offsetByOne ? 2 : 0)):\(range.lowerBound.utf16Offset(in: ownText))"
+                    let cfi = "epubcfi(\(nodeCFI))"
+                    if let beforeCFI, !compare(cfi: cfi, isBeforeOrEqualTo: beforeCFI) {
+                        return true
+                    }
+                    if let beforeCFIExclusive, !compare(cfi: cfi, isStrictlyBefore: beforeCFIExclusive) {
+                        return true
+                    }
+                    if let afterCFI, !compare(cfi: cfi, isStrictlyAfter: afterCFI) {
+                        return true
+                    }
                     results.append(FolioReaderLocatorResult(
                         page: page,
                         href: href,
-                        cfi: "epubcfi(\(nodeCFI))",
+                        cfi: cfi,
                         text: text,
                         context: String(context),
                         tocPath: tocPath
                     ))
                     if let limit = limit, results.count >= limit {
-                        return results
+                        return false
                     }
+                    return true
                 }
+                if Task.isCancelled { return [] }
+                if let limit, results.count >= limit { return results }
             }
 
         }
@@ -190,10 +256,18 @@ final class FolioReaderTextLocator {
         }
     }
 
-    private static func compare(cfi: String, isBeforeOrEqualTo boundary: String) -> Bool {
+    static func compare(cfi: String, isBeforeOrEqualTo boundary: String) -> Bool {
         let numbers: (String) -> [Int] = { value in
             value.split(whereSeparator: { $0.isNumber == false }).compactMap { Int($0) }
         }
         return numbers(cfi).lexicographicallyPrecedes(numbers(boundary)) || numbers(cfi) == numbers(boundary)
+    }
+
+    static func compare(cfi: String, isStrictlyBefore boundary: String) -> Bool {
+        compare(cfi: cfi, isBeforeOrEqualTo: boundary) && compare(cfi: boundary, isBeforeOrEqualTo: cfi) == false
+    }
+
+    static func compare(cfi: String, isStrictlyAfter boundary: String) -> Bool {
+        compare(cfi: boundary, isStrictlyBefore: cfi)
     }
 }

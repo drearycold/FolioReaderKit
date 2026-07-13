@@ -264,9 +264,12 @@ open class FolioReaderConfig: NSObject {
     open var localizedSearchPlaceholder = NSLocalizedString("Search this book", comment: "")
     open var localizedSearchChapter = NSLocalizedString("Chapter", comment: "")
     open var localizedSearchInitial = NSLocalizedString("Enter a keyword to search this book", comment: "")
+    open var localizedSearchRecent = NSLocalizedString("Recent Searches", comment: "")
     open var localizedSearchLoading = NSLocalizedString("Searching…", comment: "")
     open var localizedSearchNoResults = NSLocalizedString("No results", comment: "")
     open var localizedSearchResultsTruncated = NSLocalizedString("Showing the first results", comment: "")
+    open var localizedSearchLoadEarlier = NSLocalizedString("Load earlier results", comment: "")
+    open var localizedSearchLoadLater = NSLocalizedString("Load later results", comment: "")
     
     /// Localizes Content title
     open var localizedContentsTitle = NSLocalizedString("Contents", comment: "")

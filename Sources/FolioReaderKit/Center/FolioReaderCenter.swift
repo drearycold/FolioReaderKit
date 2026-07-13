@@ -99,6 +99,7 @@ open class FolioReaderCenter: UIViewController {
     var bookmarkErrors: [String: String] = [:]
     var tempRefText: String?
     var tempRefCFI: String?
+    let searchSession = FolioReaderSearchSession()
     
     var readerConfig: FolioReaderConfig {
         guard let readerContainer = readerContainer else { return FolioReaderConfig() }
@@ -125,6 +126,13 @@ open class FolioReaderCenter: UIViewController {
     lazy var textLocator: FolioReaderTextLocator = {
         FolioReaderTextLocator(book: book)
     }()
+
+    var currentSearchAnchor: FolioReaderSearchAnchor? {
+        let page = currentPageNumber
+        guard page > 0, page <= totalPages else { return nil }
+        return FolioReaderSearchAnchor(page: page,
+                                       cfi: currentWebViewScrollPositions[page - 1]?.cfi)
+    }
 
     var folioReader: FolioReader {
         guard let readerContainer = readerContainer else { return FolioReader() }

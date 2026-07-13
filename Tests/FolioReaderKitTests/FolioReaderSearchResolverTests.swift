@@ -63,6 +63,100 @@ final class FolioReaderSearchResolverTests: XCTestCase {
         XCTAssertTrue(nonBodyResults.isEmpty)
     }
 
+    func testForwardAnchorIsExclusiveAndBackwardReturnsNearestMatchesInNaturalOrder() async {
+        let resolver = makeResolver(pages: [
+            "<html><body><p>term one term two</p></body></html>",
+            "<html><body><p>term three term four</p></body></html>"
+        ])
+
+        let allResults = await resolver.search(FolioReaderSearchQuery(text: "term"))
+        XCTAssertEqual(allResults.count, 4)
+        guard let anchorCFI = allResults[1].cfi else {
+            return XCTFail("Expected a CFI anchor")
+        }
+
+        let forward = await resolver.search(FolioReaderSearchQuery(
+            text: "term",
+            anchor: FolioReaderSearchAnchor(page: 1, cfi: anchorCFI),
+            direction: .forward
+        ))
+        let backward = await resolver.search(FolioReaderSearchQuery(
+            text: "term",
+            anchor: FolioReaderSearchAnchor(page: 1, cfi: anchorCFI),
+            direction: .backward
+        ))
+
+        XCTAssertEqual(forward, Array(allResults.dropFirst(2)))
+        XCTAssertEqual(backward, [allResults[0]])
+    }
+
+    func testBackwardAnchorUsesNearestMatchesBeforeReturningNaturalOrderAndHonorsLimit() async {
+        let resolver = makeResolver(pages: [
+            "<html><body><p>term one term two term three term four</p></body></html>"
+        ])
+        let allResults = await resolver.search(FolioReaderSearchQuery(text: "term"))
+        guard let anchorCFI = allResults.last?.cfi else {
+            return XCTFail("Expected a CFI anchor")
+        }
+
+        let backward = await resolver.search(FolioReaderSearchQuery(
+            text: "term",
+            limit: 2,
+            anchor: FolioReaderSearchAnchor(page: 1, cfi: anchorCFI),
+            direction: .backward
+        ))
+
+        XCTAssertEqual(backward, Array(allResults[1...2]))
+    }
+
+    func testAnchorSearchWrapsAcrossPagesWithoutIncludingAnchor() async {
+        let resolver = makeResolver(pages: [
+            "<html><body><p>term on first</p></body></html>",
+            "<html><body><p>term on second</p></body></html>",
+            "<html><body><p>term on third</p></body></html>"
+        ])
+        let allResults = await resolver.search(FolioReaderSearchQuery(text: "term"))
+        guard let anchorCFI = allResults[1].cfi else {
+            return XCTFail("Expected a CFI anchor")
+        }
+
+        let forward = await resolver.search(FolioReaderSearchQuery(
+            text: "term",
+            limit: 3,
+            anchor: FolioReaderSearchAnchor(page: 2, cfi: anchorCFI),
+            direction: .forward
+        ))
+        let backward = await resolver.search(FolioReaderSearchQuery(
+            text: "term",
+            limit: 3,
+            anchor: FolioReaderSearchAnchor(page: 2, cfi: anchorCFI),
+            direction: .backward
+        ))
+
+        XCTAssertEqual(forward.map(\.page), [3])
+        XCTAssertEqual(backward.map(\.page), [1])
+    }
+
+    func testBackwardAnchorInLargeTextNodeHonorsSmallLimit() async {
+        let html = "<html><body><p>\(String(repeating: "term ", count: 2000))</p></body></html>"
+        let resolver = makeResolver(pages: [html])
+        let nearbyResults = await resolver.search(FolioReaderSearchQuery(text: "term", limit: 1001))
+        guard let anchorCFI = nearbyResults[safe: 1000]?.cfi else {
+            return XCTFail("Expected an anchor in the large text node")
+        }
+        let anchor = FolioReaderSearchAnchor(page: 1, cfi: anchorCFI)
+
+        let results = await resolver.search(FolioReaderSearchQuery(
+            text: "term",
+            limit: 2,
+            anchor: anchor,
+            direction: .backward
+        ))
+
+        XCTAssertEqual(results.count, 2)
+        XCTAssertEqual(results.map(\.cfi), [nearbyResults[998].cfi, nearbyResults[999].cfi])
+    }
+
     private func makeResolver(pages: [String]) -> FolioReaderSearchResolver {
         let book = FRBook()
         book.spine.spineReferences = pages.enumerated().map { index, _ in
