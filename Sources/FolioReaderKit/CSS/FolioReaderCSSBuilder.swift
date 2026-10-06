@@ -176,19 +176,19 @@ enum FolioReaderCSSBuilder {
         })
 
         cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.left.className($0)) img.folioImg { margin-left: -\(Double($0-1) * 2.5)vw !important; overflow: hidden !important;}"
+            ".\(BodyPadding.left.className($0)) img.folioImg { margin-left: -\(Double(max($0-1, 0)) * 2.5)vw !important; overflow: hidden !important;}"
         })
 
         cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.right.className($0)) img.folioImg { margin-right: -\(Double($0-1) * 2.5)vw !important; overflow: hidden !important;}"
+            ".\(BodyPadding.right.className($0)) img.folioImg { margin-right: -\(Double(max($0-1, 0)) * 2.5)vw !important; overflow: hidden !important;}"
         })
 
         cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.top.className($0)) img.folioImg { margin-top: -\(Double($0-1) * 2.5)vh !important;}"
+            ".\(BodyPadding.top.className($0)) img.folioImg { margin-top: -\(Double(max($0-1, 0)) * 2.5)vh !important;}"
         })
 
         cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.bottom.className($0)) img.folioImg { margin-bottom: -\(Double($0-1) * 2.5)vh !important;}"
+            ".\(BodyPadding.bottom.className($0)) img.folioImg { margin-bottom: -\(Double(max($0-1, 0)) * 2.5)vh !important;}"
         })
 
         return cssStrings

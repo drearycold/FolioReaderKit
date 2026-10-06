@@ -48,7 +48,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 |---|---|---|
 | Unified CSS pipeline (`FolioReaderCSSBuilder` / `FolioReaderCSSInjector`), `customStyleSheets`, debug dumps gated on `.htmlStyling` | ✅ | `29c68ea`; snapshot test in `de3b5d9` |
 | `os_signpost` intervals for each `didFinish` stage, plus resource-server request timing; baseline below | ✅ | `Signposts.swift`; baseline recorded |
-| Fix the invalid `margin-*: --2.5vw` rules for padding level 0 (`.folioStyleBodyPadding*0 img.folioImg`); re-record the snapshot on purpose | ⬜ | 4-line snapshot diff |
+| Fix the invalid `margin-*: --2.5vw` rules for padding level 0 (`.folioStyleBodyPadding*0 img.folioImg`); re-record the snapshot on purpose | ✅ | 4-line snapshot diff; recorded with `TEST_RUNNER_FOLIO_RECORD_SNAPSHOTS=1` |
 | Inject only the selected font family's rules, as a runtime sheet, instead of every `UIFont.familyNames` entry on every page | ⬜ | |
 | Emit only the current level rules at runtime | ⏸ | Only if the baseline shows style cost matters |
 

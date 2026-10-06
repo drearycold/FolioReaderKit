@@ -370,7 +370,7 @@ html body.folioStyleL4TextIndent8  img.folioImg, body.folioStyleL4TextIndent8 im
 .folioStyleBodyPaddingBottom8 { padding-bottom: 20.0vh !important;}
 .folioStyleBodyPaddingBottom9 { padding-bottom: 22.5vh !important;}
 .folioStyleBodyPaddingBottom10 { padding-bottom: 25.0vh !important;}
-.folioStyleBodyPaddingLeft0 img.folioImg { margin-left: --2.5vw !important; overflow: hidden !important;}
+.folioStyleBodyPaddingLeft0 img.folioImg { margin-left: -0.0vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingLeft1 img.folioImg { margin-left: -0.0vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingLeft2 img.folioImg { margin-left: -2.5vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingLeft3 img.folioImg { margin-left: -5.0vw !important; overflow: hidden !important;}
@@ -381,7 +381,7 @@ html body.folioStyleL4TextIndent8  img.folioImg, body.folioStyleL4TextIndent8 im
 .folioStyleBodyPaddingLeft8 img.folioImg { margin-left: -17.5vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingLeft9 img.folioImg { margin-left: -20.0vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingLeft10 img.folioImg { margin-left: -22.5vw !important; overflow: hidden !important;}
-.folioStyleBodyPaddingRight0 img.folioImg { margin-right: --2.5vw !important; overflow: hidden !important;}
+.folioStyleBodyPaddingRight0 img.folioImg { margin-right: -0.0vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingRight1 img.folioImg { margin-right: -0.0vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingRight2 img.folioImg { margin-right: -2.5vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingRight3 img.folioImg { margin-right: -5.0vw !important; overflow: hidden !important;}
@@ -392,7 +392,7 @@ html body.folioStyleL4TextIndent8  img.folioImg, body.folioStyleL4TextIndent8 im
 .folioStyleBodyPaddingRight8 img.folioImg { margin-right: -17.5vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingRight9 img.folioImg { margin-right: -20.0vw !important; overflow: hidden !important;}
 .folioStyleBodyPaddingRight10 img.folioImg { margin-right: -22.5vw !important; overflow: hidden !important;}
-.folioStyleBodyPaddingTop0 img.folioImg { margin-top: --2.5vh !important;}
+.folioStyleBodyPaddingTop0 img.folioImg { margin-top: -0.0vh !important;}
 .folioStyleBodyPaddingTop1 img.folioImg { margin-top: -0.0vh !important;}
 .folioStyleBodyPaddingTop2 img.folioImg { margin-top: -2.5vh !important;}
 .folioStyleBodyPaddingTop3 img.folioImg { margin-top: -5.0vh !important;}
@@ -403,7 +403,7 @@ html body.folioStyleL4TextIndent8  img.folioImg, body.folioStyleL4TextIndent8 im
 .folioStyleBodyPaddingTop8 img.folioImg { margin-top: -17.5vh !important;}
 .folioStyleBodyPaddingTop9 img.folioImg { margin-top: -20.0vh !important;}
 .folioStyleBodyPaddingTop10 img.folioImg { margin-top: -22.5vh !important;}
-.folioStyleBodyPaddingBottom0 img.folioImg { margin-bottom: --2.5vh !important;}
+.folioStyleBodyPaddingBottom0 img.folioImg { margin-bottom: -0.0vh !important;}
 .folioStyleBodyPaddingBottom1 img.folioImg { margin-bottom: -0.0vh !important;}
 .folioStyleBodyPaddingBottom2 img.folioImg { margin-bottom: -2.5vh !important;}
 .folioStyleBodyPaddingBottom3 img.folioImg { margin-bottom: -5.0vh !important;}
