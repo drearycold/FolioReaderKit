@@ -295,72 +295,11 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
 
     func webViewFrame() -> CGRect {
-        let topComponentTotal = self.statusbarHeight
-        let bottomComponentTotal = self.readerConfig.hidePageIndicator ? 0 : self.folioReader.readerCenter?.pageIndicatorHeight ?? CGFloat(0)
-        let paddingTop: CGFloat = floor(CGFloat(self.folioReader.currentMarginTop) / 200 * (self.folioReader.readerCenter?.pageHeight ?? CGFloat(0)))
-        let paddingBottom: CGFloat = floor(CGFloat(self.folioReader.currentMarginBottom) / 200 * (self.folioReader.readerCenter?.pageHeight ?? CGFloat(0)))
-        let paddingLeft: CGFloat = floor(CGFloat(self.folioReader.currentMarginLeft) / 200 * (self.folioReader.readerCenter?.pageWidth ?? CGFloat(0)))
-        let paddingRight: CGFloat = floor(CGFloat(self.folioReader.currentMarginRight) / 200 * (self.folioReader.readerCenter?.pageWidth ?? CGFloat(0)))
-        
-        return byWritingMode(
-            CGRect(
-                x: bounds.origin.x,
-                y: self.readerConfig.isDirection(
-                    bounds.origin.y + topComponentTotal,
-                    bounds.origin.y + topComponentTotal + paddingTop,
-                    bounds.origin.y + topComponentTotal),
-                width: bounds.width,
-                height: max(self.readerConfig.isDirection(
-                    bounds.height - topComponentTotal - bottomComponentTotal,
-                    bounds.height - topComponentTotal - bottomComponentTotal - paddingTop - paddingBottom,
-                    bounds.height - topComponentTotal - bottomComponentTotal), 0)
-            ),
-            CGRect(
-                x: self.readerConfig.isDirection(
-                    bounds.origin.x,
-                    bounds.origin.x + paddingLeft,
-                    bounds.origin.x),
-                y: bounds.origin.y + topComponentTotal,
-                width: self.readerConfig.isDirection(
-                    bounds.width,
-                    bounds.width - paddingLeft - paddingRight,
-                    bounds.width),
-                height: bounds.height - topComponentTotal - bottomComponentTotal
-            )
-        )
+        FolioReaderPageFrameCalculator.webViewFrame(input: pageFrameInput)
     }
     
     func anchorBoundsFrame() -> CGRect {
-        // bounds.height does not include statusbarHeight
-        let statusbarHeight = self.statusbarHeight
-        let topComponentTotal = self.statusbarHeight
-        let bottomComponentTotal = self.readerConfig.hidePageIndicator ? 0 : self.folioReader.readerCenter?.pageIndicatorHeight ?? CGFloat(0)
-        let paddingTop: CGFloat = floor(CGFloat(self.folioReader.currentMarginTop) / 200 * (self.folioReader.readerCenter?.pageHeight ?? CGFloat(0)))
-        let paddingBottom: CGFloat = floor(CGFloat(self.folioReader.currentMarginBottom) / 200 * (self.folioReader.readerCenter?.pageHeight ?? CGFloat(0)))
-        let paddingLeft: CGFloat = floor(CGFloat(self.folioReader.currentMarginLeft) / 200 * (self.folioReader.readerCenter?.pageWidth ?? CGFloat(0)))
-        let paddingRight: CGFloat = floor(CGFloat(self.folioReader.currentMarginRight) / 200 * (self.folioReader.readerCenter?.pageWidth ?? CGFloat(0)))
-        
-        return byWritingMode(
-            CGRect(
-                x: bounds.origin.x + paddingLeft,
-                y: self.readerConfig.isDirection(
-                    bounds.origin.y + topComponentTotal,
-                    bounds.origin.y + topComponentTotal + paddingTop,
-                    bounds.origin.y + topComponentTotal)
-                + statusbarHeight,
-                width: bounds.width - paddingLeft - paddingRight,
-                height: max(self.readerConfig.isDirection(
-                    bounds.height - topComponentTotal - bottomComponentTotal,
-                    bounds.height - topComponentTotal - bottomComponentTotal - paddingTop - paddingBottom,
-                    bounds.height - topComponentTotal - bottomComponentTotal), 0)
-            ),
-            CGRect(
-                x: bounds.origin.x + paddingLeft,
-                y: bounds.origin.y + topComponentTotal + paddingTop,
-                width: bounds.width - paddingLeft - paddingRight,
-                height: max(bounds.height - topComponentTotal - bottomComponentTotal - paddingTop - paddingBottom, 0)
-            )
-        )
+        FolioReaderPageFrameCalculator.anchorBoundsFrame(input: pageFrameInput)
     }
     
     func loadHTMLString(_ htmlContent: String, baseURL: URL?) {
@@ -403,5 +342,152 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         } else {
             colorView?.frame = CGRect.zero
         }
+    }
+}
+
+private extension FolioReaderPage {
+    var pageFrameInput: FolioReaderPageFrameInput {
+        FolioReaderPageFrameInput(
+            bounds: bounds,
+            writingMode: writingMode,
+            scrollDirection: readerConfig.scrollDirection,
+            currentMarginTop: folioReader.currentMarginTop,
+            currentMarginBottom: folioReader.currentMarginBottom,
+            currentMarginLeft: folioReader.currentMarginLeft,
+            currentMarginRight: folioReader.currentMarginRight,
+            pageWidth: folioReader.readerCenter?.pageWidth ?? 0,
+            pageHeight: folioReader.readerCenter?.pageHeight ?? 0,
+            statusbarHeight: statusbarHeight,
+            pageIndicatorHeight: folioReader.readerCenter?.pageIndicatorHeight ?? 0,
+            hidePageIndicator: readerConfig.hidePageIndicator,
+            reserveSafeAreaInsidePageFrame: readerConfig.reserveSafeAreaInsidePageFrame,
+            reservePageIndicatorInsidePageFrame: readerConfig.reservePageIndicatorInsidePageFrame
+        )
+    }
+}
+
+struct FolioReaderPageFrameInput {
+    let bounds: CGRect
+    let writingMode: String
+    let scrollDirection: FolioReaderScrollDirection
+    let currentMarginTop: Int
+    let currentMarginBottom: Int
+    let currentMarginLeft: Int
+    let currentMarginRight: Int
+    let pageWidth: CGFloat
+    let pageHeight: CGFloat
+    let statusbarHeight: CGFloat
+    let pageIndicatorHeight: CGFloat
+    let hidePageIndicator: Bool
+    let reserveSafeAreaInsidePageFrame: Bool
+    let reservePageIndicatorInsidePageFrame: Bool
+}
+
+enum FolioReaderPageFrameCalculator {
+    static func webViewFrame(input: FolioReaderPageFrameInput) -> CGRect {
+        let metrics = FrameMetrics(input: input)
+
+        return metrics.byWritingMode(
+            horizontal: CGRect(
+                x: input.bounds.origin.x,
+                y: metrics.isDirection(
+                    input.bounds.origin.y + metrics.topComponentTotal,
+                    input.bounds.origin.y + metrics.topComponentTotal + metrics.paddingTop,
+                    input.bounds.origin.y + metrics.topComponentTotal
+                ),
+                width: input.bounds.width,
+                height: max(metrics.isDirection(
+                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal,
+                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal - metrics.paddingTop - metrics.paddingBottom,
+                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal
+                ), 0)
+            ),
+            vertical: CGRect(
+                x: metrics.isDirection(
+                    input.bounds.origin.x,
+                    input.bounds.origin.x + metrics.paddingLeft,
+                    input.bounds.origin.x
+                ),
+                y: input.bounds.origin.y + metrics.topComponentTotal,
+                width: metrics.isDirection(
+                    input.bounds.width,
+                    input.bounds.width - metrics.paddingLeft - metrics.paddingRight,
+                    input.bounds.width
+                ),
+                height: input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal
+            )
+        )
+    }
+
+    static func anchorBoundsFrame(input: FolioReaderPageFrameInput) -> CGRect {
+        let metrics = FrameMetrics(input: input)
+        let verticalAnchorStatusbarOffset = input.reserveSafeAreaInsidePageFrame ? input.statusbarHeight : 0
+
+        return metrics.byWritingMode(
+            horizontal: CGRect(
+                x: input.bounds.origin.x + metrics.paddingLeft,
+                y: metrics.isDirection(
+                    input.bounds.origin.y + metrics.topComponentTotal,
+                    input.bounds.origin.y + metrics.topComponentTotal + metrics.paddingTop,
+                    input.bounds.origin.y + metrics.topComponentTotal
+                ) + verticalAnchorStatusbarOffset,
+                width: input.bounds.width - metrics.paddingLeft - metrics.paddingRight,
+                height: max(metrics.isDirection(
+                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal,
+                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal - metrics.paddingTop - metrics.paddingBottom,
+                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal
+                ), 0)
+            ),
+            vertical: CGRect(
+                x: input.bounds.origin.x + metrics.paddingLeft,
+                y: input.bounds.origin.y + metrics.topComponentTotal + metrics.paddingTop,
+                width: input.bounds.width - metrics.paddingLeft - metrics.paddingRight,
+                height: max(input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal - metrics.paddingTop - metrics.paddingBottom, 0)
+            )
+        )
+    }
+}
+
+private struct FrameMetrics {
+    let input: FolioReaderPageFrameInput
+
+    var topComponentTotal: CGFloat {
+        input.reserveSafeAreaInsidePageFrame ? input.statusbarHeight : 0
+    }
+
+    var bottomComponentTotal: CGFloat {
+        guard input.reservePageIndicatorInsidePageFrame, !input.hidePageIndicator else { return 0 }
+        return input.pageIndicatorHeight
+    }
+
+    var paddingTop: CGFloat {
+        floor(CGFloat(input.currentMarginTop) / 200 * input.pageHeight)
+    }
+
+    var paddingBottom: CGFloat {
+        floor(CGFloat(input.currentMarginBottom) / 200 * input.pageHeight)
+    }
+
+    var paddingLeft: CGFloat {
+        floor(CGFloat(input.currentMarginLeft) / 200 * input.pageWidth)
+    }
+
+    var paddingRight: CGFloat {
+        floor(CGFloat(input.currentMarginRight) / 200 * input.pageWidth)
+    }
+
+    func isDirection<T>(_ vertical: T, _ horizontalContentPaged: T, _ horizontalContentScroll: T) -> T {
+        switch input.scrollDirection {
+        case .vertical, .defaultVertical:
+            return vertical
+        case .horizontalWithPagedContent:
+            return horizontalContentPaged
+        case .horizontalWithScrollContent:
+            return horizontalContentScroll
+        }
+    }
+
+    func byWritingMode<T>(horizontal: T, vertical: T) -> T {
+        input.writingMode == "vertical-rl" ? vertical : horizontal
     }
 }

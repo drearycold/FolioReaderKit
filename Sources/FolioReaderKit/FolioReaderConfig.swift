@@ -218,8 +218,20 @@ open class FolioReaderConfig: NSObject {
     /// Display book title in navbar
     open var displayTitle = false
 
+    /// Show the reader-level close button in the navigation bar.
+    open var showCloseButton = true
+
+    /// Force the reader settings menu tabs to use a bottom tab bar on iPadOS.
+    open var forceBottomMenuTabBar = false
+
     /// Hide the page indicator
     open var hidePageIndicator = false
+
+    /// Reserve safe-area/status-bar height inside each page frame.
+    open var reserveSafeAreaInsidePageFrame = true
+
+    /// Reserve page-indicator height inside each page frame.
+    open var reservePageIndicatorInsidePageFrame = true
 
     /// Go to saved position when open a book
     open var loadSavedPositionForCurrentBook = true

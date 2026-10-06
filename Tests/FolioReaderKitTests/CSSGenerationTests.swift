@@ -144,4 +144,22 @@ class CSSGenerationTests: XCTestCase {
         XCTAssertEqual(documentBase.map { $0.id }, ["folio_custom_b", "folio_custom_a"])
         XCTAssertEqual(documentBase.map { $0.css }, ["b1", "a-base"])
     }
+
+    func testBundledPageStyleDoesNotForceTopOrBottomPageMargins() {
+        let source = FolioReaderCSSBuilder.baseStyleSheet()
+
+        XCTAssertTrue(source.contains("@page"))
+        XCTAssertTrue(source.contains("margin: 0 0 !important;"))
+        XCTAssertFalse(source.contains("margin-top: 1em !important;"))
+        XCTAssertFalse(source.contains("margin-bottom: 1em !important;"))
+    }
+
+    func testZeroBodyPaddingClassesEmitZeroPadding() {
+        let source = FolioReaderCSSBuilder.baseStyleSheet()
+
+        XCTAssertTrue(source.contains(".folioStyleBodyPaddingLeft0 { padding-left: 0.0vw !important;"))
+        XCTAssertTrue(source.contains(".folioStyleBodyPaddingRight0 { padding-right: 0.0vw !important;"))
+        XCTAssertTrue(source.contains(".folioStyleBodyPaddingTop0 { padding-top: 0.0vh !important;"))
+        XCTAssertTrue(source.contains(".folioStyleBodyPaddingBottom0 { padding-bottom: 0.0vh !important;"))
+    }
 }

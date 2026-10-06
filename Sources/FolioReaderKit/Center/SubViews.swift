@@ -177,11 +177,16 @@ extension FolioReaderCenter {
         let logoIcon = UIImage(readerImageNamed: "icon-button-back")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let bookmarkIcon = UIImage(readerImageNamed: "icon-navbar-bookmark")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
 
-        let menu = UIBarButtonItem(image: closeIcon, style: .plain, target: self, action:#selector(closeReader(_:)))
         let toc = UIBarButtonItem(image: tocIcon, style: .plain, target: self, action:#selector(presentChapterList(_:)))
         let bookmark = UIBarButtonItem(image: bookmarkIcon, style: .plain, target: self, action: #selector(presentBookmarkList(_:)))
-        
-        navigationItem.leftBarButtonItems = [menu, toc, bookmark]
+
+        var leftBarIcons = [UIBarButtonItem]()
+        if readerConfig.showCloseButton {
+            leftBarIcons.append(UIBarButtonItem(image: closeIcon, style: .plain, target: self, action: #selector(closeReader(_:))))
+        }
+        leftBarIcons.append(contentsOf: [toc, bookmark])
+
+        navigationItem.leftBarButtonItems = leftBarIcons
 
         var rightBarIcons = [UIBarButtonItem]()
 
