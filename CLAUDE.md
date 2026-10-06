@@ -23,6 +23,7 @@ To see which simulators are installed, run `xcrun simctl list devices available`
 `CSSInjectionSnapshotTests` compares the generated style rules with `Tests/FolioReaderKitTests/__Snapshots__/CSSInjectionSnapshotTests/levelStyleRules.css`. After an intended styling change, re-record the snapshot by deleting that file, or by prefixing the test command with `TEST_RUNNER_FOLIO_RECORD_SNAPSHOTS=1`. The recording run fails on purpose, so run again to confirm, then review the snapshot diff in git.
 
 - The repo has no linter or formatter config.
+- CI is `.github/workflows/test.yml`, on a `macos-26` runner for pull requests and pushes to `master`. It runs the package tests on an iPhone simulator ("iPhone 17", or the first available iPhone) and builds the Example and Storyboard-Example schemes. It doesn't build YetAnotherEBookReader, which depends on a local checkout.
 - The example app is `Example/Example.xcodeproj`, an Xcode project that links the local package (there is no workspace and no `pod install`). Its schemes are Example, MultipleInstances-Example, and Storyboard-Example. Sample books and shared assets live in `Example/Shared/`.
 - `FolioReaderKit.podspec` and `Sources/FolioReaderKit/FolioReaderKit.h` are legacy CocoaPods leftovers and are not part of the SPM build.
 - Jazzy generates the docs in `docs/` from `.jazzy.yaml`, which builds the SPM scheme for `generic/platform=iOS Simulator`. Jazzy itself isn't installed by the repo.

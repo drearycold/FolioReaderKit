@@ -36,11 +36,11 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 | `AGENTS.md`: fix drift (`Sources/FolioEPUBCore`, port in `EpubResourceServer`, stale line references) or point it at `CLAUDE.md` | ✅ |
 | Delete `.travis.yml` (CocoaPods/workspace no longer exist); fix `.jazzy.yaml` and confirm `jazzy` runs | 🔄 Deleted and fixed; the jazzy `xcodebuild` arguments build, but jazzy itself is not installed here, so the run is unconfirmed |
 
-### Phase 2: CI (REFACTOR_PLAN C-3)
+### Phase 2: CI (REFACTOR_PLAN C-3) 🔄
 
 | Item | Status |
 |---|---|
-| GitHub Actions on macOS with Xcode 26: `xcodebuild test -scheme FolioReaderKit` on an iPhone simulator (includes snapshot and WebKit tests); build the Example and Storyboard-Example schemes | ⬜ |
+| GitHub Actions on macOS with Xcode 26: `xcodebuild test -scheme FolioReaderKit` on an iPhone simulator (includes snapshot and WebKit tests); build the Example and Storyboard-Example schemes | 🔄 `.github/workflows/test.yml` added; every step's command passes locally. The first hosted run happens on the umbrella PR. |
 
 ### Phase 3: Styling optimization (measure first)
 
