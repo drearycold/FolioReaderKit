@@ -200,10 +200,13 @@ public class ReaderPreferences {
     public var defaultScrollDirection: FolioReaderScrollDirection {
         folioReader?.readerContainer?.book.spine.isRtl == true ? .horizontalWithPagedContent : .horizontalWithScrollContent
     }
-    /// Check the current scroll direction. Default .defaultVertical
+    /// Check the current scroll direction. When nothing has been saved, defaults to the reader
+    /// config's `scrollDirection` (so a host app's configured direction is honoured), or to
+    /// `defaultScrollDirection` when no container is attached.
     public var currentScrollDirection: Int {
         get {
-            pref(intFor: .currentScrollDirection, default: defaultScrollDirection.rawValue)
+            let fallback = folioReader?.readerConfig?.scrollDirection ?? defaultScrollDirection
+            return pref(intFor: .currentScrollDirection, default: fallback.rawValue)
         }
         set (value) {
             pref(setInt: value, for: .currentScrollDirection)
