@@ -42,15 +42,15 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 |---|---|
 | GitHub Actions on macOS with Xcode 26: `xcodebuild test -scheme FolioReaderKit` on an iPhone simulator (includes snapshot and WebKit tests); build the Example and Storyboard-Example schemes | 🔄 `.github/workflows/test.yml` added; every step's command passes locally. The first hosted run happens on the umbrella PR. |
 
-### Phase 3: Styling optimization (measure first)
+### Phase 3: Styling optimization (measure first) ✅
 
 | Item | Status | Notes |
 |---|---|---|
 | Unified CSS pipeline (`FolioReaderCSSBuilder` / `FolioReaderCSSInjector`), `customStyleSheets`, debug dumps gated on `.htmlStyling` | ✅ | `29c68ea`; snapshot test in `de3b5d9` |
 | `os_signpost` intervals for each `didFinish` stage, plus resource-server request timing; baseline below | ✅ | `Signposts.swift`; baseline recorded |
 | Fix the invalid `margin-*: --2.5vw` rules for padding level 0 (`.folioStyleBodyPadding*0 img.folioImg`); re-record the snapshot on purpose | ✅ | 4-line snapshot diff; recorded with `TEST_RUNNER_FOLIO_RECORD_SNAPSHOTS=1` |
-| Inject only the selected font family's rules, as a runtime sheet, instead of every `UIFont.familyNames` entry on every page | ⬜ | |
-| Emit only the current level rules at runtime | ⏸ | Only if the baseline shows style cost matters |
+| Inject only the selected font family's rules, as a runtime sheet, instead of every `UIFont.familyNames` entry on every page | ✅ | `RuntimeStyleJS` median 30.2 → 18.8 ms; live font switching checked on the simulator |
+| Emit only the current level rules at runtime | ❌ dropped | `RuntimeStyleJS` is ~19 ms of a ~1.9 s page load; the fixed delays are the target (Phase 4) |
 
 ### Phase 4: Reader fixes driven by YAEBR issues
 
@@ -90,6 +90,7 @@ Collect with: `xcrun simctl spawn <device> log show --signpost --last 5m --style
 | Book (34 entries) | BookOpen | ParseEpub | Open → first page | PageLoad median / max | JS per page (sum) | RuntimeStyleJS median |
 |---|---|---|---|---|---|---|
 | Population (人口原理), 2026-10-06, before Phase 3 | 12.7 ms | 7.8 ms | 2,950 ms | 1,825 / 2,860 ms (n=5) | ≈ 40 ms | 30.2 ms |
+| Population, after Phase 3 (selected font family only) | 12.9 ms | 7.9 ms | 2,859 ms | 1,919 / 2,774 ms (n=6) | ≈ 30 ms | 18.8 ms |
 | EPUB with many entries | – | – | – | – | – | – |
 
 **Finding:** more than 95% of each page load is the `didFinish` chain's fixed `asyncAfter` delays (0.2 s per stage plus `delaySec()`) and WebKit's own load, not CSS or JS work. Opening and parsing a small book is negligible, so #99 needs a many-entry EPUB to profile; none of the samples has more than 34 entries.

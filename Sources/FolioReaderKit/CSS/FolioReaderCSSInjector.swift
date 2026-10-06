@@ -13,9 +13,11 @@ import WebKit
 /// never has to be escaped into a JS string literal.
 enum FolioReaderCSSInjector {
 
-    /// Internal `<style>` ids, in cascade order. Custom sheets follow their stage's internal sheets.
+    /// Internal `<style>` ids. Document-base sheets (bundle, user font faces, then custom) are injected
+    /// at document end; runtime sheets (font families, then custom) follow the overflow sheet.
     enum StyleID {
         static let bundle = "folio_bundle_style"
+        /// Runtime sheet with the `FontFamily` rules for the selected font only.
         static let fontFamilies = "folio_style_font_families"
         static let userFontFaces = "folio_style_user_font_faces"
         static let overflow = "folio_style_overflow"
@@ -82,6 +84,13 @@ enum FolioReaderCSSInjector {
     /// Injects `css` into the currently loaded page.
     static func apply(id: String, css: String, to webView: FolioReaderWebView, completion: (() -> Void)? = nil) {
         webView.js(upsertSource(id: id, css: css)) { _ in completion?() }
+    }
+
+    /// Sheets upserted on every style refresh: the selected font's `FontFamily` rules, then the
+    /// runtime custom sheets. Only the selected family gets rules, instead of every installed one.
+    static func runtimeSheets(currentFont: String, customStyleSheets: [FolioReaderStyleSheet]) -> [(id: String, css: String)] {
+        [(id: StyleID.fontFamilies, css: FolioReaderCSSBuilder.fontFamilyRules(familyNames: [currentFont]))]
+            + customSheets(customStyleSheets, stage: .runtime)
     }
 
     /// Custom sheets for `stage` with their injected ids, in first-appearance order; a repeated id keeps the last CSS.

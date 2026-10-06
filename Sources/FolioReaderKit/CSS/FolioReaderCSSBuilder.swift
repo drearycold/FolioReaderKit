@@ -194,7 +194,8 @@ enum FolioReaderCSSBuilder {
         return cssStrings
     }
 
-    /// `FontFamily*` level rules for each family; callers pass `UIFont.familyNames`.
+    /// `FontFamily*` level rules for each family. The reader passes only the selected family
+    /// (`FolioReaderCSSInjector.runtimeSheets`), so pages don't carry rules for every installed font.
     static func fontFamilyRules(familyNames: [String]) -> String {
         familyNames.map {
             levels(ClassToken.fontFamily($0), def: "font-family: \"\($0)\" !important;")

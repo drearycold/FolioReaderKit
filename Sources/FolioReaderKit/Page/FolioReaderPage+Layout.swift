@@ -118,7 +118,7 @@ writingMode
         let script = FolioReaderCSSInjector.runtimeStyleSource(
             themeMode: folioReader.themeMode,
             bodyClasses: FolioReaderCSSBuilder.bodyClasses(for: styleState),
-            runtimeSheets: FolioReaderCSSInjector.customSheets(readerConfig.customStyleSheets, stage: .runtime),
+            runtimeSheets: FolioReaderCSSInjector.runtimeSheets(currentFont: folioReader.currentFont, customStyleSheets: readerConfig.customStyleSheets),
             includeDebugDump: readerConfig.debug.contains(.htmlStyling)
         )
 

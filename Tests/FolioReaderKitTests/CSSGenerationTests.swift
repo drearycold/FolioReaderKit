@@ -127,6 +127,20 @@ class CSSGenerationTests: XCTestCase {
 
     // MARK: - Custom style sheets
 
+    func testRuntimeSheetsCarrySelectedFontFamilyThenRuntimeCustomSheets() {
+        let sheets = FolioReaderCSSInjector.runtimeSheets(
+            currentFont: "Gill Sans",
+            customStyleSheets: [
+                FolioReaderStyleSheet(id: "base", css: "b", stage: .documentBase),
+                FolioReaderStyleSheet(id: "live", css: "l", stage: .runtime),
+            ]
+        )
+
+        XCTAssertEqual(sheets.map { $0.id }, ["folio_style_font_families", "folio_custom_live"])
+        XCTAssertTrue(sheets[0].css.contains("body.folioStyleL1FontFamilyGill_Sans p"))
+        XCTAssertFalse(sheets[0].css.contains("Helvetica"), "Only the selected family gets rules")
+    }
+
     func testCustomSheetsFilterByStagePrefixIDsAndKeepLastDuplicate() {
         let sheets = [
             FolioReaderStyleSheet(id: "a", css: "a1", stage: .runtime),

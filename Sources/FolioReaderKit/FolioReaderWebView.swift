@@ -56,11 +56,6 @@ open class FolioReaderWebView: WKWebView {
         FolioReaderScript.readiumCFIJS.addIfNeeded(to: self)
 
         Self.bundleStyleScript.addIfNeeded(to: self)
-        // Font families are rebuilt per web view: fonts registered after the first page still get classes.
-        FolioReaderCSSInjector.userScript(
-            id: FolioReaderCSSInjector.StyleID.fontFamilies,
-            css: FolioReaderCSSBuilder.fontFamilyRules(familyNames: UIFont.familyNames)
-        ).addIfNeeded(to: self)
         FolioReaderCSSInjector.userScript(
             id: FolioReaderCSSInjector.StyleID.userFontFaces,
             css: FolioReaderCSSBuilder.userFontFaceRules(descriptors: readerContainer.readerConfig.userFontDescriptors)
