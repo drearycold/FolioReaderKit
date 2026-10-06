@@ -49,7 +49,7 @@ let package = Package(
 		.testTarget(
             name: "FolioReaderKitTests",
             dependencies: ["FolioReaderKit", "FolioEPUBCore"],
-            exclude: ["Info.plist"]
+            exclude: ["Info.plist", "__Snapshots__"]
         )
 	]
 )

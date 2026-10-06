@@ -42,7 +42,10 @@ class FolioReaderScript: WKUserScript {
         return FolioReaderScript(source: jsSource)
     }()
     
-    static let cssInjection: FolioReaderScript = {
+    static let cssInjection = FolioReaderScript(source: cssInjectionSource(for: bundleStyleSheet, id: "folio_bundle_style"))
+
+    /// `Style.css` followed by `levelStyleRules`; the content of the injected `folio_bundle_style` element.
+    static let bundleStyleSheet: String = {
         var cssStrings = [String]()
         if let cssURL = Bundle.frameworkBundle().url(forResource: "Style", withExtension: "css"),
            let cssSource = try? String(contentsOf: cssURL) {
@@ -50,7 +53,14 @@ class FolioReaderScript: WKUserScript {
         } else {
             print("ERROR: Could not find Style.css in bundle \(Bundle.frameworkBundle())")
         }
-        
+        cssStrings.append(contentsOf: levelStyleRules)
+        return cssStrings.joined(separator: "\n")
+    }()
+
+    /// Every per-setting class rule that `FolioReaderPage.updateRuntimStyle` toggles on `<body>`, one rule per element.
+    static let levelStyleRules: [String] = {
+        var cssStrings = [String]()
+
         cssStrings.append(
             contentsOf: FolioReader.FontSizes.map {
                 FolioReader.CssLevels(type: "FontSize\($0.replacingOccurrences(of: ".", with: ""))", def: "font-size: \($0) !important;")
@@ -122,9 +132,7 @@ class FolioReaderScript: WKUserScript {
             ".folioStyleBodyPaddingBottom\($0) img.folioImg { margin-bottom: -\(Double($0-1) * 2.5)vh !important;}"
         })
         
-        let cssString = cssStrings.joined(separator: "\n")
-        
-        return FolioReaderScript(source: cssInjectionSource(for: cssString, id: "folio_bundle_style"))
+        return cssStrings
     }()
     
     static func cssInjectionSource(for content: String, id: String) -> String {
