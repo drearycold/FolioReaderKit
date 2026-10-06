@@ -94,6 +94,29 @@ class ReaderPreferencesTests: XCTestCase {
         preferences.currentScrollDirection = 0
         XCTAssertEqual(preferences.currentScrollDirection, 0)
     }
+
+    func testCurrentScrollDirectionFallsBackToReaderConfigWhenUnset() {
+        let config = FolioReaderConfig()
+        config.scrollDirection = .vertical
+        let container = FolioReaderContainer(withConfig: config, folioReader: folioReader, epubPath: "", webServer: ReadiumGCDWebServer())
+
+        XCTAssertEqual(preferences.currentScrollDirection, FolioReaderScrollDirection.vertical.rawValue)
+
+        // A saved user choice still takes precedence over the config.
+        preferences.currentScrollDirection = FolioReaderScrollDirection.horizontalWithPagedContent.rawValue
+        XCTAssertEqual(preferences.currentScrollDirection, FolioReaderScrollDirection.horizontalWithPagedContent.rawValue)
+        withExtendedLifetime(container) {}
+    }
+
+    func testContainerKeepsConfiguredScrollDirectionWhenNothingSaved() {
+        let config = FolioReaderConfig()
+        config.scrollDirection = .vertical
+        let container = FolioReaderContainer(withConfig: config, folioReader: folioReader, epubPath: "", webServer: ReadiumGCDWebServer())
+
+        container.loadViewIfNeeded()
+
+        XCTAssertEqual(container.readerConfig.scrollDirection, .vertical)
+    }
     
     func testNavigationMenuIndices() {
         XCTAssertEqual(preferences.currentNavigationMenuIndex, 0)
