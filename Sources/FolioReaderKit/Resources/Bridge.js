@@ -1685,28 +1685,6 @@ var onClassBasedListenerClick = function(schemeName, attributeContent) {
 	window.location = schemeName + "://" + attributeContent + positionParameterString;
 }
 
-function setFolioStyle(styleTextEncoded) {
-    var styleText = window.atob(styleTextEncoded)
-    var head = document.head
-    var style = document.getElementById("folio_style_runtime")
-    if (style == null) {
-        style = document.createElement('style')
-        style.type = "text/css"
-        style.id = "folio_style_runtime"
-        head.appendChild(style)
-    }
-    while (style.firstChild) {
-        style.removeChild(style.firstChild)
-    }
-    style.appendChild(document.createTextNode(styleText))
-    
-//    window.webkit.messageHandlers.FolioReaderPage.postMessage("setFolioStyle " + style.outerHTML)
-
-    var para = document.querySelector('p')
-    var compStyles = window.getComputedStyle(para)
-//    window.webkit.messageHandlers.FolioReaderPage.postMessage("setFolioStyle compStyles p " + compStyles.cssText)
-}
-
 function getOffsetsOfElementsWithID(horizontal) {
 
     const els = document.querySelectorAll("[id]")

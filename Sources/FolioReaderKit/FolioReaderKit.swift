@@ -118,7 +118,6 @@ public class FolioReader: NSObject {
     public override init() { }
 
     public lazy var preferences = ReaderPreferences(folioReader: self)
-    lazy var cssGenerator = ReaderCSSGenerator(folioReader: self)
 
     deinit {
         removeObservers()
@@ -454,35 +453,9 @@ extension FolioReader {
     }
 }
 
-// MARK: - CSS Style
-
+// MARK: - Providers
 
 extension FolioReader {
-    
-    @available(*, deprecated, message: "Use cssGenerator instead")
-    func generateRuntimeStyle() -> String {
-        return cssGenerator.generateRuntimeStyle()
-    }
-    
-    @available(*, deprecated, message: "Use cssGenerator instead")
-    func cssFontFamilies() -> String {
-        return cssGenerator.cssFontFamilies()
-    }
-    
-    @available(*, deprecated, message: "Use cssGenerator instead")
-    func cssUserFontFaces() -> String {
-        return cssGenerator.cssUserFontFaces()
-    }
-    
-    @available(*, deprecated, message: "Use ReaderCSSGenerator.CssLevels instead")
-    public static func CssLevels(type: String, def: String) -> [String] {
-        return ReaderCSSGenerator.CssLevels(type: type, def: def)
-    }
-
-    @available(*, deprecated, message: "Use ReaderCSSGenerator.CssImgLevels instead")
-    public static func CssImgLevels(type: String, def: String) -> [String] {
-        return ReaderCSSGenerator.CssImgLevels(type: type, def: def)
-    }
 
     public var highlightProvider: FolioReaderHighlightProviding? {
         guard let provider = self.delegate?.folioReaderHighlightProvider?(self) else { return nil }

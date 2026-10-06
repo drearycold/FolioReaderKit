@@ -9,69 +9,139 @@
 import XCTest
 @testable import FolioReaderKit
 
-@MainActor
 class CSSGenerationTests: XCTestCase {
-    
-    func testGenerateRuntimeStyle() {
-        let folioReader = FolioReader()
-        let delegate = MockFolioReaderDelegate()
-        folioReader.delegate = delegate
-        
-        // Setup initial preference settings
-        folioReader.styleOverride = .PNode
-        delegate.preferenceProvider.preference(setString: "20px", for: "currentFontSize")
-        delegate.preferenceProvider.preference(setInt: 2, for: "currentLetterSpacing")
-        delegate.preferenceProvider.preference(setInt: 3, for: "currentLineHeight")
-        delegate.preferenceProvider.preference(setInt: 1, for: "currentTextIndent")
-        
-        var css = folioReader.generateRuntimeStyle()
-        XCTAssertTrue(css.contains("p {"))
-        XCTAssertFalse(css.contains("p, td {"))
-        XCTAssertFalse(css.contains("p, td, span {"))
-        
-        // Test styleOverride changes
-        folioReader.styleOverride = .PlusTD
-        css = folioReader.generateRuntimeStyle()
-        XCTAssertTrue(css.contains("p, td {"))
-        
-        folioReader.styleOverride = .PlusSPAN
-        css = folioReader.generateRuntimeStyle()
-        XCTAssertTrue(css.contains("p, td, td, span {"))
-        
-        folioReader.styleOverride = .None
-        css = folioReader.generateRuntimeStyle()
-        XCTAssertFalse(css.contains("p {"))
-        XCTAssertFalse(css.contains("p, td, td, span {"))
+
+    private func state(
+        _ styleOverride: StyleOverrideTypes,
+        vertical: Bool = false,
+        font: String = "Helvetica Neue",
+        fontSize: String = "18.5px",
+        fontWeight: String = "400",
+        letterSpacing: Int = 2,
+        lineHeight: Int = 3,
+        textIndent: Int = 1,
+        margins: (top: Int, bottom: Int, left: Int, right: Int) = (10, 15, 20, 25)
+    ) -> FolioReaderStyleState {
+        FolioReaderStyleState(
+            styleOverride: styleOverride,
+            font: font,
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            letterSpacing: letterSpacing,
+            lineHeight: lineHeight,
+            textIndent: textIndent,
+            marginTop: margins.top,
+            marginBottom: margins.bottom,
+            marginLeft: margins.left,
+            marginRight: margins.right,
+            isVerticalWritingMode: vertical
+        )
     }
-    
-    func testCssLevelsHelpers() {
-        let levels = ReaderCSSGenerator.CssLevels(type: "FontFamilyTest", def: "color: red;")
-        XCTAssertEqual(levels.count, 4)
-        // .PNode is rawValue 1
-        XCTAssertTrue(levels.contains("html body.folioStyleL1FontFamilyTest p, body.folioStyleL1FontFamilyTest p { color: red; }"))
-        // .PlusTD is rawValue 2
-        XCTAssertTrue(levels.contains("html body.folioStyleL2FontFamilyTest td, body.folioStyleL2FontFamilyTest td { color: red; }"))
-        
-        let imgLevels = ReaderCSSGenerator.CssImgLevels(type: "ImgTest", def: "max-width: 100%;")
-        XCTAssertEqual(imgLevels.count, 4)
-        XCTAssertTrue(imgLevels.contains("html body.folioStyleL1ImgTest p img.folioImg, body.folioStyleL1ImgTest p img.folioImg { max-width: 100%; }"))
+
+    // MARK: - Body classes (expected lists follow the former JS in updateRuntimeStyle)
+
+    func testBodyClassesHorizontalPlusTD() {
+        let level = { (n: Int) in [
+            "folioStyleL\(n)FontFamilyHelvetica_Neue",
+            "folioStyleL\(n)FontSize185px",
+            "folioStyleL\(n)FontWeight400",
+            "folioStyleL\(n)LetterSpacing2",
+            "folioStyleL\(n)LineHeight3",
+            "folioStyleL\(n)MarginH3",
+            "folioStyleL\(n)TextIndent5",
+        ] }
+        XCTAssertEqual(
+            FolioReaderCSSBuilder.bodyClasses(for: state(.PlusTD)),
+            ["folioStyleBodyPaddingLeft4", "folioStyleBodyPaddingRight5"] + level(2) + level(1)
+        )
     }
-    
-    func testCssFontFamilies() {
-        let folioReader = FolioReader()
-        let cssGenerator = ReaderCSSGenerator(folioReader: folioReader)
-        let fontFamiliesCss = cssGenerator.cssFontFamilies()
-        
-        XCTAssertFalse(fontFamiliesCss.isEmpty)
-        // Verify it contains styling for typical iOS fonts like Helvetica
-        XCTAssertTrue(fontFamiliesCss.contains("Helvetica"))
+
+    func testBodyClassesVerticalAllText() {
+        let classes = FolioReaderCSSBuilder.bodyClasses(for: state(.AllText, vertical: true))
+
+        XCTAssertEqual(Array(classes.prefix(2)), ["folioStyleBodyPaddingTop2", "folioStyleBodyPaddingBottom3"])
+        XCTAssertEqual(classes.count, 2 + 4 * 7)
+        XCTAssertEqual(classes[2], "folioStyleL4FontFamilyHelvetica_Neue")
+        XCTAssertEqual(classes.last, "folioStyleL1TextIndent5")
+        XCTAssertTrue(classes.contains("folioStyleL3MarginV3"))
+        XCTAssertFalse(classes.contains { $0.contains("MarginH") })
     }
-    
-    func testCssUserFontFacesEmpty() {
-        let folioReader = FolioReader()
-        let cssGenerator = ReaderCSSGenerator(folioReader: folioReader)
-        let userFontFaces = cssGenerator.cssUserFontFaces()
-        // Without user font descriptors set, this should be empty
-        XCTAssertTrue(userFontFaces.isEmpty)
+
+    func testBodyClassesNoneHasOnlyPadding() {
+        XCTAssertEqual(
+            FolioReaderCSSBuilder.bodyClasses(for: state(.None)),
+            ["folioStyleBodyPaddingLeft4", "folioStyleBodyPaddingRight5"]
+        )
+    }
+
+    /// Every class the reader can put on `<body>` must have a rule, or the setting silently does nothing.
+    func testEveryBodyClassHasARule() {
+        let styleSheet = FolioReaderCSSBuilder.baseStyleSheet(styleCSS: nil)
+        let fontFamilyRules = FolioReaderCSSBuilder.fontFamilyRules(familyNames: ["Helvetica Neue"])
+
+        var states = [FolioReaderStyleState]()
+        for vertical in [false, true] {
+            states += FolioReader.FontSizes.map { state(.AllText, vertical: vertical, fontSize: $0) }
+            states += (1...9).map { state(.AllText, vertical: vertical, fontWeight: "\($0 * 100)") }
+            states += (0...10).map { state(.AllText, vertical: vertical, letterSpacing: $0, lineHeight: $0) }
+            states += (-4...4).map { state(.AllText, vertical: vertical, textIndent: $0) }
+            states += stride(from: 0, through: 50, by: 5).map { state(.AllText, vertical: vertical, margins: ($0, $0, $0, $0)) }
+        }
+
+        for state in states {
+            for cls in FolioReaderCSSBuilder.bodyClasses(for: state) {
+                let rules = cls.contains("FontFamily") ? fontFamilyRules : styleSheet
+                // The trailing space keeps e.g. PaddingLeft1 from matching PaddingLeft10.
+                XCTAssertTrue(rules.contains(".\(cls) "), "No rule for body class \(cls)")
+            }
+        }
+    }
+
+    // MARK: - Style sheets
+
+    func testFontFamilyRules() {
+        let css = FolioReaderCSSBuilder.fontFamilyRules(familyNames: ["Helvetica Neue"])
+        XCTAssertEqual(css.components(separatedBy: "\n").count, 4)
+        XCTAssertTrue(css.contains("html body.folioStyleL1FontFamilyHelvetica_Neue p, body.folioStyleL1FontFamilyHelvetica_Neue p { font-family: \"Helvetica Neue\" !important; }"))
+    }
+
+    func testUserFontFaceRulesEmpty() {
+        XCTAssertTrue(FolioReaderCSSBuilder.userFontFaceRules(descriptors: [:]).isEmpty)
+    }
+
+    func testOverflowCSS() {
+        let html = "html { overflow: scroll !important; display: block !important; text-align: justify !important;}"
+        XCTAssertEqual(FolioReaderCSSBuilder.overflowCSS(overflow: "scroll", verticalWritingMode: false), html)
+        XCTAssertEqual(FolioReaderCSSBuilder.overflowCSS(overflow: "scroll", verticalWritingMode: true), html)
+
+        let pagedHTML = "html { overflow: -webkit-paged-x !important; display: block !important; text-align: justify !important;}"
+        XCTAssertEqual(
+            FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: false),
+            pagedHTML + " body { min-height: 100vh; margin: 0 0 !important; }"
+        )
+        XCTAssertEqual(
+            FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: true),
+            pagedHTML + " body { min-width: 100vw; margin: 0 0 !important; }"
+        )
+    }
+
+    // MARK: - Custom style sheets
+
+    func testCustomSheetsFilterByStagePrefixIDsAndKeepLastDuplicate() {
+        let sheets = [
+            FolioReaderStyleSheet(id: "a", css: "a1", stage: .runtime),
+            FolioReaderStyleSheet(id: "b", css: "b1", stage: .documentBase),
+            FolioReaderStyleSheet(id: "c", css: "c1", stage: .runtime),
+            FolioReaderStyleSheet(id: "a", css: "a2", stage: .runtime),
+            FolioReaderStyleSheet(id: "a", css: "a-base", stage: .documentBase),
+        ]
+
+        let runtime = FolioReaderCSSInjector.customSheets(sheets, stage: .runtime)
+        XCTAssertEqual(runtime.map { $0.id }, ["folio_custom_a", "folio_custom_c"])
+        XCTAssertEqual(runtime.map { $0.css }, ["a2", "c1"])
+
+        let documentBase = FolioReaderCSSInjector.customSheets(sheets, stage: .documentBase)
+        XCTAssertEqual(documentBase.map { $0.id }, ["folio_custom_b", "folio_custom_a"])
+        XCTAssertEqual(documentBase.map { $0.css }, ["b1", "a-base"])
     }
 }

@@ -8,37 +8,26 @@
 import XCTest
 @testable import FolioReaderKit
 
-/// Guards the stylesheet injected into every page by `FolioReaderScript.cssInjection`.
+/// Guards the base stylesheet (`folio_bundle_style`) injected into every page.
 ///
-/// `levelStyleRules` is compared against `__Snapshots__/CSSInjectionSnapshotTests/levelStyleRules.css`.
+/// `FolioReaderCSSBuilder.levelRules()` is compared against `__Snapshots__/CSSInjectionSnapshotTests/levelStyleRules.css`.
 /// To re-record after an intended change, delete that file or run with
 /// `TEST_RUNNER_FOLIO_RECORD_SNAPSHOTS=1 xcodebuild test ...`, then review the diff in git.
 class CSSInjectionSnapshotTests: XCTestCase {
 
     func testLevelStyleRulesSnapshot() {
-        assertSnapshot(FolioReaderScript.levelStyleRules.joined(separator: "\n") + "\n", named: "levelStyleRules.css")
+        assertSnapshot(FolioReaderCSSBuilder.levelRules().joined(separator: "\n") + "\n", named: "levelStyleRules.css")
     }
 
-    func testBundleStyleSheetIsStyleCSSFollowedByLevelRules() throws {
+    func testBaseStyleSheetIsStyleCSSFollowedByLevelRules() throws {
         let styleURL = try XCTUnwrap(Bundle.frameworkBundle().url(forResource: "Style", withExtension: "css"))
         let styleCSS = try String(contentsOf: styleURL)
 
+        XCTAssertEqual(FolioReaderCSSBuilder.bundledStyleCSS, styleCSS)
         XCTAssertEqual(
-            FolioReaderScript.bundleStyleSheet,
-            ([styleCSS] + FolioReaderScript.levelStyleRules).joined(separator: "\n")
+            FolioReaderCSSBuilder.baseStyleSheet(),
+            ([styleCSS] + FolioReaderCSSBuilder.levelRules()).joined(separator: "\n")
         )
-        XCTAssertEqual(
-            FolioReaderScript.cssInjection.source,
-            FolioReaderScript.cssInjectionSource(for: FolioReaderScript.bundleStyleSheet, id: "folio_bundle_style")
-        )
-    }
-
-    func testBundleStyleSheetIsSafeInsideSingleQuotedJSString() {
-        // cssInjectionSource embeds the CSS as `style.innerHTML = '...'` without escaping,
-        // so a quote or backslash anywhere in it would silently break the whole injection.
-        let styleSheet = FolioReaderScript.bundleStyleSheet
-        XCTAssertFalse(styleSheet.contains("'"), "Use double quotes in Style.css and generated rules")
-        XCTAssertFalse(styleSheet.contains("\\"), "Backslashes are not escaped by cssInjectionSource")
     }
 
     // MARK: - Snapshot helper

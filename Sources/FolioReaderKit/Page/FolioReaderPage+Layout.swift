@@ -82,34 +82,8 @@ writingMode = window.getComputedStyle(document.body).getPropertyValue("writing-m
     }
 }
 
-{
-    var overflow = "\(webView.cssOverflowProperty)"
-    var head = document.head
-    var style = document.getElementById("folio_style_overflow")
-    if (style == null) {
-        style = document.createElement('style')
-        style.type = "text/css"
-        style.id = "folio_style_overflow"
-        head.appendChild(style)
-    }
-    while (style.firstChild) {
-        style.removeChild(style.firstChild)
-    }
-    
-    var cssText = "html { overflow: " + overflow + " !important; display: block !important; text-align: justify !important;}"
-    if (overflow == "-webkit-paged-x") {
-        if (writingMode == "vertical-rl") {
-            cssText += " body { min-width: 100vw; margin: 0 0 !important; }"
-        } else {
-            cssText += " body { min-height: 100vh; margin: 0 0 !important; }"
-        }
-    }
-    style.appendChild( document.createTextNode(cssText) )
-
-    document.body.style.minHeight = null;
-    document.body.style.minWidth = null;
-}
-/*window.webkit.messageHandlers.FolioReaderPage.postMessage("bridgeFinished " + getHTML())*/
+document.body.style.minHeight = null;
+document.body.style.minWidth = null;
 
 writingMode
 """
@@ -117,61 +91,34 @@ writingMode
             if let writingMode = writingMode {
                 self.writingMode = writingMode
             }
-            DispatchQueue.main.asyncAfter(delay: bySecond) {
-                completion?()
+            // The overflow CSS depends on the writing mode, which is only known after the script above.
+            FolioReaderCSSInjector.apply(
+                id: FolioReaderCSSInjector.StyleID.overflow,
+                css: FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: self.writingMode == "vertical-rl"),
+                to: webView
+            ) {
+                DispatchQueue.main.asyncAfter(delay: bySecond) {
+                    completion?()
+                }
             }
         }
     }
     
-    func updateRuntimStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
+    func updateRuntimeStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
         guard let webView = webView else { return }
 
         self.layoutAdapting = "Preparing Document Style..."
         self.updatePageOffsetRate()
-        webView.js(
-"""
-{
-    themeMode(\(folioReader.themeMode))
 
-    var styleOverride = \(folioReader.styleOverride.rawValue)
+        let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl")
+        let script = FolioReaderCSSInjector.runtimeStyleSource(
+            themeMode: folioReader.themeMode,
+            bodyClasses: FolioReaderCSSBuilder.bodyClasses(for: styleState),
+            runtimeSheets: FolioReaderCSSInjector.customSheets(readerConfig.customStyleSheets, stage: .runtime),
+            includeDebugDump: readerConfig.debug.contains(.htmlStyling)
+        )
 
-    removeClasses(document.body, 'folioStyle\\\\w+')
-    if (writingMode == 'vertical-rl') {
-        addClass(document.body, 'folioStyleBodyPaddingTop\(folioReader.currentMarginTop/5)')
-        addClass(document.body, 'folioStyleBodyPaddingBottom\(folioReader.currentMarginBottom/5)')
-        document.body.style.minWidth = "100vw";
-    } else {
-        addClass(document.body, 'folioStyleBodyPaddingLeft\(folioReader.currentMarginLeft/5)')
-        addClass(document.body, 'folioStyleBodyPaddingRight\(folioReader.currentMarginRight/5)')
-        document.body.style.minHeight = "100vh";
-    }
-    while (styleOverride > 0) {
-        var folioStyleLevel = 'folioStyleL' + styleOverride
-        addClass(document.body, folioStyleLevel + 'FontFamily\(folioReader.currentFont.replacingOccurrences(of: " ", with: "_"))')
-        addClass(document.body, folioStyleLevel + 'FontSize\(folioReader.currentFontSize.replacingOccurrences(of: ".", with: ""))')
-        addClass(document.body, folioStyleLevel + 'FontWeight\(folioReader.currentFontWeight)')
-        addClass(document.body, folioStyleLevel + 'LetterSpacing\(folioReader.currentLetterSpacing)')
-        addClass(document.body, folioStyleLevel + 'LineHeight\(folioReader.currentLineHeight)')
-        if (writingMode == 'vertical-rl') {
-            addClass(document.body, folioStyleLevel + 'MarginV\(folioReader.currentLineHeight)')
-        } else {
-            addClass(document.body, folioStyleLevel + 'MarginH\(folioReader.currentLineHeight)')
-        }
-        addClass(document.body, folioStyleLevel + 'TextIndent\(folioReader.currentTextIndent+4)')
-        styleOverride -= 1
-    }
-}
-
-window.webkit.messageHandlers.FolioReaderPage.postMessage("bridgeFinished " + getHTML())
-
-window.webkit.messageHandlers.FolioReaderPage.postMessage("getComputedStyle document.documentElement " + window.getComputedStyle(document.documentElement).cssText)
-window.webkit.messageHandlers.FolioReaderPage.postMessage("getComputedStyle document.body" + window.getComputedStyle(document.body).cssText)
-
-window.webkit.messageHandlers.FolioReaderPage.postMessage("writingMode " + writingMode)
-
-writingMode
-"""
-        ) { _ in
+        webView.js(script) { _ in
             let delaySec = self.delaySec() + bySecond
             DispatchQueue.main.asyncAfter(delay: delaySec) {
                 self.layoutAdapting = "Almost Ready..."

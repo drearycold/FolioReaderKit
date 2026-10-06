@@ -137,7 +137,7 @@ public class ReaderPreferences {
         }
         set (fontFamilyName) {
             pref(setString: fontFamilyName, for: .currentFont)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -148,7 +148,7 @@ public class ReaderPreferences {
         }
         set (fontSize) {
             pref(setString: fontSize, for: .currentFontSize)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -162,7 +162,7 @@ public class ReaderPreferences {
         }
         set (fontWeight) {
             pref(setString: fontWeight, for: .currentFontWeight)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -272,7 +272,7 @@ public class ReaderPreferences {
             guard currentVMarginLinked == false else { return }
             folioReader?.readerCenter?.currentPage?.byWritingMode(
                 horizontal: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) },
-                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4) }
+                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) }
             )
         }
     }
@@ -291,7 +291,7 @@ public class ReaderPreferences {
             guard currentVMarginLinked == false else { return }
             folioReader?.readerCenter?.currentPage?.byWritingMode(
                 horizontal: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) },
-                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4) }
+                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) }
             )
         }
     }
@@ -318,7 +318,7 @@ public class ReaderPreferences {
             pref(setInt: newValue, for: .currentMarginLeft)
             guard currentHMarginLinked == false else { return }
             folioReader?.readerCenter?.currentPage?.byWritingMode(
-                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4) },
+                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) },
                 vertical: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) }
             )
         }
@@ -337,7 +337,7 @@ public class ReaderPreferences {
             pref(setInt: newValue, for: .currentMarginRight)
             guard currentHMarginLinked == false else { return }
             folioReader?.readerCenter?.currentPage?.byWritingMode(
-                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4) },
+                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) },
                 vertical: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) }
             )
         }
@@ -349,7 +349,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentLetterSpacing)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -359,7 +359,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentLineHeight)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
 
@@ -370,7 +370,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentTextIndent)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -399,7 +399,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value.rawValue, for: .styleOverride)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.2)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.2)
         }
     }
     

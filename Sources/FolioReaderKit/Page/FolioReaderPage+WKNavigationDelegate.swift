@@ -53,10 +53,10 @@ extension FolioReaderPage {
                     self.setNeedsLayout()       //resize webViewFrame
                 }
                 
-                self.updateRuntimStyle(delay: 0.2) {
-                    guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateRuntimStyle \(pageNumber) vs \(self.pageNumber)"); return }
+                self.updateRuntimeStyle(delay: 0.2) {
+                    guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateRuntimeStyle \(pageNumber) vs \(self.pageNumber)"); return }
 
-                    FolioLogger.log("bridgeFinished updateRuntimStyle pageNumber=\(pageNumber)")
+                    FolioLogger.log("bridgeFinished updateRuntimeStyle pageNumber=\(pageNumber)")
                     
                     self.injectHighlights() {
                         guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch injectHighlights \(pageNumber) vs \(self.pageNumber)"); return }

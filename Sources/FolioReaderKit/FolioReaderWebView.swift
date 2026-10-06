@@ -21,23 +21,8 @@ open class FolioReaderWebView: WKWebView {
     
     open var additionalMenuItems = [UIMenuItem]()
     
-    let cssOverflowPropertyID = "folio_style_html_overflow"
-    fileprivate(set) var cssOverflowProperty = "scroll" {
-        didSet {
-//            FolioReaderScript.cssInjection(overflow: cssOverflowProperty, id: cssOverflowPropertyID).addIfNeeded(to: self)
-        }
-    }
+    fileprivate(set) var cssOverflowProperty = "scroll"
 
-    let cssRuntimePropertyID = "folio_style_runtime"
-    var cssRuntimeProperty = "" {
-        didSet {
-            FolioReaderScript(
-                source: FolioReaderScript.cssInjectionSource(for: cssRuntimeProperty, id: cssRuntimePropertyID)
-            ).addIfNeeded(to: self)
-        }
-    }
-
-    
     lazy var highlightManager = WebViewHighlightManager(webView: self)
     lazy var menuManager = WebViewMenuManager(webView: self)
 
@@ -70,14 +55,26 @@ open class FolioReaderWebView: WKWebView {
         FolioReaderScript.bridgeJS.addIfNeeded(to: self)
         FolioReaderScript.readiumCFIJS.addIfNeeded(to: self)
 
-        FolioReaderScript.cssInjection.addIfNeeded(to: self)
-        FolioReaderScript(
-            source: FolioReaderScript.cssInjectionSource(for: folioReader.cssGenerator.cssUserFontFaces(), id: "folio_style_user_font_faces")
+        Self.bundleStyleScript.addIfNeeded(to: self)
+        // Font families are rebuilt per web view: fonts registered after the first page still get classes.
+        FolioReaderCSSInjector.userScript(
+            id: FolioReaderCSSInjector.StyleID.fontFamilies,
+            css: FolioReaderCSSBuilder.fontFamilyRules(familyNames: UIFont.familyNames)
         ).addIfNeeded(to: self)
-        FolioReaderScript(
-            source: FolioReaderScript.cssInjectionSource(for: folioReader.cssGenerator.cssFontFamilies(), id: "folio_style_font_families")
+        FolioReaderCSSInjector.userScript(
+            id: FolioReaderCSSInjector.StyleID.userFontFaces,
+            css: FolioReaderCSSBuilder.userFontFaceRules(descriptors: readerContainer.readerConfig.userFontDescriptors)
         ).addIfNeeded(to: self)
+        for sheet in FolioReaderCSSInjector.customSheets(readerContainer.readerConfig.customStyleSheets, stage: .documentBase) {
+            FolioReaderCSSInjector.userScript(id: sheet.id, css: sheet.css).addIfNeeded(to: self)
+        }
     }
+
+    /// `Style.css` plus all level rules; identical for every web view, so built once.
+    private static let bundleStyleScript = FolioReaderCSSInjector.userScript(
+        id: FolioReaderCSSInjector.StyleID.bundle,
+        css: FolioReaderCSSBuilder.baseStyleSheet()
+    )
 
     required public init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
