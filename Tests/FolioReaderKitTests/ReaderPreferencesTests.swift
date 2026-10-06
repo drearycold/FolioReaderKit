@@ -117,6 +117,39 @@ class ReaderPreferencesTests: XCTestCase {
 
         XCTAssertEqual(container.readerConfig.scrollDirection, .vertical)
     }
+
+    func testHasSavedScrollDirection() {
+        XCTAssertFalse(preferences.hasSavedScrollDirection)
+        preferences.currentScrollDirection = FolioReaderScrollDirection.vertical.rawValue
+        XCTAssertTrue(preferences.hasSavedScrollDirection)
+    }
+
+    func testConfigTracksExplicitScrollDirection() {
+        let config = FolioReaderConfig()
+        XCTAssertFalse(config.hasExplicitScrollDirection)
+        config.scrollDirection = .horizontalWithScrollContent
+        XCTAssertTrue(config.hasExplicitScrollDirection, "Assigning the default value is still an explicit choice")
+    }
+
+    func testContainerDoesNotMarkUntouchedConfigExplicit() {
+        let container = FolioReaderContainer(withConfig: FolioReaderConfig(), folioReader: folioReader, epubPath: "", webServer: ReadiumGCDWebServer())
+
+        container.loadViewIfNeeded()
+
+        XCTAssertFalse(container.readerConfig.hasExplicitScrollDirection)
+    }
+
+    func testParsedBookScrollDirectionPagesOnlyUnconfiguredRightToLeftBooks() {
+        func direction(rtl: Bool = true, saved: Bool = false, explicit: Bool = false, canChange: Bool = true) -> FolioReaderScrollDirection? {
+            ReaderPreferences.parsedBookScrollDirection(isRtl: rtl, hasSavedDirection: saved, hasExplicitConfigDirection: explicit, canChangeScrollDirection: canChange)
+        }
+
+        XCTAssertEqual(direction(), .horizontalWithPagedContent)
+        XCTAssertNil(direction(rtl: false), "Left-to-right books keep the configured direction")
+        XCTAssertNil(direction(saved: true), "A saved user choice wins")
+        XCTAssertNil(direction(explicit: true), "An app-configured direction wins")
+        XCTAssertNil(direction(canChange: false), "A locked direction is never changed")
+    }
     
     func testNavigationMenuIndices() {
         XCTAssertEqual(preferences.currentNavigationMenuIndex, 0)

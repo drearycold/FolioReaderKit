@@ -197,6 +197,19 @@ public class ReaderPreferences {
         }
     }
 
+    /// Whether the user has saved a scroll direction for this reader.
+    public var hasSavedScrollDirection: Bool {
+        pref(intFor: .currentScrollDirection, default: -1) != -1
+    }
+
+    /// The direction a just-parsed book should switch to, or `nil` to keep the current one.
+    /// Right-to-left books open in paged mode unless the user saved a direction or the app set one.
+    /// The book is parsed after the initial direction is applied, so this runs once parsing finishes.
+    static func parsedBookScrollDirection(isRtl: Bool, hasSavedDirection: Bool, hasExplicitConfigDirection: Bool, canChangeScrollDirection: Bool) -> FolioReaderScrollDirection? {
+        guard isRtl, canChangeScrollDirection, !hasSavedDirection, !hasExplicitConfigDirection else { return nil }
+        return .horizontalWithPagedContent
+    }
+
     public var defaultScrollDirection: FolioReaderScrollDirection {
         folioReader?.readerContainer?.book.spine.isRtl == true ? .horizontalWithPagedContent : .horizontalWithScrollContent
     }

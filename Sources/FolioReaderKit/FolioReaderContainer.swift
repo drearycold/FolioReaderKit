@@ -117,7 +117,10 @@ open class FolioReaderContainer: UIViewController {
                 scrollDirection = self.readerConfig.scrollDirection
             }
 
-            self.readerConfig.scrollDirection = scrollDirection
+            // Assign only on change, so an untouched config still counts as not explicitly set.
+            if self.readerConfig.scrollDirection != scrollDirection {
+                self.readerConfig.scrollDirection = scrollDirection
+            }
         }
 
         let hideBars = readerConfig.hideBars
@@ -197,6 +200,17 @@ open class FolioReaderContainer: UIViewController {
                             position.takePrecedence = true
                             self.folioReader.save(readPosition: position, for: bookId)
                         }
+                    }
+
+                    if let direction = ReaderPreferences.parsedBookScrollDirection(
+                        isRtl: self.book.spine.isRtl,
+                        hasSavedDirection: self.folioReader.preferences.hasSavedScrollDirection,
+                        hasExplicitConfigDirection: self.readerConfig.hasExplicitScrollDirection,
+                        canChangeScrollDirection: self.readerConfig.canChangeScrollDirection
+                    ) {
+                        self.readerConfig.scrollDirection = direction
+                        self.centerViewController?.collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
+                        self.centerViewController?.collectionViewLayout.invalidateLayout()
                     }
 
                     let structuralTrackingTocLevel = self.folioReader.structuralTrackingTocLevel

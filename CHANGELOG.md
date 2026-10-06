@@ -7,7 +7,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 **Breaking changes:**
 
 - Removed the old CSS helpers: `ReaderCSSGenerator`, `FolioReader.CssLevels(type:def:)` and `FolioReader.CssImgLevels(type:def:)`, together with the internal `generateRuntimeStyle()`, `cssFontFamilies()`, `cssUserFontFaces()` and `FolioReader.cssGenerator`. Every reader CSS string now comes from the internal `FolioReaderCSSBuilder`; use `FolioReaderConfig.customStyleSheets` to add your own CSS.
-- When no scroll direction has been saved, the reader now starts in `FolioReaderConfig.scrollDirection`. Before, it used `ReaderPreferences.defaultScrollDirection`: `horizontalWithPagedContent` for right-to-left books, `horizontalWithScrollContent` otherwise. A direction the user picked and saved still wins. Right-to-left books no longer default to paged mode unless the app configures it (tracked in ROADMAP.md).
+- When no scroll direction has been saved, the reader now starts in `FolioReaderConfig.scrollDirection` instead of overwriting it, and a direction the user saved still wins. Right-to-left books open in `horizontalWithPagedContent` when nothing is saved and the app never assigned `scrollDirection`. This decision now runs after the book is parsed; before, it ran before parsing, so right-to-left books never actually got their paged default.
 - `Style.css` no longer forces a `1em` top and bottom `@page` margin, so a page margin of `0` really is zero.
 
 **Added:**
@@ -15,6 +15,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - `FolioReaderConfig.customStyleSheets` (`FolioReaderStyleSheet`, `FolioReaderCSSStage`) for injecting app CSS, either once per page load (`.documentBase`) or on every style refresh (`.runtime`).
 - `FolioReaderConfig.showCloseButton` (default `true`), to hide the reader's close button.
 - `FolioReaderConfig.forceBottomMenuTabBar` (default `false`), to keep the settings tabs at the bottom on iPadOS.
+- `FolioReaderConfig.hasExplicitScrollDirection` and `ReaderPreferences.hasSavedScrollDirection`, which drive the right-to-left default.
 - `FolioReaderConfig.reserveSafeAreaInsidePageFrame` and `reservePageIndicatorInsidePageFrame` (both default `true`, the old behavior). Set them to `false` for edge-to-edge pages.
 
 **Changed:**

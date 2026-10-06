@@ -196,7 +196,14 @@ open class FolioReaderConfig: NSObject {
     open var hideBars = false
 
     /// If `canChangeScrollDirection` is `true` it will be overrided by user's option.
-    open var scrollDirection: FolioReaderScrollDirection = .horizontalWithScrollContent
+    open var scrollDirection: FolioReaderScrollDirection = .horizontalWithScrollContent {
+        didSet { hasExplicitScrollDirection = true }
+    }
+
+    /// `true` once `scrollDirection` has been assigned, whether by the app or by the reader applying
+    /// a saved direction. While it is `false` and nothing is saved, right-to-left books open in
+    /// `.horizontalWithPagedContent`.
+    public private(set) var hasExplicitScrollDirection = false
 
     /// Enable or disable hability to user change scroll direction on menu.
     open var canChangeScrollDirection = true
