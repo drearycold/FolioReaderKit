@@ -8,6 +8,8 @@
 
 import UIKit
 import FolioReaderKit
+import FolioEPUBCore
+import ReadiumGCDWebServer
 
 class ViewController: UIViewController {
 
@@ -58,6 +60,9 @@ class ViewController: UIViewController {
         let readerConfiguration = self.readerConfiguration(forEpub: epub)
         let folioReader = FolioReader()
         folioReader.delegate = self
+        // Scope persisted settings to this book's identifier before the reader starts reading them.
+        self.preferenceProvider = FolioReaderUserDefaultsPreferenceProvider(
+            folioReader, identifier: readerConfiguration.identifier)
         folioReader.presentReader(
             parentViewController: self,
             withEpubPath: bookPath,
@@ -133,263 +138,47 @@ extension ViewController: FolioReaderDelegate {
 }
 
 class FolioReaderUserDefaultsPreferenceProvider: FolioReaderDummyPreferenceProvider {
-    
-    internal let kCurrentFontFamily = "com.folioreader.kCurrentFontFamily"
-    internal let kCurrentFontSize = "com.folioreader.kCurrentFontSize"
-    internal let kCurrentFontWeight = "com.folioreader.kCurrentFontWeight"
 
-    internal let kCurrentAudioRate = "com.folioreader.kCurrentAudioRate"
-    internal let kCurrentHighlightStyle = "com.folioreader.kCurrentHighlightStyle"
-    internal let kCurrentMediaOverlayStyle = "com.folioreader.kMediaOverlayStyle"
-    internal let kCurrentScrollDirection = "com.folioreader.kCurrentScrollDirection"
-    internal let kNightMode = "com.folioreader.kNightMode"
-    internal let kThemeMode = "com.folioreader.kThemeMode"
-    internal let kCurrentTOCMenu = "com.folioreader.kCurrentTOCMenu"
-    internal let kCurrentMarginTop = "com.folioreader.kCurrentMarginTop"
-    internal let kCurrentMarginBottom = "com.folioreader.kCurrentMarginBottom"
-    internal let kCurrentMarginLeft = "com.folioreader.kCurrentMarginLeft"
-    internal let kCurrentMarginRight = "com.folioreader.kCurrentMarginRight"
-    internal let kCurrentLetterSpacing = "com.folioreader.kCurrentLetterSpacing"
-    internal let kCurrentLineHeight = "com.folioreader.kCurrentLineHeight"
-    internal let kCurrentTextIndent = "com.folioreader.kCurrentTextIndent"
-    internal let kDoWrapPara = "com.folioreader.kDoWrapPara"
-    internal let kDoClearClass = "com.folioreader.kDoClearClass"
-    internal let kCurrentAnnotationMenuIndex = "com.folioreader.kCurrentAnnotationMenuIndex"
-    internal let kCurrentNavigationMenuBookListStyle = "com.folioreader.kCurrentNavigationMenuBookListStyle"
-    internal let kCurrentVMarginLinked = "com.folioreader.kCurrentVMarginLinked"
-    internal let kCurrentHMarginLinked = "com.folioreader.kCurrentHMarginLinked"
-    internal let kStyleOverride = "com.folioreader.kStyleOverride"
-    internal let kStructuralStyle = "com.folioreader.kStructuralStyle"
-    internal let kStructuralTocLevel = "com.folioreader.kStructuralTocLevel"
-    
-    override init(_ folioReader: FolioReader) {
+    /// Namespace for keys stored in `UserDefaults`. Keys come from `ReaderPreferenceKey.rawKey`.
+    internal let keyPrefix = "com.folioreader."
+
+    /// Backing store. Scoped by the reader config's identifier, so each book keeps its own settings.
+    fileprivate let defaults: FolioReaderUserDefaults
+
+    init(_ folioReader: FolioReader, identifier: String?) {
+        self.defaults = FolioReaderUserDefaults(withIdentifier: identifier)
         super.init(folioReader)
-        
-        // Register initial defaults
-        register(defaults: [
-            kCurrentFontFamily: "andada",
-            kNightMode: false,
-            kThemeMode: FolioReaderThemeMode.day.rawValue,
-            kCurrentFontSize: "2",
-            kCurrentAudioRate: 1,
-            kCurrentHighlightStyle: 0,
-            kCurrentTOCMenu: 0,
-            kCurrentMediaOverlayStyle: MediaOverlayStyle.default.rawValue,
-            kCurrentScrollDirection: FolioReaderScrollDirection.defaultVertical.rawValue,
-            kCurrentAnnotationMenuIndex: 0,
-            kCurrentNavigationMenuBookListStyle: 0,
-            kCurrentVMarginLinked: true,
-            kCurrentHMarginLinked: true,
-            kStyleOverride: 1,
-            kStructuralStyle: 0,
-            kStructuralTocLevel: 0
-            ])
-    }
-    
-    fileprivate var defaults: FolioReaderUserDefaults {
-        return FolioReaderUserDefaults(
-            withIdentifier: folioReader.readerCenter?.readerContainer?.readerConfig.identifier)
     }
 
-    public func register(defaults: [String: Any]) {
-        self.defaults.register(defaults: defaults)
+    override convenience init(_ folioReader: FolioReader) {
+        self.init(folioReader, identifier: folioReader.readerConfig?.identifier)
     }
 
-    override func preference(nightMode defaults: Bool) -> Bool {
-        return self.defaults.bool(forKey: kNightMode)
-    }
-    
-    override func preference(setNightMode value: Bool){
-        self.defaults.set(value, forKey: kNightMode)
-    }
-    
-    override func preference(themeMode defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kThemeMode)
-    }
-    override func preference(setThemeMode value: Int) {
-        self.defaults.set(value, forKey: kThemeMode)
-    }
-    
-    override func preference(currentFont defaults: String) -> String {
-        return self.defaults.value(forKey: kCurrentFontFamily) as? String ?? defaults
-    }
-    override func preference(setCurrentFont value: String) {
-        self.defaults.set(value, forKey: kCurrentFontFamily)
-    }
-    
-    override func preference(currentFontSize defaults: String) -> String {
-        return self.defaults.value(forKey: kCurrentFontSize) as? String ?? defaults
-    }
-    override func preference(setCurrentFontSize value: String) {
-        self.defaults.set(value, forKey: kCurrentFontSize)
-    }
-    
-    override func preference(currentFontWeight defaults: String) -> String {
-        return self.defaults.value(forKey: kCurrentFontWeight) as? String ?? defaults
-    }
-    override func preference(setCurrentFontWeight value: String) {
-        self.defaults.set(value, forKey: kCurrentFontWeight)
-    }
-    
-    override func preference(currentAudioRate defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentAudioRate)
-    }
-    override func preference(setCurrentAudioRate value: Int) {
-        self.defaults.set(value, forKey: kCurrentAudioRate)
-    }
-    
-    override func preference(currentHighlightStyle defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentHighlightStyle)
-    }
-    override func preference(setCurrentHighlightStyle value: Int) {
-        self.defaults.set(value, forKey: kCurrentHighlightStyle)
-    }
-    
-    override func preference(currentMediaOverlayStyle defaults: Int) -> Int {
-        return self.defaults.value(forKey: kCurrentMediaOverlayStyle) as? Int ?? defaults
-    }
-    override func preference(setCurrentMediaOverlayStyle value: Int) {
-        self.defaults.set(value, forKey: kCurrentMediaOverlayStyle)
-    }
-    
-    override func preference(currentScrollDirection defaults: Int) -> Int {
-        return self.defaults.value(forKey: kCurrentScrollDirection) as? Int ?? defaults
-    }
-    override func preference(setCurrentScrollDirection value: Int) {
-        self.defaults.set(value, forKey: kCurrentScrollDirection)
-    }
-    
-    override func preference(currentNavigationMenuIndex defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentTOCMenu)
-    }
-    override func preference(setCurrentNavigationMenuIndex value: Int) {
-        self.defaults.set(value, forKey: kCurrentTOCMenu)
+    private func storageKey(_ key: String) -> String {
+        return keyPrefix + key
     }
 
-    override func preference(currentAnnotationMenuIndex defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentAnnotationMenuIndex)
+    // Defaults are supplied by FolioReaderKit per key; only fall back to them when nothing is stored.
+
+    override func preference(stringFor key: String, default defaultValue: String) -> String {
+        return defaults.value(forKey: storageKey(key)) as? String ?? defaultValue
     }
-    override func preference(setCurrentAnnotationMenuIndex value: Int) {
-        self.defaults.set(value, forKey: kCurrentAnnotationMenuIndex)
+    override func preference(setString value: String, for key: String) {
+        defaults.set(value, forKey: storageKey(key))
     }
 
-    override func preference(currentNavigationMenuBookListStyle defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentNavigationMenuBookListStyle)
+    override func preference(intFor key: String, default defaultValue: Int) -> Int {
+        return defaults.value(forKey: storageKey(key)) as? Int ?? defaultValue
     }
-    override func preference(setCurrentNavigationMenuBookListStyle value: Int) {
-        self.defaults.set(value, forKey: kCurrentNavigationMenuBookListStyle)
-    }
-    
-    override func preference(currentMarginTop defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentMarginTop)
-    }
-    override func preference(setCurrentMarginTop value: Int) {
-        self.defaults.set(value, forKey: kCurrentMarginTop)
-    }
-    
-    override func preference(currentMarginBottom defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentMarginBottom)
-    }
-    override func preference(setCurrentMarginBottom value: Int) {
-        self.defaults.set(value, forKey: kCurrentMarginBottom)
-    }
-    
-    override func preference(currentMarginLeft defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentMarginLeft)
-    }
-    override func preference(setCurrentMarginLeft value: Int) {
-        self.defaults.set(value, forKey: kCurrentMarginLeft)
-    }
-    
-    override func preference(currentMarginRight defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentMarginRight)
-    }
-    override func preference(setCurrentMarginRight value: Int) {
-        self.defaults.set(value, forKey: kCurrentMarginRight)
+    override func preference(setInt value: Int, for key: String) {
+        defaults.set(value, forKey: storageKey(key))
     }
 
-    override func preference(currentVMarginLinked defaults: Bool) -> Bool {
-        return self.defaults.bool(forKey: kCurrentVMarginLinked)
+    override func preference(boolFor key: String, default defaultValue: Bool) -> Bool {
+        return defaults.value(forKey: storageKey(key)) as? Bool ?? defaultValue
     }
-    override func preference(setCurrentVMarginLinked value: Bool) {
-        self.defaults.set(value, forKey: kCurrentVMarginLinked)
-    }
-
-    override func preference(currentHMarginLinked defaults: Bool) -> Bool {
-        return self.defaults.bool(forKey: kCurrentHMarginLinked)
-    }
-    override func preference(setCurrentHMarginLinked value: Bool) {
-        self.defaults.set(value, forKey: kCurrentHMarginLinked)
-    }
-    
-    override func preference(currentLetterSpacing defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentLetterSpacing)
-    }
-    override func preference(setCurrentLetterSpacing value: Int) {
-        self.defaults.set(value, forKey: kCurrentLetterSpacing)
-    }
-    
-    override func preference(currentLineHeight defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentLineHeight)
-    }
-    override func preference(setCurrentLineHeight value: Int) {
-        self.defaults.set(value, forKey: kCurrentLineHeight)
-    }
-    
-    override func preference(doWrapPara defaults: Bool) -> Bool {
-        return self.defaults.bool(forKey: kDoWrapPara)
-    }
-    override func preference(setDoWrapPara value: Bool) {
-        self.defaults.set(value, forKey: kDoWrapPara)
-    }
-    
-    override func preference(doClearClass defaults: Bool) -> Bool {
-        return self.defaults.bool(forKey: kDoClearClass)
-    }
-    override func preference(setDoClearClass value: Bool) {
-        self.defaults.set(value, forKey: kDoClearClass)
-    }
-    
-    override func preference(currentTextIndent defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kCurrentTextIndent)
-    }
-    override func preference(setCurrentTextIndent value: Int) {
-        self.defaults.set(value, forKey: kCurrentTextIndent)
-    }
-
-    override func preference(styleOverride defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kStyleOverride)
-    }
-    override func preference(setStyleOverride value: Int) {
-        self.defaults.set(value, forKey: kStyleOverride)
-    }
-
-    override func preference(structuralStyle defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kStructuralStyle)
-    }
-    override func preference(setStructuralStyle value: Int) {
-        self.defaults.set(value, forKey: kStructuralStyle)
-    }
-
-    override func preference(structuralTocLevel defaults: Int) -> Int {
-        return self.defaults.integer(forKey: kStructuralTocLevel)
-    }
-    override func preference(setStructuralTocLevel value: Int) {
-        self.defaults.set(value, forKey: kStructuralTocLevel)
-    }
-    
-    func preference(savedPosition defaults: [String: Any]?) -> [String: Any]? {
-        guard let bookId = folioReader.readerCenter?.readerContainer?.book.name else {
-            return defaults
-        }
-        return self.defaults.value(forKey: bookId) as? [String : Any]
-    }
-    
-    func preference(setSavedPosition value: [String: Any]) {
-        guard let bookId = folioReader.readerCenter?.readerContainer?.book.name else {
-            return
-        }
-        self.defaults.set(value, forKey: bookId)
+    override func preference(setBool value: Bool, for key: String) {
+        defaults.set(value, forKey: storageKey(key))
     }
 }
 

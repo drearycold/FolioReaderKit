@@ -301,7 +301,7 @@
 			);
 			mainGroup = 1A42C2801C0E3882000F2137;
 			packageReferences = (
-				E73092ED2F6F84FE00B4C322 /* XCLocalSwiftPackageReference "../../FolioReaderKit" */,
+				E73092ED2F6F84FE00B4C322 /* XCLocalSwiftPackageReference ".." */,
 			);
 			productRefGroup = 1A42C2801C0E3882000F2137;
 			projectDirPath = "";
@@ -709,16 +709,16 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		E73092ED2F6F84FE00B4C322 /* XCLocalSwiftPackageReference "../../FolioReaderKit" */ = {
+		E73092ED2F6F84FE00B4C322 /* XCLocalSwiftPackageReference ".." */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../FolioReaderKit;
+			relativePath = ..;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		E73092EE2F6F870300B4C322 /* FolioReaderKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E73092ED2F6F84FE00B4C322 /* XCLocalSwiftPackageReference "../../FolioReaderKit" */;
+			package = E73092ED2F6F84FE00B4C322 /* XCLocalSwiftPackageReference ".." */;
 			productName = FolioReaderKit;
 		};
 /* End XCSwiftPackageProductDependency section */
