@@ -26,15 +26,15 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 | Port the prefix's CSS tests to `FolioReaderCSSBuilder` | ✅ | They were the only uses of the removed `FolioReaderScript.cssInjection`. |
 | YAEBR `main` builds against this checkout | ✅ | Its FolioReaderKit tests pass (`ReaderPreferenceRepositoryTests`, `FolioReaderProviderBookIdTests`). |
 
-### Phase 1: Docs and housekeeping
+### Phase 1: Docs and housekeeping 🔄
 
 | Item | Status |
 |---|---|
 | This roadmap | ✅ |
-| CHANGELOG: breaking CSS API removal (`ReaderCSSGenerator`, `FolioReader.CssLevels` / `CssImgLevels`, `generateRuntimeStyle`, `cssGenerator`), `customStyleSheets`, scroll-direction default change (`e7fe701`), page-frame and close-button config | ⬜ |
-| README: bookmarks, `customStyleSheets` usage, page-frame config | ⬜ |
-| `AGENTS.md`: fix drift (`Sources/FolioEPUBCore`, port in `EpubResourceServer`, stale line references) or point it at `CLAUDE.md` | ⬜ |
-| Delete `.travis.yml` (CocoaPods/workspace no longer exist); fix `.jazzy.yaml` and confirm `jazzy` runs | ⬜ |
+| CHANGELOG: breaking CSS API removal (`ReaderCSSGenerator`, `FolioReader.CssLevels` / `CssImgLevels`, `generateRuntimeStyle`, `cssGenerator`), `customStyleSheets`, scroll-direction default change (`e7fe701`), page-frame and close-button config | ✅ |
+| README: bookmarks, `customStyleSheets` usage, page-frame config | ✅ |
+| `AGENTS.md`: fix drift (`Sources/FolioEPUBCore`, port in `EpubResourceServer`, stale line references) or point it at `CLAUDE.md` | ✅ |
+| Delete `.travis.yml` (CocoaPods/workspace no longer exist); fix `.jazzy.yaml` and confirm `jazzy` runs | 🔄 Deleted and fixed; the jazzy `xcodebuild` arguments build, but jazzy itself is not installed here, so the run is unconfirmed |
 
 ### Phase 2: CI (REFACTOR_PLAN C-3)
 
@@ -62,6 +62,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 | YAEBR #48 | `isShare` no longer exists; sharing is `allowSharing` plus `isSharingHighlight`. Re-test in YAEBR, then close or fix | ⬜ |
 | YAEBR #100, #41 | FolioReaderKit part only: round-trip tests for `FolioReaderReadPosition` (`cfi`, `takePrecedence`) through `FolioReaderReadPositionProvider` | ⬜ |
 | (lesson from YAEBR) | A failing highlight injection must not block page load or position restore. WebKit test for the `didFinish` chain | ⬜ |
+| (from `e7fe701`) | The unsaved scroll direction now comes from `config.scrollDirection`, so right-to-left books lost their paged default (`defaultScrollDirection`). Decide: an RTL-aware fallback, or document that apps should configure it | ⬜ |
 
 ### Phase 5: FolioReaderKit feature issues
 

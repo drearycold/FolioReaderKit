@@ -1,5 +1,38 @@
 # Change Log
 
+## Unreleased (drearycold fork, `styling-optimization`)
+
+See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
+
+**Breaking changes:**
+
+- Removed the old CSS helpers: `ReaderCSSGenerator`, `FolioReader.CssLevels(type:def:)` and `FolioReader.CssImgLevels(type:def:)`, together with the internal `generateRuntimeStyle()`, `cssFontFamilies()`, `cssUserFontFaces()` and `FolioReader.cssGenerator`. Every reader CSS string now comes from the internal `FolioReaderCSSBuilder`; use `FolioReaderConfig.customStyleSheets` to add your own CSS.
+- When no scroll direction has been saved, the reader now starts in `FolioReaderConfig.scrollDirection`. Before, it used `ReaderPreferences.defaultScrollDirection`: `horizontalWithPagedContent` for right-to-left books, `horizontalWithScrollContent` otherwise. A direction the user picked and saved still wins. Right-to-left books no longer default to paged mode unless the app configures it (tracked in ROADMAP.md).
+- `Style.css` no longer forces a `1em` top and bottom `@page` margin, so a page margin of `0` really is zero.
+
+**Added:**
+
+- `FolioReaderConfig.customStyleSheets` (`FolioReaderStyleSheet`, `FolioReaderCSSStage`) for injecting app CSS, either once per page load (`.documentBase`) or on every style refresh (`.runtime`).
+- `FolioReaderConfig.showCloseButton` (default `true`), to hide the reader's close button.
+- `FolioReaderConfig.forceBottomMenuTabBar` (default `false`), to keep the settings tabs at the bottom on iPadOS.
+- `FolioReaderConfig.reserveSafeAreaInsidePageFrame` and `reservePageIndicatorInsidePageFrame` (both default `true`, the old behavior). Set them to `false` for edge-to-edge pages.
+
+**Changed:**
+
+- CSS reaches the page as base64 decoded as UTF-8, so quotes, backslashes and non-ASCII text in CSS (for example CJK font names) are injected intact.
+- The chapter HTML and computed-style dumps run only when `FolioReaderConfig.debug` contains `.htmlStyling`. Before, they ran on every page load and every settings change.
+- Renamed the internal `updateRuntimStyle` to `updateRuntimeStyle`.
+
+**Fixed:**
+
+- Runtime style changes no longer add a new `WKUserScript` each time.
+- Zero page margins are respected (`FolioReaderPageFrameCalculator`).
+- Example app: the preference provider uses the key-based API again, and MultipleInstance-Example bundles `Population.epub`.
+
+**Tests:**
+
+- Snapshot test for the generated level rules, rule coverage for every selectable `<body>` class, and `WKWebView` tests that run the CSS injector and the runtime style script against the real `Bridge.js`.
+
 ## [1.4.0](https://github.com/FolioReader/FolioReaderKit/tree/1.4.0) (2019-01-30)
 [Full Changelog](https://github.com/FolioReader/FolioReaderKit/compare/1.3.0...1.4.0)
 

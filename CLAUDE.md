@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-FolioReaderKit is an ePub reader/parser framework for iOS written in Swift. This repository is a modernized fork. It is distributed through SPM, parses books with async/await, takes persistence through dependency injection, and serves EPUB contents to `WKWebView` from a local `ReadiumGCDWebServer`. `AGENTS.md` covers much of the same ground, but some of its paths and line numbers are out of date (it predates the `FolioEPUBCore` split). Treat this file as the source of truth where the two disagree.
+FolioReaderKit is an ePub reader/parser framework for iOS written in Swift. This repository is a modernized fork. It is distributed through SPM, parses books with async/await, takes persistence through dependency injection, and serves EPUB contents to `WKWebView` from a local `ReadiumGCDWebServer`. `AGENTS.md` is a short pointer to this file for other agents, and `ROADMAP.md` tracks the umbrella plan and its working rules. YetAnotherEBookReader builds against this checkout as a local package, so don't switch branches casually.
 
 ## Build & test
 
@@ -15,17 +15,17 @@ xcodebuild test  -scheme FolioReaderKit -destination 'platform=iOS Simulator,nam
 xcodebuild test -scheme FolioReaderKit -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:FolioReaderKitTests/CSSGenerationTests
 xcodebuild test -scheme FolioReaderKit -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -only-testing:FolioReaderKitTests/CSSGenerationTests/testGenerateRuntimeStyle
+  -only-testing:FolioReaderKitTests/CSSGenerationTests/testEveryBodyClassHasARule
 ```
 
 To see which simulators are installed, run `xcrun simctl list devices available`.
 
 `CSSInjectionSnapshotTests` compares the generated style rules with `Tests/FolioReaderKitTests/__Snapshots__/CSSInjectionSnapshotTests/levelStyleRules.css`. After an intended styling change, re-record the snapshot by deleting that file, or by prefixing the test command with `TEST_RUNNER_FOLIO_RECORD_SNAPSHOTS=1`. The recording run fails on purpose, so run again to confirm, then review the snapshot diff in git.
 
-- The repo has no linter or formatter config and no working CI. `.travis.yml` is stale: it references CocoaPods and `Example/Example.xcworkspace`, neither of which exists anymore.
+- The repo has no linter or formatter config.
 - The example app is `Example/Example.xcodeproj`, an Xcode project that links the local package (there is no workspace and no `pod install`). Its schemes are Example, MultipleInstances-Example, and Storyboard-Example. Sample books and shared assets live in `Example/Shared/`.
 - `FolioReaderKit.podspec` and `Sources/FolioReaderKit/FolioReaderKit.h` are legacy CocoaPods leftovers and are not part of the SPM build.
-- Jazzy generates the docs in `docs/` from `.jazzy.yaml`. That config still points at a `FolioReaderKit.xcodeproj` that no longer exists.
+- Jazzy generates the docs in `docs/` from `.jazzy.yaml`, which builds the SPM scheme for `generic/platform=iOS Simulator`. Jazzy itself isn't installed by the repo.
 
 ## Package layout (Package.swift)
 
