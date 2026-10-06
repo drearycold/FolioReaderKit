@@ -31,6 +31,8 @@ open class FolioReaderContainer: UIViewController {
     
     var webServer: ReadiumGCDWebServer
     private var resourceServer: EpubResourceServer?
+    /// Open until the first page is shown; ended by `FolioReaderCenter.pageDidLoad`.
+    var firstPageInterval: FolioSignpost.Interval?
 
     // MARK: - Init
 
@@ -173,6 +175,9 @@ open class FolioReaderContainer: UIViewController {
         }
         
         Task {
+            let bookName = (self.epubPath as NSString).lastPathComponent
+            let openInterval = FolioSignpost.begin("BookOpen", bookName)
+            self.firstPageInterval = FolioSignpost.begin("OpenToFirstPage", bookName)
             do {
                 let archive: Archive
                 do {
@@ -182,7 +187,9 @@ open class FolioReaderContainer: UIViewController {
                 }
                 
                 FolioLogger.log("BEFORE readEpub")
+                let parseInterval = FolioSignpost.begin("ParseEpub", bookName)
                 let parsedBook = try await FREpubParserArchive(book: self.book, archive: archive).readEpub(epubPath: self.epubPath)
+                parseInterval.end()
                 FolioLogger.log("AFTER readEpub")
 
                 self.book = parsedBook
@@ -230,8 +237,12 @@ open class FolioReaderContainer: UIViewController {
 
                     self.centerViewController?.reloadData()
                     self.folioReader.isReaderReady = true
+                    openInterval.end()
                 }
             } catch {
+                openInterval.end("error")
+                self.firstPageInterval?.end("error")
+                self.firstPageInterval = nil
                 await MainActor.run {
                     self.errorOnLoad = true
                     self.alert(message: error.localizedDescription)

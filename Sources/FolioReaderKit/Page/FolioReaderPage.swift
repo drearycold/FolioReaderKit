@@ -38,6 +38,9 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     var activityView: FolioReaderPageActivity?
     
     open var writingMode = "horizontal-tb"
+
+    /// `PageLoad` signpost for the current web view load; ended when the page is shown.
+    var loadInterval: FolioSignpost.Interval?
     
     open var pageOffsetRate: CGFloat = 0 {
         didSet {

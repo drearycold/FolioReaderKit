@@ -40,7 +40,9 @@ extension FolioReaderPage {
         preprocessor.append("document.body.style.minHeight = null;")
         
         self.layoutAdapting = "Preparing Document Structure..."
+        let preprocessInterval = FolioSignpost.begin("PreprocessJS", "page \(pageNumber)")
         self.webView?.js(preprocessor) {_ in
+            preprocessInterval.end()
             guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch \(pageNumber) vs \(self.pageNumber)"); return }
 
             FolioLogger.log("bridgeFinished pageNumber=\(String(describing: self.pageNumber)) size=\(String(describing: self.book.spine.spineReferences[self.pageNumber-1].resource.size))")
@@ -74,6 +76,8 @@ extension FolioReaderPage {
                                 self.layoutAdapting = nil
                                 webView.isHidden = false
                                 
+                                self.loadInterval?.end("page \(pageNumber)")
+                                self.loadInterval = nil
                                 self.delegate?.pageDidLoad?(self)
                             }
                         }

@@ -58,6 +58,7 @@ extension FolioReaderPage {
         
         self.layoutAdapting = "Preparing Document Layout..."
         
+        let overflowInterval = FolioSignpost.begin("OverflowJS", "page \(pageNumber)")
         webView.js(
 """
 writingMode = window.getComputedStyle(document.body).getPropertyValue("writing-mode")
@@ -88,15 +89,18 @@ document.body.style.minWidth = null;
 writingMode
 """
         ) { writingMode in
+            overflowInterval.end()
             if let writingMode = writingMode {
                 self.writingMode = writingMode
             }
             // The overflow CSS depends on the writing mode, which is only known after the script above.
+            let overflowCSSInterval = FolioSignpost.begin("OverflowCSS", "page \(self.pageNumber)")
             FolioReaderCSSInjector.apply(
                 id: FolioReaderCSSInjector.StyleID.overflow,
                 css: FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: self.writingMode == "vertical-rl"),
                 to: webView
             ) {
+                overflowCSSInterval.end()
                 DispatchQueue.main.asyncAfter(delay: bySecond) {
                     completion?()
                 }
@@ -118,7 +122,9 @@ writingMode
             includeDebugDump: readerConfig.debug.contains(.htmlStyling)
         )
 
+        let runtimeStyleInterval = FolioSignpost.begin("RuntimeStyleJS", "page \(pageNumber)")
         webView.js(script) { _ in
+            runtimeStyleInterval.end()
             let delaySec = self.delaySec() + bySecond
             DispatchQueue.main.asyncAfter(delay: delaySec) {
                 self.layoutAdapting = "Almost Ready..."
@@ -154,6 +160,7 @@ writingMode
         // must set width instead of minWidth, otherwise there will be an extra blank page after calling scrollView.setContentOffset
         // could be a bug?
         // and shrinking by 100vw has no effect on totalPages
+        let paddingInterval = FolioSignpost.begin("PaddingJS", "page \(pageNumber)")
         self.webView?.js(
             """
             if (writingMode == 'vertical-rl') {
@@ -163,6 +170,7 @@ writingMode
             }
             """
         ) { _ in
+            paddingInterval.end()
             DispatchQueue.main.asyncAfter(delay: bySecond) {
                 self.updatePageInfo {
                     FolioLogger.log("updateStyleBackgroundPadding pageNumber=\(self.pageNumber) minScreenCount=\(minScreenCount) totalPages=\(self.totalPages ?? 0) tryShrinking=\(tryShrinking)")

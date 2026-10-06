@@ -47,7 +47,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 | Item | Status | Notes |
 |---|---|---|
 | Unified CSS pipeline (`FolioReaderCSSBuilder` / `FolioReaderCSSInjector`), `customStyleSheets`, debug dumps gated on `.htmlStyling` | ✅ | `29c68ea`; snapshot test in `de3b5d9` |
-| `os_signpost` intervals for each `didFinish` stage, plus resource-server request timing; baseline below | ⬜ | |
+| `os_signpost` intervals for each `didFinish` stage, plus resource-server request timing; baseline below | ✅ | `Signposts.swift`; baseline recorded |
 | Fix the invalid `margin-*: --2.5vw` rules for padding level 0 (`.folioStyleBodyPadding*0 img.folioImg`); re-record the snapshot on purpose | ⬜ | 4-line snapshot diff |
 | Inject only the selected font family's rules, as a runtime sheet, instead of every `UIFont.familyNames` entry on every page | ⬜ | |
 | Emit only the current level rules at runtime | ⏸ | Only if the baseline shows style cost matters |
@@ -62,6 +62,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 | YAEBR #48 | `isShare` no longer exists; sharing is `allowSharing` plus `isSharingHighlight`. Re-test in YAEBR, then close or fix | ⬜ |
 | YAEBR #100, #41 | FolioReaderKit part only: round-trip tests for `FolioReaderReadPosition` (`cfi`, `takePrecedence`) through `FolioReaderReadPositionProvider` | ⬜ |
 | (lesson from YAEBR) | A failing highlight injection must not block page load or position restore. WebKit test for the `didFinish` chain | ⬜ |
+| (from the baseline) | Replace the page-load chain's fixed `asyncAfter` delays with readiness signals (layout-settled callbacks), which make up most of the ~1.8 s per page | ⬜ |
 | (from `e7fe701`) | The unsaved scroll direction now comes from `config.scrollDirection`, so right-to-left books lost their paged default (`defaultScrollDirection`). Fixed with an RTL-aware fallback after parsing (`ReaderPreferences.parsedBookScrollDirection`). Unit-tested; no RTL sample book to check it end to end | ✅ |
 
 ### Phase 5: FolioReaderKit feature issues
@@ -84,11 +85,14 @@ Out of scope here: YAEBR #62 (Readium), PDF issues (#93, #95, #96), app-only YAE
 
 Record time from open to first page and the per-stage signposts before and after each Phase 3/4 change (iPhone 17 simulator, Debug).
 
-| Book | Open → first page | Runtime style | Notes |
-|---|---|---|---|
-| The Silver Chair | – | – | |
-| Population (人口原理) | – | – | |
-| EPUB with many entries | – | – | |
+Collect with: `xcrun simctl spawn <device> log show --signpost --last 5m --style ndjson --predicate 'subsystem == "FolioReaderKit"'`, then pair the begin and end events by `signpostID`. (`xctrace record --launch` hung on the simulator, and `log stream` doesn't carry signposts.)
+
+| Book (34 entries) | BookOpen | ParseEpub | Open → first page | PageLoad median / max | JS per page (sum) | RuntimeStyleJS median |
+|---|---|---|---|---|---|---|
+| Population (人口原理), 2026-10-06, before Phase 3 | 12.7 ms | 7.8 ms | 2,950 ms | 1,825 / 2,860 ms (n=5) | ≈ 40 ms | 30.2 ms |
+| EPUB with many entries | – | – | – | – | – | – |
+
+**Finding:** more than 95% of each page load is the `didFinish` chain's fixed `asyncAfter` delays (0.2 s per stage plus `delaySec()`) and WebKit's own load, not CSS or JS work. Opening and parsing a small book is negligible, so #99 needs a many-entry EPUB to profile; none of the samples has more than 34 entries.
 
 ## Verification
 

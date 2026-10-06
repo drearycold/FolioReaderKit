@@ -59,7 +59,12 @@ open class EpubResourceServer {
 
     private func setupHandlers() {
         // Default GET handler to serve zipped EPUB resources
-        webServer.addDefaultHandler(forMethod: "GET", request: ReadiumGCDWebServerRequest.self, asyncProcessBlock: { [weak self] request, completion in
+        webServer.addDefaultHandler(forMethod: "GET", request: ReadiumGCDWebServerRequest.self, asyncProcessBlock: { [weak self] request, uninstrumentedCompletion in
+            let resourceInterval = FolioSignpost.begin("Resource", request.path)
+            let completion: ReadiumGCDWebServerCompletionBlock = { response in
+                resourceInterval.end()
+                uninstrumentedCompletion(response)
+            }
             guard let self = self, let container = self.container else {
                 completion(ReadiumGCDWebServerErrorResponse())
                 return

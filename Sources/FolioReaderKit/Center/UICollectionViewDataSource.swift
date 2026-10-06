@@ -67,6 +67,8 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         ) else { return cell }
         
         FolioLogger.log("webView.load url=\(url.absoluteString)")
+        cell.loadInterval?.end("replaced")
+        cell.loadInterval = FolioSignpost.begin("PageLoad", "page \(indexPath.row + 1)")
         cell.webView?.load(URLRequest(url: url))
         
         return cell

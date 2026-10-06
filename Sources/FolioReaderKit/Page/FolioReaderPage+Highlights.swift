@@ -41,7 +41,9 @@ extension FolioReaderPage {
             let encodedData = ((try? JSONEncoder().encode(highlights)) ?? .init()).base64EncodedString()
             
             await MainActor.run {
+                let highlightsInterval = FolioSignpost.begin("HighlightsJS", "\(highlights.count) highlights")
                 self.webView?.js("injectHighlights('\(encodedData)')") { results in
+                    highlightsInterval.end()
                     defer {
                         completion?()
                     }
