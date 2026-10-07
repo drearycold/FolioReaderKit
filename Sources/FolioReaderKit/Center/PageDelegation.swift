@@ -80,9 +80,7 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
                 }
             }
         } else if let position = self.folioReader.readerCenter?.currentWebViewScrollPositions[page.pageNumber - 1],
-                  position.cfi.starts(with: "epubcfi("),
-                  (page.pageNumber > 1 ? position.cfi != "epubcfi(/2/2)" : true),
-                  position.cfi != "epubcfi(/\(page.pageNumber * 2)/2)" {
+                  FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: page.pageNumber) {
             self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text = position.cfi
             DispatchQueue.main.asyncAfter(delay: 0.2) {
                 page.handleAnchor(position.cfi, offsetInWindow: 0, avoidBeginningAnchors: true, animated: true) {

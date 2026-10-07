@@ -71,4 +71,12 @@ class ReadPositionTests: XCTestCase {
         XCTAssertEqual(withPrecedence.count, 1, "Exactly one position keeps precedence")
         XCTAssertEqual(withPrecedence.first?.pageNumber, 200, "The last saved position wins")
     }
+
+    func testRestorableCFIRejectsChapterStartFallbacks() {
+        XCTAssertTrue(FolioReaderCenter.isRestorableCFI("epubcfi(/6/4[chap01]!/4/2/1:12)", pageNumber: 3))
+        XCTAssertFalse(FolioReaderCenter.isRestorableCFI("epubcfi(/6/2)", pageNumber: 3), "Chapter start of page 3")
+        XCTAssertFalse(FolioReaderCenter.isRestorableCFI("epubcfi(/2/2)", pageNumber: 3), "Book start on a later page")
+        XCTAssertTrue(FolioReaderCenter.isRestorableCFI("epubcfi(/2/4/1:0)", pageNumber: 1))
+        XCTAssertFalse(FolioReaderCenter.isRestorableCFI("", pageNumber: 1))
+    }
 }

@@ -8,7 +8,15 @@
 import UIKit
 
 extension FolioReaderCenter {
-    
+
+    /// Whether a recorded CFI points inside the chapter. A failed lookup records the chapter start
+    /// (`epubcfi(/<2n>/2)`, or `epubcfi(/2/2)`), which would send the reader back to the top.
+    static func isRestorableCFI(_ cfi: String, pageNumber: Int) -> Bool {
+        cfi.starts(with: "epubcfi(")
+            && (pageNumber > 1 ? cfi != "epubcfi(/2/2)" : true)
+            && cfi != "epubcfi(/\(pageNumber * 2)/2)"
+    }
+
     override open func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         
@@ -47,6 +55,9 @@ extension FolioReaderCenter {
             currentPage.updatePageOffsetRate()
         }
         let pageOffsetRate = currentPage.pageOffsetRate
+        // The text at the top of the screen, which survives reflow; the offset ratio is the fallback.
+        let anchorCFI = currentWebViewScrollPositions[currentPage.pageNumber - 1].map { $0.cfi }
+            .flatMap { Self.isRestorableCFI($0, pageNumber: currentPage.pageNumber) ? $0 : nil }
         
         FolioLogger.log("TRANS1 pageOffsetRate=\(currentPage.pageOffsetRate) contentSize=\(currentPage.webView?.scrollView.contentSize ?? .zero) contentOffset=\(currentPage.webView?.scrollView.contentOffset ?? .zero)")
         
@@ -72,6 +83,15 @@ extension FolioReaderCenter {
                         DispatchQueue.main.asyncAfter(delay: currentPage.delaySec() + 0.5) {   //need some time for webView finishing paging
                             currentPage.updatePageInfo() {
                                 currentPage.updateStyleBackgroundPadding(delay: 0.2) {
+                                    if let anchorCFI = anchorCFI {
+                                        FolioLogger.log("TRANS3 restoring cfi=\(anchorCFI)")
+                                        currentPage.layoutAdapting = nil
+                                        currentPage.handleAnchor(anchorCFI, offsetInWindow: 0, avoidBeginningAnchors: false, animated: false, flashTarget: false) {
+                                            currentPage.updatePageOffsetRate()
+                                            currentPage.updatePageInfo()
+                                        }
+                                        return
+                                    }
                                     currentPage.pageOffsetRate = pageOffsetRate
                                     currentPage.scrollWebViewByPageOffsetRate(animated: false)
                                     DispatchQueue.main.asyncAfter(delay: 0.2) {
