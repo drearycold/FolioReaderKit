@@ -39,8 +39,10 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     
     open var writingMode = "horizontal-tb"
 
-    /// `PageLoad` signpost for the current web view load; ended when the page is shown.
+    /// `PageLoad` signpost for the current web view load; ended when the page is shown, or when that
+    /// load (`loadNavigation`) fails.
     var loadInterval: FolioSignpost.Interval?
+    var loadNavigation: WKNavigation?
     
     open var pageOffsetRate: CGFloat = 0 {
         didSet {
@@ -269,6 +271,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
 
     deinit {
+        loadInterval?.end("closed")
         webView?.scrollView.delegate = nil
         webView?.navigationDelegate = nil
         NotificationCenter.default.removeObserver(self)

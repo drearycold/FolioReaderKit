@@ -94,7 +94,7 @@ Out of scope here: YAEBR #62 (Readium), PDF issues (#93, #95, #96), app-only YAE
 
 Record time from open to first page and the per-stage signposts before and after each Phase 3/4 change (iPhone 17 simulator, Debug).
 
-Collect with: `xcrun simctl spawn <device> log show --signpost --last 5m --style ndjson --predicate 'subsystem == "FolioReaderKit"'`, then pair the begin and end events by `signpostID`. (`xctrace record --launch` hung on the simulator, and `log stream` doesn't carry signposts.)
+Collect with: `xcrun simctl spawn <device> log show --signpost --last 5m --style ndjson --predicate 'subsystem == "FolioReaderKit"'`, then pair the begin and end events by `signpostID`. (`xctrace record --launch` hung on the simulator, and `log stream` doesn't carry signposts.) `BookOpen`, `ParseEpub`, `OpenToFirstPage` and `PageLoad` are in the Points of Interest category; the per-page JS steps, `LayoutWait` and `Resource` are in the `Steps` category, so add `category == "Steps"` or `category == "PointsOfInterest"` to narrow it. An interval that ends early carries the reason as its end message (`replaced`, `failed`, `terminated`, `closed`, `error`). `Resource` stops when the response is handed to the server, before the entry is decompressed.
 
 | Book (34 entries) | BookOpen | ParseEpub | Open → first page | PageLoad median / max | JS per page (sum) | RuntimeStyleJS median |
 |---|---|---|---|---|---|---|

@@ -19,7 +19,25 @@ extension FolioReaderPage {
     }
     
     public func webView(_ webView: WKWebView, didFail: WKNavigation!, withError: Error) {
+        endLoadInterval(ifLoading: didFail)
         self.readerContainer?.alert(message: "LOAD FAIL WITH ERROR \(withError.localizedDescription)")
+    }
+
+    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        endLoadInterval(ifLoading: navigation)
+    }
+
+    public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        loadInterval?.end("terminated")
+        loadInterval = nil
+    }
+
+    /// Ends `loadInterval` if `navigation` is the load it measures. Starting another load cancels
+    /// the previous one, and that cancellation must not end the new load's interval.
+    private func endLoadInterval(ifLoading navigation: WKNavigation?) {
+        guard let navigation = navigation, navigation === loadNavigation else { return }
+        loadInterval?.end("failed")
+        loadInterval = nil
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -78,6 +96,7 @@ extension FolioReaderPage {
                                 
                                 self.loadInterval?.end("page \(pageNumber)")
                                 self.loadInterval = nil
+                                self.loadNavigation = nil
                                 self.delegate?.pageDidLoad?(self)
                             }
                         }

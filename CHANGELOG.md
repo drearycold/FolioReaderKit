@@ -19,6 +19,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - `ReaderPreferences.savedScrollDirection` (the user's choice, or `nil`) and `hasSavedScrollDirection`, and `FolioReaderConfig.hasExplicitScrollDirection`, which is `true` once the app has assigned `scrollDirection`.
 - `FolioReaderContainer.init?(coder:config:folioReader:epubPath:webServer:)`, so a container created from a storyboard, through an `@IBSegueAction` or `instantiateViewController(identifier:creator:)`, gets an injected web server. The plain `init?(coder:)` still works and creates its own.
 - The current settings are available to custom CSS as `--folio-*` custom properties on `<body>`, for example `var(--folio-font-size)`.
+- `os_signpost` intervals (subsystem `FolioReaderKit`) for profiling: `BookOpen`, `ParseEpub`, `OpenToFirstPage` and `PageLoad` in Points of Interest, and the per-page JavaScript steps, layout waits and resource requests in a separate `Steps` category, so they don't crowd the host app's Points of Interest. `FolioReaderPage` now implements `webView(_:didFailProvisionalNavigation:withError:)` and `webViewWebContentProcessDidTerminate(_:)`, only to end the page's interval.
 - `FolioReaderConfig.reserveSafeAreaInsidePageFrame` and `reservePageIndicatorInsidePageFrame` (both default `true`, the old behavior). Set them to `false` for edge-to-edge pages.
 
 **Changed:**

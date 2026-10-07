@@ -113,6 +113,11 @@ open class FolioReaderContainer: UIViewController {
         self.folioReader.readerContainer = self
     }
 
+    deinit {
+        // Closed before any page was shown.
+        firstPageInterval?.end("closed")
+    }
+
     /// Applies `ReaderPreferences.resolveScrollDirection` to `readerConfig`; returns whether the
     /// direction changed. The user's saved choice only counts while they may change the direction.
     @discardableResult
@@ -215,8 +220,8 @@ open class FolioReaderContainer: UIViewController {
 
         Task {
             let bookName = (self.epubPath as NSString).lastPathComponent
-            let openInterval = FolioSignpost.begin("BookOpen", bookName)
-            self.firstPageInterval = FolioSignpost.begin("OpenToFirstPage", bookName)
+            let openInterval = FolioSignpost.begin("BookOpen", bookName, log: FolioSignpost.milestones)
+            self.firstPageInterval = FolioSignpost.begin("OpenToFirstPage", bookName, log: FolioSignpost.milestones)
             do {
                 let archive: Archive
                 do {
@@ -226,7 +231,7 @@ open class FolioReaderContainer: UIViewController {
                 }
                 
                 FolioLogger.log("BEFORE readEpub")
-                let parseInterval = FolioSignpost.begin("ParseEpub", bookName)
+                let parseInterval = FolioSignpost.begin("ParseEpub", bookName, log: FolioSignpost.milestones)
                 let parsedBook = try await FREpubParserArchive(book: self.book, archive: archive).readEpub(epubPath: self.epubPath)
                 parseInterval.end()
                 FolioLogger.log("AFTER readEpub")

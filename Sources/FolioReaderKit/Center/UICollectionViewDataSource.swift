@@ -39,6 +39,10 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         
         cell.setup(withReaderContainer: readerContainer)
         cell.pageNumber = indexPath.row+1
+        // A load still running for the page this cell showed before won't reach pageDidLoad.
+        cell.loadInterval?.end("replaced")
+        cell.loadInterval = nil
+        cell.loadNavigation = nil
         cell.layoutAdapting = "Initializing..."
         
         cell.webView?.scrollView.delegate = self.scrollHandler
@@ -67,9 +71,8 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         ) else { return cell }
         
         FolioLogger.log("webView.load url=\(url.absoluteString)")
-        cell.loadInterval?.end("replaced")
-        cell.loadInterval = FolioSignpost.begin("PageLoad", "page \(indexPath.row + 1)")
-        cell.webView?.load(URLRequest(url: url))
+        cell.loadInterval = FolioSignpost.begin("PageLoad", "page \(indexPath.row + 1)", log: FolioSignpost.milestones)
+        cell.loadNavigation = cell.webView?.load(URLRequest(url: url))
         
         return cell
     }
