@@ -38,7 +38,8 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 | CHANGELOG: breaking CSS API removal (`ReaderCSSGenerator`, `FolioReader.CssLevels` / `CssImgLevels`, `generateRuntimeStyle`, `cssGenerator`), `customStyleSheets`, scroll-direction default change (`e7fe701`), page-frame and close-button config | ✅ Brought up to date with the `--folio-*` styling and its `<body>` class change, the single scroll-direction rule (`0979c7c`), and the storyboard initializer |
 | README: bookmarks, `customStyleSheets` usage, page-frame config | ✅ |
 | `AGENTS.md`: fix drift (`Sources/FolioEPUBCore`, port in `EpubResourceServer`, stale line references) or point it at `CLAUDE.md` | ✅ |
-| Delete `.travis.yml` (CocoaPods/workspace no longer exist); fix `.jazzy.yaml` and confirm `jazzy` runs | 🔄 Deleted and fixed; the jazzy `xcodebuild` arguments build, but jazzy itself is not installed here, so the run is unconfirmed |
+| Delete `.travis.yml` (CocoaPods/workspace no longer exist); fix `.jazzy.yaml` and confirm `jazzy` runs | ✅ Deleted; `.jazzy.yaml` builds with `xcodebuild` and documents both modules (jazzy 0.15.5: 952 public symbols, 23% documented) |
+| API reference on GitHub Pages: `docs/` untracked and git-ignored, `.github/workflows/docs.yml` runs jazzy and deploys on pushes to `master` | 🔄 Pages enabled with the Actions source; the first deploy happens when the workflow reaches `master` |
 
 ### Phase 2: CI (refactor plan C-3) 🔄
 

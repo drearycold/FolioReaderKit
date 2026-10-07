@@ -1,8 +1,7 @@
-module: FolioReaderKit
 author: Heberti Almeida
 author_url: https://twitter.com/hebertialmeida
 github_url: https://github.com/drearycold/FolioReaderKit
-root_url: https://folioReader.github.io/FolioReaderKit/
+root_url: https://drearycold.github.io/FolioReaderKit/
 clean: true
 output: docs/
 theme: fullwidth
@@ -12,9 +11,16 @@ hide_documentation_coverage: true
 min_acl: public
 # exclude: ["Source/Core/Helpers/*", "Source/Core/Keychain.swift"]
 
-# Swift package with UIKit dependencies: build the SPM scheme for the iOS Simulator.
-xcodebuild_arguments:
+# Swift package with UIKit dependencies: `swift build` fails on macOS, and with no .xcodeproj
+# jazzy would pick it, so build the SPM scheme with xcodebuild for the iOS Simulator.
+# The FolioReaderKit scheme builds both targets.
+swift_build_tool: xcodebuild
+build_tool_arguments:
     - "-scheme"
     - "FolioReaderKit"
     - "-destination"
     - "generic/platform=iOS Simulator"
+
+modules:
+    - module: FolioReaderKit
+    - module: FolioEPUBCore

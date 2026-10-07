@@ -66,3 +66,6 @@ fastlane/screenshots
 fastlane/test_output
 
 .gemini
+
+# Jazzy output; published to GitHub Pages by .github/workflows/docs.yml
+docs/

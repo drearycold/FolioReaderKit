@@ -34,6 +34,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - Standalone images (`img.folioImg`) are limited to 84vh / 84vw, the old default. Before, the limit followed the text-indent setting (80–96).
 - With the AllText override, paragraph spacing no longer applies to `<body>` itself, which gave it extra margins in scroll mode.
 - `customStyleSheets` documents that a custom rule needs `!important` and a selector at least as specific as the built-in one, for example `html:root body p`; `p { … !important }` alone loses.
+- The API reference covers `FolioEPUBCore` as well as `FolioReaderKit` and is published to GitHub Pages (https://drearycold.github.io/FolioReaderKit/) instead of being checked in under `docs/`.
 - Example apps: Storyboard-Example is removed. MultipleInstance-Example covers the storyboard path, creating its two side-by-side readers in `@IBSegueAction`s with injected web servers, and CI builds it instead.
 
 **Fixed:**
