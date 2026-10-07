@@ -19,7 +19,7 @@ extension FolioReaderPage {
         self.updatePageOffsetRate()
         
         // Change layout
-        self.readerConfig.scrollDirection = direction
+        self.readerConfig.applyEffectiveScrollDirection(direction)
         readerCenter.collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
         self.setNeedsLayout()
         readerCenter.collectionView.collectionViewLayout.invalidateLayout()

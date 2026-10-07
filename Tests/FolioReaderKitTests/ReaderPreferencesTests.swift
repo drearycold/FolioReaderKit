@@ -206,6 +206,35 @@ class ReaderPreferencesTests: XCTestCase {
         XCTAssertTrue(config.hasExplicitScrollDirection, "Assigning the default value is still an explicit choice")
     }
 
+    func testReusedConfigRemembersOnlyTheAppsDirection() {
+        // The reader paged a right-to-left book; a left-to-right book opened next with the same
+        // config must not inherit that.
+        let unconfigured = FolioReaderConfig()
+        let rtlContainer = makeContainer(unconfigured)
+        rtlContainer.loadViewIfNeeded()
+        rtlContainer.applyResolvedScrollDirection(isRtl: true)
+        XCTAssertEqual(unconfigured.scrollDirection, .horizontalWithPagedContent)
+        XCTAssertFalse(unconfigured.hasExplicitScrollDirection, "The reader's own write is not the app's choice")
+
+        let ltrContainer = makeContainer(unconfigured)
+        ltrContainer.loadViewIfNeeded()
+        ltrContainer.applyResolvedScrollDirection(isRtl: false)
+        XCTAssertEqual(unconfigured.scrollDirection, .horizontalWithScrollContent)
+
+        // A choice made in the menu is saved in the preferences, not taken as the app's direction.
+        let configured = FolioReaderConfig()
+        configured.scrollDirection = .vertical
+        let firstContainer = makeContainer(configured)
+        firstContainer.loadViewIfNeeded()
+        preferences.currentScrollDirection = FolioReaderScrollDirection.horizontalWithScrollContent.rawValue
+        XCTAssertEqual(configured.scrollDirection, .horizontalWithScrollContent)
+
+        configured.canChangeScrollDirection = false
+        let lockedContainer = makeContainer(configured)
+        lockedContainer.loadViewIfNeeded()
+        XCTAssertEqual(configured.scrollDirection, .vertical, "With the saved choice ignored, the app's direction applies again")
+    }
+
     /// The container attaches itself to `folioReader`, which only holds it weakly, so tests keep it.
     private func makeContainer(_ config: FolioReaderConfig) -> FolioReaderContainer {
         let container = FolioReaderContainer(withConfig: config, folioReader: folioReader, epubPath: "", webServer: ReadiumGCDWebServer())

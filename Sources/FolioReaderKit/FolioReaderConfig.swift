@@ -204,14 +204,27 @@ open class FolioReaderConfig: NSObject {
 
     /// If `canChangeScrollDirection` is `true` it will be overrided by user's option.
     open var scrollDirection: FolioReaderScrollDirection = .horizontalWithScrollContent {
-        didSet { hasExplicitScrollDirection = true }
+        didSet {
+            if !isApplyingEffectiveScrollDirection { configuredScrollDirection = scrollDirection }
+        }
     }
 
-    /// `true` once `scrollDirection` has been assigned. The container reads it when its view loads,
-    /// before it writes the effective direction itself: if the app assigned a direction, that
-    /// direction is used unless the user saved another; if not, right-to-left books open in
-    /// `.horizontalWithPagedContent`.
-    public private(set) var hasExplicitScrollDirection = false
+    /// `true` once the app has assigned `scrollDirection`. If it has, that direction is used unless
+    /// the user saved another; if not, right-to-left books open in `.horizontalWithPagedContent`.
+    /// The reader writes the direction in effect back to `scrollDirection` without changing this,
+    /// so a config reused for another book still carries only the app's choice.
+    public var hasExplicitScrollDirection: Bool { configuredScrollDirection != nil }
+
+    /// The direction the app last assigned to `scrollDirection`, if any.
+    private(set) var configuredScrollDirection: FolioReaderScrollDirection?
+    private var isApplyingEffectiveScrollDirection = false
+
+    /// Sets `scrollDirection` to the direction the reader is using, without taking it as the app's choice.
+    func applyEffectiveScrollDirection(_ direction: FolioReaderScrollDirection) {
+        isApplyingEffectiveScrollDirection = true
+        defer { isApplyingEffectiveScrollDirection = false }
+        scrollDirection = direction
+    }
 
     /// Enable or disable hability to user change scroll direction on menu.
     open var canChangeScrollDirection = true

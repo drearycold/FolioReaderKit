@@ -33,8 +33,6 @@ open class FolioReaderContainer: UIViewController {
     
     var webServer: ReadiumGCDWebServer
     private var resourceServer: EpubResourceServer?
-    /// The direction the app set on `readerConfig` before the reader started changing it, if any.
-    private var configuredScrollDirection: FolioReaderScrollDirection?
     /// Open until the first page is shown; ended by `FolioReaderCenter.pageDidLoad`.
     var firstPageInterval: FolioSignpost.Interval?
 
@@ -121,11 +119,11 @@ open class FolioReaderContainer: UIViewController {
     func applyResolvedScrollDirection(isRtl: Bool) -> Bool {
         let direction = ReaderPreferences.resolveScrollDirection(
             saved: readerConfig.canChangeScrollDirection ? folioReader.preferences.savedScrollDirection : nil,
-            configured: configuredScrollDirection,
+            configured: readerConfig.configuredScrollDirection,
             isRtl: isRtl
         )
         guard direction != readerConfig.scrollDirection else { return false }
-        readerConfig.scrollDirection = direction
+        readerConfig.applyEffectiveScrollDirection(direction)
         return true
     }
 
@@ -158,10 +156,7 @@ open class FolioReaderContainer: UIViewController {
         //let canChangeScrollDirection = self.readerConfig.canChangeScrollDirection
         //self.readerConfig.canChangeScrollDirection = self.readerConfig.isDirection(canChangeScrollDirection, canChangeScrollDirection, false)
 
-        // From here on the reader writes the effective direction into `readerConfig.scrollDirection`,
-        // so remember what the app asked for first. The book isn't parsed yet; this is re-resolved
-        // with the real `isRtl` once it is.
-        configuredScrollDirection = readerConfig.hasExplicitScrollDirection ? readerConfig.scrollDirection : nil
+        // The book isn't parsed yet; this is re-resolved with the real `isRtl` once it is.
         applyResolvedScrollDirection(isRtl: false)
 
         let hideBars = readerConfig.hideBars

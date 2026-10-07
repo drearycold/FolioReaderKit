@@ -27,7 +27,7 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 |---|---|---|
 | Bring the generic `codex/dsreader` prefix (`fac65e5`, `d6a74a3`, `9493f33`) into `styling-optimization` | ✅ | Merged in `0efa64a`. Adds `showCloseButton`, `forceBottomMenuTabBar`, `reserveSafeAreaInsidePageFrame` / `reservePageIndicatorInsidePageFrame` and the zero-margin fix. |
 | Port the prefix's CSS tests to `FolioReaderCSSBuilder` | ✅ | They were the only uses of the removed `FolioReaderScript.cssInjection`. |
-| YAEBR `main` builds against this checkout | ✅ | Its FolioReaderKit tests pass (`ReaderPreferenceRepositoryTests`, `FolioReaderProviderBookIdTests`, 54 tests). Re-checked on 2026-10-07 against `0979c7c` (custom-property styling, storyboard initializer, single scroll-direction rule). |
+| YAEBR `main` builds against this checkout | ✅ | Its FolioReaderKit tests pass (`ReaderPreferenceRepositoryTests`, `FolioReaderProviderBookIdTests`, 54 tests). Re-checked on 2026-10-07 against `0979c7c` (custom-property styling, storyboard initializer, single scroll-direction rule), and again after the reused-config scroll-direction fix. |
 
 ### Phase 1: Docs and housekeeping 🔄
 

@@ -16,7 +16,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - `FolioReaderConfig.customStyleSheets` (`FolioReaderStyleSheet`, `FolioReaderCSSStage`) for injecting app CSS, either once per page load (`.documentBase`) or on every style refresh (`.runtime`).
 - `FolioReaderConfig.showCloseButton` (default `true`), to hide the reader's close button.
 - `FolioReaderConfig.forceBottomMenuTabBar` (default `false`), to keep the settings tabs at the bottom on iPadOS.
-- `ReaderPreferences.savedScrollDirection` (the user's choice, or `nil`) and `hasSavedScrollDirection`, and `FolioReaderConfig.hasExplicitScrollDirection`, which the container reads when its view loads.
+- `ReaderPreferences.savedScrollDirection` (the user's choice, or `nil`) and `hasSavedScrollDirection`, and `FolioReaderConfig.hasExplicitScrollDirection`, which is `true` once the app has assigned `scrollDirection`.
 - `FolioReaderContainer.init?(coder:config:folioReader:epubPath:webServer:)`, so a container created from a storyboard, through an `@IBSegueAction` or `instantiateViewController(identifier:creator:)`, gets an injected web server. The plain `init?(coder:)` still works and creates its own.
 - The current settings are available to custom CSS as `--folio-*` custom properties on `<body>`, for example `var(--folio-font-size)`.
 - `FolioReaderConfig.reserveSafeAreaInsidePageFrame` and `reservePageIndicatorInsidePageFrame` (both default `true`, the old behavior). Set them to `false` for edge-to-edge pages.
@@ -42,6 +42,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - Runtime style changes no longer add a new `WKUserScript` each time.
 - `FolioReaderContainer` loads its book once. Before, every `viewWillAppear` (a host switching tabs, or a full-screen sheet closing) re-parsed the book, re-applied the position it was opened at and reloaded the pages, which sent the reader back to that position.
 - Zero page margins are respected (`FolioReaderPageFrameCalculator`).
+- A `FolioReaderConfig` reused for another book no longer carries the direction the reader used for the previous one. The reader's own writes to `scrollDirection` (the effective direction, or the user's menu choice) no longer count as the app's choice, so a left-to-right book opened after a right-to-left one isn't paged, and the app's direction comes back when the saved choice doesn't apply.
 - On iOS 16 and later the selection menu's Share item showed the placeholder title "S", and its options popover was anchored at the top-left of the screen. It now uses `localizedShare` and anchors at the selection; the share sheet is anchored in the web view's coordinates.
 - `FolioReader.save(readPosition:for:)` applies saves in order on a serial queue. Before, rapid saves ran concurrently, so an older position could win and several could keep `takePrecedence`. Providers are also no longer called from several threads at once.
 - Example app: the preference provider uses the key-based API again, and MultipleInstance-Example bundles `Population.epub`.
