@@ -15,7 +15,7 @@
         <!--View Controller-->
         <scene sceneID="tne-QT-ifu">
             <objects>
-                <viewController id="BYZ-38-t0r" sceneMemberID="viewController">
+                <viewController id="BYZ-38-t0r" customClass="SideBySideReadersViewController" customModule="MultipleInstance_Example" customModuleProvider="target" sceneMemberID="viewController">
                     <layoutGuides>
                         <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
                         <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
@@ -27,13 +27,13 @@
                             <containerView opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="76c-NV-rFk">
                                 <rect key="frame" x="0.0" y="0.0" width="188" height="667"/>
                                 <connections>
-                                    <segue destination="de9-cY-WDq" kind="embed" id="oZF-zd-rYR"/>
+                                    <segue destination="de9-cY-WDq" kind="embed" destinationCreationSelector="makeBookOneReader:" id="oZF-zd-rYR"/>
                                 </connections>
                             </containerView>
                             <containerView opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="BdC-jh-VYF">
                                 <rect key="frame" x="188" y="0.0" width="187" height="667"/>
                                 <connections>
-                                    <segue destination="ohM-0F-lQn" kind="embed" id="cz7-mW-OQe"/>
+                                    <segue destination="ohM-0F-lQn" kind="embed" destinationCreationSelector="makeBookTwoReader:" id="cz7-mW-OQe"/>
                                 </connections>
                             </containerView>
                         </subviews>
@@ -185,10 +185,10 @@
             </objects>
             <point key="canvasLocation" x="2921" y="-874"/>
         </scene>
-        <!--Book Two Example Folio Reader Container-->
+        <!--Folio Reader Container (book two)-->
         <scene sceneID="M1P-iU-W2Z">
             <objects>
-                <viewController id="ohM-0F-lQn" customClass="BookTwoExampleFolioReaderContainer" customModule="MultipleInstance_Example" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController id="ohM-0F-lQn" customClass="FolioReaderContainer" customModule="FolioReaderKit" sceneMemberID="viewController">
                     <layoutGuides>
                         <viewControllerLayoutGuide type="top" id="up8-fk-R64"/>
                         <viewControllerLayoutGuide type="bottom" id="hph-6f-D8P"/>
@@ -204,10 +204,10 @@
             </objects>
             <point key="canvasLocation" x="3121" y="609"/>
         </scene>
-        <!--Book One Example Folio Reader Container-->
+        <!--Folio Reader Container (book one)-->
         <scene sceneID="cgR-Wo-j0t">
             <objects>
-                <viewController id="de9-cY-WDq" customClass="BookOneExampleFolioReaderContainer" customModule="MultipleInstance_Example" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController id="de9-cY-WDq" customClass="FolioReaderContainer" customModule="FolioReaderKit" sceneMemberID="viewController">
                     <layoutGuides>
                         <viewControllerLayoutGuide type="top" id="KCp-yr-uyi"/>
                         <viewControllerLayoutGuide type="bottom" id="yDF-zP-Dvt"/>

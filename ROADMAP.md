@@ -43,7 +43,7 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 
 | Item | Status |
 |---|---|
-| GitHub Actions on macOS with Xcode 26: `xcodebuild test -scheme FolioReaderKit` on an iPhone simulator (includes snapshot and WebKit tests); build the Example and Storyboard-Example schemes | 🔄 `.github/workflows/test.yml` added; every step's command passes locally. The first hosted run happens on the umbrella PR. |
+| GitHub Actions on macOS with Xcode 26: `xcodebuild test -scheme FolioReaderKit` on an iPhone simulator (includes snapshot and WebKit tests); build the Example and MultipleInstance-Example schemes (Storyboard-Example removed; MultipleInstance-Example covers the storyboard path) | 🔄 `.github/workflows/test.yml` added; every step's command passes locally. The first hosted run happens on the umbrella PR. |
 
 ### Phase 3: Styling optimization (measure first) ✅
 
@@ -114,7 +114,7 @@ To profile a book that isn't bundled, copy it into the Example app's Documents a
 xcodebuild test -scheme FolioReaderKit -destination 'platform=iOS Simulator,name=iPhone 17'
 # Example apps
 xcodebuild -project Example/Example.xcodeproj -scheme Example -destination 'platform=iOS Simulator,name=iPhone 17' build
-xcodebuild -project Example/Example.xcodeproj -scheme Storyboard-Example -destination 'platform=iOS Simulator,name=iPhone 17' build
+xcodebuild -project Example/Example.xcodeproj -scheme MultipleInstance-Example -destination 'generic/platform=iOS Simulator' build
 # YAEBR main against this checkout (run from a sibling YetAnotherEBookReader checkout)
 xcodebuild -project YetAnotherEBookReader.xcodeproj -scheme YetAnotherEBookReader -destination 'platform=iOS Simulator,name=iPhone 17' build
 ```

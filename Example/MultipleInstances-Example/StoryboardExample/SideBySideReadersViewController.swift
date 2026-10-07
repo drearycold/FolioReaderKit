@@ -1,30 +1,33 @@
 //
-//  BaseExampleFolioReaderContainer.swift
-//  StoryboardExample
+//  SideBySideReadersViewController.swift
+//  MultipleInstance-Example
 //
-//  Created by Panajotis Maroungas on 18/08/16.
-//  Copyright © 2016 FolioReader. All rights reserved.
+//  Copyright © 2026 FolioReader. All rights reserved.
 //
 
 import UIKit
 import FolioReaderKit
+import ReadiumGCDWebServer
 
-class BaseExampleFolioReaderContainer: FolioReaderContainer {
+/// Two readers embedded side by side in the storyboard.
+///
+/// Each embed segue creates its `FolioReaderContainer` through an `@IBSegueAction`, so the reader
+/// gets an injected web server like one created in code. With one server per reader, the second
+/// reader falls back to a free port while the first one holds the preferred one.
+class SideBySideReadersViewController: UIViewController {
 
-    var exampleReaderConfig: FolioReaderConfig {
-        // To be implented by subclasses
-        return FolioReaderConfig()
+    @IBSegueAction func makeBookOneReader(_ coder: NSCoder) -> FolioReaderContainer? {
+        makeReader(coder, identifier: "STORYBOARD_READER_ONE", scrollDirection: .horizontalWithScrollContent)
     }
 
-    var bookTitle: String {
-        // To be implented by subclasses
-        return ""
+    @IBSegueAction func makeBookTwoReader(_ coder: NSCoder) -> FolioReaderContainer? {
+        makeReader(coder, identifier: "STORYBOARD_READER_TWO", scrollDirection: .vertical)
     }
 
-    required init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
-
-        let config = self.exampleReaderConfig
+    private func makeReader(_ coder: NSCoder, identifier: String, scrollDirection: FolioReaderScrollDirection) -> FolioReaderContainer? {
+        let config = FolioReaderConfig(withIdentifier: identifier)
+        config.scrollDirection = scrollDirection
+        config.shouldHideNavigationOnTap = false
 
         // Print the chapter ID if one was clicked
         // A chapter in "The Silver Chair" looks like this "<section class="chapter" title="Chapter I" epub:type="chapter" id="id70364673704880">"
@@ -34,7 +37,13 @@ class BaseExampleFolioReaderContainer: FolioReaderContainer {
         })
         config.classBasedOnClickListeners.append(listener)
 
-        guard let bookPath = Bundle.main.path(forResource: self.bookTitle, ofType: "epub") else { return }
-        setupConfig(config, epubPath: bookPath)
+        guard let bookPath = Bundle.main.path(forResource: "The Silver Chair", ofType: "epub") else { return nil }
+        return FolioReaderContainer(
+            coder: coder,
+            config: config,
+            folioReader: FolioReader(),
+            epubPath: bookPath,
+            webServer: ReadiumGCDWebServer()
+        )
     }
 }
