@@ -122,16 +122,6 @@ xcodebuild -project Example/Example.xcodeproj -scheme MultipleInstance-Example -
 xcodebuild -project YetAnotherEBookReader.xcodeproj -scheme YetAnotherEBookReader -destination 'platform=iOS Simulator,name=iPhone 17' build
 ```
 
-## Draft issue replies (not posted)
+## Issue replies
 
-**FolioReaderKit #6, Xcode 26**
-> Re-verified with Xcode 26 on the iPhone 17 simulator after the latest integration work. The package builds and its test suite passes. Closing this. If you still hit a build error, please reopen with the compiler output and how you integrate the package.
-
-**FolioReaderKit #7, highlights and search**
-> Highlights are supported: select text and choose Highlight, or Highlight with a note. To persist them, supply a `FolioReaderHighlightProvider` through `FolioReaderDelegate.folioReaderHighlightProvider(_:)`. In-book keyword search is being developed on a feature branch. We'll update this issue when it lands on `master`.
-
-**FolioReaderKit #8, bookmarks**
-> Bookmarks are supported through the `FolioReaderBookmarkProvider` protocol, which you return from `FolioReaderDelegate.folioReaderBookmarkProvider(_:)`. The reader includes a bookmark list and bookmark notes. The Example app will gain an in-memory bookmark provider to show the integration.
-
-**YAEBR #48, `isShare` broken**
-> FolioReaderKit no longer has `isShare`; sharing is controlled by `FolioReaderConfig.allowSharing`. On iOS 16 and later the Share item was labelled "S" and its options appeared under the status bar. Both are fixed in FolioReaderKit. Keeping this open to check sharing in the app, since related problems may remain.
+Draft replies to FolioReaderKit and YAEBR issues are kept locally in `.gemini/ISSUE_REPLY_DRAFTS.md`, which is git-ignored, so unposted text and its claims stay out of the tracked tree. YAEBR replies follow the working rules above: they never close the issue.
