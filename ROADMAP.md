@@ -1,6 +1,6 @@
 # FolioReaderKit Roadmap
 
-This is the umbrella plan for this fork. It brings together the open FolioReaderKit issues, the FolioReader-related issues from [YetAnotherEBookReader](https://github.com/drearycold/YetAnotherEBookReader) (YAEBR), and the remaining items from the earlier refactor roadmap ([`.gemini/REFACTOR_PLAN.md`](.gemini/REFACTOR_PLAN.md), which covers P0–P3, A-1 and B-1, all done). Update the status column as work lands.
+This is the umbrella plan for this fork. It brings together the open FolioReaderKit issues, the FolioReader-related issues from [YetAnotherEBookReader](https://github.com/drearycold/YetAnotherEBookReader) (YAEBR), and the remaining items from the earlier refactor plan (P0–P3, A-1 and B-1, all done). That plan lived in `.gemini/REFACTOR_PLAN.md` until its open items were folded in here; read it with `git show 33fcc5a:.gemini/REFACTOR_PLAN.md`. Codes such as A-2 and C-3 refer to it. Update the status column as work lands.
 
 Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 
@@ -27,19 +27,20 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 |---|---|---|
 | Bring the generic `codex/dsreader` prefix (`fac65e5`, `d6a74a3`, `9493f33`) into `styling-optimization` | ✅ | Merged in `0efa64a`. Adds `showCloseButton`, `forceBottomMenuTabBar`, `reserveSafeAreaInsidePageFrame` / `reservePageIndicatorInsidePageFrame` and the zero-margin fix. |
 | Port the prefix's CSS tests to `FolioReaderCSSBuilder` | ✅ | They were the only uses of the removed `FolioReaderScript.cssInjection`. |
-| YAEBR `main` builds against this checkout | ✅ | Its FolioReaderKit tests pass (`ReaderPreferenceRepositoryTests`, `FolioReaderProviderBookIdTests`). |
+| YAEBR `main` builds against this checkout | ✅ | Its FolioReaderKit tests pass (`ReaderPreferenceRepositoryTests`, `FolioReaderProviderBookIdTests`, 54 tests). Re-checked on 2026-10-07 against `0979c7c` (custom-property styling, storyboard initializer, single scroll-direction rule). |
 
 ### Phase 1: Docs and housekeeping 🔄
 
 | Item | Status |
 |---|---|
 | This roadmap | ✅ |
-| CHANGELOG: breaking CSS API removal (`ReaderCSSGenerator`, `FolioReader.CssLevels` / `CssImgLevels`, `generateRuntimeStyle`, `cssGenerator`), `customStyleSheets`, scroll-direction default change (`e7fe701`), page-frame and close-button config | ✅ |
+| Fold the open items of `.gemini/REFACTOR_PLAN.md` into this roadmap and stop tracking that file | ✅ |
+| CHANGELOG: breaking CSS API removal (`ReaderCSSGenerator`, `FolioReader.CssLevels` / `CssImgLevels`, `generateRuntimeStyle`, `cssGenerator`), `customStyleSheets`, scroll-direction default change (`e7fe701`), page-frame and close-button config | ✅ Brought up to date with the `--folio-*` styling and its `<body>` class change, the single scroll-direction rule (`0979c7c`), and the storyboard initializer |
 | README: bookmarks, `customStyleSheets` usage, page-frame config | ✅ |
 | `AGENTS.md`: fix drift (`Sources/FolioEPUBCore`, port in `EpubResourceServer`, stale line references) or point it at `CLAUDE.md` | ✅ |
 | Delete `.travis.yml` (CocoaPods/workspace no longer exist); fix `.jazzy.yaml` and confirm `jazzy` runs | 🔄 Deleted and fixed; the jazzy `xcodebuild` arguments build, but jazzy itself is not installed here, so the run is unconfirmed |
 
-### Phase 2: CI (REFACTOR_PLAN C-3) 🔄
+### Phase 2: CI (refactor plan C-3) 🔄
 
 | Item | Status |
 |---|---|
@@ -68,7 +69,7 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 | YAEBR #100, #41 | FolioReaderKit part only. Fixed a race: `save(readPosition:)` ran on a concurrent queue, so rapid saves could leave an older position winning and several marked `takePrecedence` (test: `testRapidSavesKeepOnlyTheLastPositionWithPrecedence`, which failed 3/3 before). Saves are now serialized. Sync itself stays in YAEBR | 🔄 FolioReaderKit part done; issue stays open |
 | (lesson from YAEBR) | A failing highlight injection must not block page load or position restore. `Bridge.js` already reports per-highlight errors (`BridgeHighlightTests`), and JS errors can't stall the chain because `evaluateJavaScript` always calls back. The one stall, a released web view, now continues | ✅ |
 | (from the baseline) | Replace the page-load chain's fixed `asyncAfter` delays with readiness signals (layout-settled callbacks), which make up most of the ~1.8 s per page | ✅ `WebViewLayoutWaiter`: overflow, runtime-style, page-info and padding waits; the old delay is now only a timeout. The waits in `setScrollDirection`, `updateViewerLayout` and after animated scrolls remain |
-| (from `e7fe701`) | The unsaved scroll direction now comes from `config.scrollDirection`, so right-to-left books lost their paged default (`defaultScrollDirection`). Fixed with an RTL-aware fallback after parsing (`ReaderPreferences.parsedBookScrollDirection`). Unit-tested; no RTL sample book to check it end to end | ✅ |
+| (from `e7fe701`) | The unsaved scroll direction now comes from `config.scrollDirection`, so right-to-left books lost their paged default (`defaultScrollDirection`). Fixed with an RTL-aware fallback after parsing, since replaced by one rule, `ReaderPreferences.resolveScrollDirection` (saved choice, else configured direction, else paged for RTL), applied when the view loads and again after parsing (`0979c7c`). A stored `.defaultVertical` placeholder counts as no choice, so RTL books also page with YAEBR's provider. Unit-tested; no RTL sample book to check it end to end | ✅ |
 
 ### Phase 5: FolioReaderKit feature issues
 
@@ -82,7 +83,9 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 
 - YAEBR #18 dual page mode.
 - YAEBR #28 side-by-side reading. `MultipleInstance-Example` shows two readers on iPad.
-- REFACTOR_PLAN: B-2 API docs, C-2 coverage, A-2 strict concurrency (start with `targeted`), B-3 accessibility, A-3 iOS 16 minimum.
+- From the refactor plan: B-2 API docs, C-2 coverage, A-2 strict concurrency (start with `targeted`), B-3 accessibility, A-3 iOS 16 minimum.
+- From the refactor plan: C-1, publish `FolioEPUBCore` as its own Foundation-only package (macOS, Linux) with an `async throws` parsing API.
+- From the refactor plan's tech debt: legacy `@objc` protocols (11) and `NSObject` subclasses (21), counted before the A-1 split.
 
 Out of scope here: YAEBR #62 (Readium), PDF issues (#93, #95, #96), app-only YAEBR issues, and the RAG line itself.
 

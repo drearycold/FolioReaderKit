@@ -7,7 +7,8 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 **Breaking changes:**
 
 - Removed the old CSS helpers: `ReaderCSSGenerator`, `FolioReader.CssLevels(type:def:)` and `FolioReader.CssImgLevels(type:def:)`, together with the internal `generateRuntimeStyle()`, `cssFontFamilies()`, `cssUserFontFaces()` and `FolioReader.cssGenerator`. Every reader CSS string now comes from the internal `FolioReaderCSSBuilder`; use `FolioReaderConfig.customStyleSheets` to add your own CSS.
-- When no scroll direction has been saved, the reader now starts in `FolioReaderConfig.scrollDirection` instead of overwriting it, and a direction the user saved still wins. Right-to-left books open in `horizontalWithPagedContent` when nothing is saved and the app never assigned `scrollDirection`. This decision now runs after the book is parsed; before, it ran before parsing, so right-to-left books never actually got their paged default.
+- The scroll direction follows one rule: the direction the user saved in the menu, else `FolioReaderConfig.scrollDirection` if the app assigned it, else `horizontalWithPagedContent` for right-to-left books and `horizontalWithScrollContent` otherwise. Before, the app's configured direction was overwritten even when the user had saved nothing, and right-to-left books never got their paged default because the decision ran before the book was parsed; it now runs again after parsing. A stored `.defaultVertical` (a placeholder some providers seed as their default, YetAnotherEBookReader among them) counts as no choice; the menu never saves it. With `canChangeScrollDirection = false`, only the saved choice is ignored.
+- Reader settings reach the page as `--folio-*` custom properties on `<body>`, read by a few fixed rules, instead of one generated rule and `<body>` class per setting value. The `<body>` classes changed from `folioStyleL<level><Setting><Value>` (for example `folioStyleL1FontSize17px`) and `folioStyleBodyPadding<Side><Level>` to `folioStyleHorizontal` / `folioStyleVertical` and `folioStyleScope<P|TD|SPAN|All>`. The `--letter-spacing` property and the `folio_style_font_families` sheet are gone. Custom style sheets that select on the old class names no longer match.
 - `Style.css` no longer forces a `1em` top and bottom `@page` margin, so a page margin of `0` really is zero.
 
 **Added:**
@@ -15,7 +16,9 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - `FolioReaderConfig.customStyleSheets` (`FolioReaderStyleSheet`, `FolioReaderCSSStage`) for injecting app CSS, either once per page load (`.documentBase`) or on every style refresh (`.runtime`).
 - `FolioReaderConfig.showCloseButton` (default `true`), to hide the reader's close button.
 - `FolioReaderConfig.forceBottomMenuTabBar` (default `false`), to keep the settings tabs at the bottom on iPadOS.
-- `FolioReaderConfig.hasExplicitScrollDirection` and `ReaderPreferences.hasSavedScrollDirection`, which drive the right-to-left default.
+- `ReaderPreferences.savedScrollDirection` (the user's choice, or `nil`) and `hasSavedScrollDirection`, and `FolioReaderConfig.hasExplicitScrollDirection`, which the container reads when its view loads.
+- `FolioReaderContainer.init?(coder:config:folioReader:epubPath:webServer:)`, so a container created from a storyboard, through an `@IBSegueAction` or `instantiateViewController(identifier:creator:)`, gets an injected web server. The plain `init?(coder:)` still works and creates its own.
+- The current settings are available to custom CSS as `--folio-*` custom properties on `<body>`, for example `var(--folio-font-size)`.
 - `FolioReaderConfig.reserveSafeAreaInsidePageFrame` and `reservePageIndicatorInsidePageFrame` (both default `true`, the old behavior). Set them to `false` for edge-to-edge pages.
 
 **Changed:**
@@ -27,6 +30,11 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - CSS reaches the page as base64 decoded as UTF-8, so quotes, backslashes and non-ASCII text in CSS (for example CJK font names) are injected intact.
 - The chapter HTML and computed-style dumps run only when `FolioReaderConfig.debug` contains `.htmlStyling`. Before, they ran on every page load and every settings change.
 - Renamed the internal `updateRuntimStyle` to `updateRuntimeStyle`.
+- `ReaderPreferences.currentScrollDirection` reports the direction in effect, and setting it also updates `readerConfig.scrollDirection`.
+- Standalone images (`img.folioImg`) are limited to 84vh / 84vw, the old default. Before, the limit followed the text-indent setting (80–96).
+- With the AllText override, paragraph spacing no longer applies to `<body>` itself, which gave it extra margins in scroll mode.
+- `customStyleSheets` documents that a custom rule needs `!important` and a selector at least as specific as the built-in one, for example `html:root body p`; `p { … !important }` alone loses.
+- Example apps: Storyboard-Example is removed. MultipleInstance-Example covers the storyboard path, creating its two side-by-side readers in `@IBSegueAction`s with injected web servers, and CI builds it instead.
 
 **Fixed:**
 
@@ -39,7 +47,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 
 **Tests:**
 
-- Snapshot test for the generated level rules, rule coverage for every selectable `<body>` class, and `WKWebView` tests that run the CSS injector and the runtime style script against the real `Bridge.js`.
+- `ReaderStyleRenderingTests` renders a chapter-like page under 60 style settings and snapshots the computed styles, so styling refactors are checked by what WebKit applies, not by CSS text. Unit tests check that every `--folio-*` property the rules read gets a value, and `WKWebView` tests run the CSS injector and the runtime style script against the real `Bridge.js`.
 
 ## [1.4.0](https://github.com/FolioReader/FolioReaderKit/tree/1.4.0) (2019-01-30)
 [Full Changelog](https://github.com/FolioReader/FolioReaderKit/compare/1.3.0...1.4.0)
