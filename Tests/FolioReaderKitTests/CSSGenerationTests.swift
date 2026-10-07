@@ -65,7 +65,6 @@ class CSSGenerationTests: XCTestCase {
             "\"Helvetica Neue\"", "18.5px", "400", "0.04em", "1.65",
             "calc((0.04em + 1em) * 1)",
             "1em", "0.65em",
-            "86vh", "86vw",
             "5.0vh", "7.5vh", "10.0vw", "12.5vw",
         ])
     }

@@ -74,8 +74,6 @@ enum FolioReaderCSSBuilder {
         case textIndent = "--folio-text-indent"
         case paragraphSpaceBefore = "--folio-paragraph-space-before"
         case paragraphSpaceAfter = "--folio-paragraph-space-after"
-        case imageMaxHeight = "--folio-image-max-height"
-        case imageMaxWidth = "--folio-image-max-width"
         case paddingTop = "--folio-padding-top"
         case paddingBottom = "--folio-padding-bottom"
         case paddingLeft = "--folio-padding-left"
@@ -97,8 +95,6 @@ enum FolioReaderCSSBuilder {
         let letterSpacing = Double(state.letterSpacing) / 50.0
         // Paragraph spacing follows the line-height setting, not the page margins.
         let spaceAfter = Decimal(state.lineHeight + 10) * 5 / 100
-        // The image limit follows the text indent setting: 96 at -4 down to 80 at 4.
-        let imageMax = 96 - max((state.textIndent + 4) * 2, 0)
 
         let values: [CustomProperty: String] = [
             .fontFamily: cssString(state.font),
@@ -109,8 +105,6 @@ enum FolioReaderCSSBuilder {
             .textIndent: "calc((\(letterSpacing)em + 1em) * \(abs(state.textIndent)))\(state.textIndent < 0 ? " hanging" : "")",
             .paragraphSpaceBefore: state.isVerticalWritingMode ? "0em" : "1em",
             .paragraphSpaceAfter: state.isVerticalWritingMode ? "\(spaceAfter / 2)em" : "\(spaceAfter)em",
-            .imageMaxHeight: "\(imageMax)vh",
-            .imageMaxWidth: "\(imageMax)vw",
             // Each margin step of 5 is 2.5% of the viewport.
             .paddingTop: "\(Double(state.marginTop / 5) * 2.5)vh",
             .paddingBottom: "\(Double(state.marginBottom / 5) * 2.5)vh",
@@ -158,13 +152,15 @@ enum FolioReaderCSSBuilder {
                 text-align: justify !important;
                 -webkit-hyphens: auto !important;
             }
-            \(scopedSelectors()) {
+            /* Paragraph spacing. AllText leaves the margins of <body> itself alone. */
+            \(scopedSelectors(levels: [.PNode, .PlusTD, .PlusSPAN])) {
                 margin-block-start: \(P.paragraphSpaceBefore.reference);
                 margin-block-end: \(P.paragraphSpaceAfter.reference);
             }
+            /* Images that Bridge.js marks as standing alone get a fixed limit. */
             \(scopedSelectors(descendant: "img.folioImg")) {
-                max-height: \(P.imageMaxHeight.reference) !important;
-                max-width: \(P.imageMaxWidth.reference) !important;
+                max-height: 84vh !important;
+                max-width: 84vw !important;
             }
             \(horizontal) {
                 padding-left: \(P.paddingLeft.reference) !important;
@@ -272,9 +268,9 @@ enum FolioReaderCSSBuilder {
 
     private static let levelTags: [(StyleOverrideTypes, String)] = [(.PNode, "p"), (.PlusTD, "td"), (.PlusSPAN, "span"), (.AllText, "")]
 
-    /// One selector per override level, matching `BodyClass.scope`; `AllText` selects `<body>` itself.
-    private static func scopedSelectors(descendant: String? = nil) -> String {
-        levelTags.map { level, tag in
+    /// One selector per override level in `levels`, matching `BodyClass.scope`; `AllText` selects `<body>` itself.
+    private static func scopedSelectors(levels: Set<StyleOverrideTypes> = Set(StyleOverrideTypes.allCases), descendant: String? = nil) -> String {
+        levelTags.filter { levels.contains($0.0) }.map { level, tag in
             (["html body.\(BodyClass.scope(level))"] + [tag, descendant ?? ""].filter { !$0.isEmpty }).joined(separator: " ")
         }.joined(separator: ",\n")
     }
