@@ -46,4 +46,29 @@ class ReadPositionTests: XCTestCase {
         XCTAssertEqual(allPositions.count, 2)
         XCTAssertEqual(allPositions.filter { $0.takePrecedence }.count, 1)
     }
+
+    /// Rapid saves (scrolling, then the app resigning active) must apply in order: the last saved
+    /// position is the only one left with precedence.
+    func testRapidSavesKeepOnlyTheLastPositionWithPrecedence() {
+        let folioReader = FolioReader()
+        let delegate = MockFolioReaderDelegate()
+        folioReader.delegate = delegate
+        let bookId = "rapidBook"
+
+        var saved = [FolioReaderReadPosition]()
+        for page in 1...200 {
+            let position = FolioReaderReadPosition(deviceId: "d1", structuralStyle: .bundle, positionTrackingStyle: .linear, structuralRootPageNumber: 1, pageNumber: page, cfi: "cfi\(page)")
+            position.takePrecedence = true
+            saved.append(position)
+            folioReader.save(readPosition: position, for: bookId)
+        }
+
+        let drained = XCTestExpectation(description: "saves applied")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { drained.fulfill() }
+        wait(for: [drained], timeout: 3.0)
+
+        let withPrecedence = delegate.positionProvider.folioReaderReadPosition(folioReader, allByBookId: bookId).filter { $0.takePrecedence }
+        XCTAssertEqual(withPrecedence.count, 1, "Exactly one position keeps precedence")
+        XCTAssertEqual(withPrecedence.first?.pageNumber, 200, "The last saved position wins")
+    }
 }

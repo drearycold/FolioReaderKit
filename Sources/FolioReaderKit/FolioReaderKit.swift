@@ -119,6 +119,9 @@ public class FolioReader: NSObject {
 
     public lazy var preferences = ReaderPreferences(folioReader: self)
 
+    /// Read-position saves run here one at a time, in order, off the main thread.
+    let readPositionSaveQueue = DispatchQueue(label: "FolioReaderKit.readPositionSave", qos: .utility)
+
     deinit {
         removeObservers()
     }
@@ -399,10 +402,13 @@ extension FolioReader {
 extension FolioReader {
 
     /// Centralizes the persistence logic of read positions safely.
+    ///
+    /// Saves are serialized: each clears the other positions' `takePrecedence` and then stores its
+    /// own, so with saves in flight at once the last one called wins and only it keeps precedence.
     public func save(readPosition position: FolioReaderReadPosition, for bookId: String) {
         guard let provider = self.delegate?.folioReaderReadPositionProvider?(self) else { return }
         
-        DispatchQueue.global().async { [weak self, provider, position] in
+        readPositionSaveQueue.async { [weak self, provider, position] in
             guard let self = self else { return }
             let positions = provider.folioReaderReadPosition(self, allByBookId: bookId)
             for pos in positions where pos.takePrecedence {
