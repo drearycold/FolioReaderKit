@@ -3,7 +3,7 @@ import ReadiumGCDWebServer
 @testable import FolioReaderKit
 
 @MainActor
-final class NavigationBarVisibilityTests: XCTestCase {
+final class ReaderChromeTests: XCTestCase {
     private func makeReaderCenter(
         hideBars: Bool = false,
         showCloseButton: Bool = true,

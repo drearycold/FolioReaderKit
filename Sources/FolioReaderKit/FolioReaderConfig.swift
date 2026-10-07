@@ -234,6 +234,10 @@ open class FolioReaderConfig: NSObject {
     open var showCloseButton = true
 
     /// Force the reader settings menu tabs to use a bottom tab bar on iPadOS.
+    ///
+    /// On iPadOS 18 and later the menu always uses tab bar mode, never a sidebar. Without this option,
+    /// that tab bar floats at the top, the system's iPad style. With it, the menu gets a compact
+    /// horizontal size class, which puts the tab bar at the bottom as on iPhone.
     open var forceBottomMenuTabBar = false
 
     /// Hide the page indicator

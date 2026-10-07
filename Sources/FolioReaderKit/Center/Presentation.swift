@@ -119,11 +119,13 @@ extension FolioReaderCenter {
         self.present(menuBarController, animated: true, completion: nil)
     }
 
-    @MainActor
     func configureMenuTabBarPlacement(_ tabBarController: UITabBarController) {
         if #available(iOS 18.0, *) {
             tabBarController.mode = .tabBar
             if readerConfig.forceBottomMenuTabBar {
+                // The override reaches every menu tab, not just the tab bar, so a menu that adapts
+                // to size class gets its compact layout. It doesn't reach readerCenter, whose size
+                // class picks the default margins in ReaderPreferences.
                 tabBarController.traitOverrides.horizontalSizeClass = .compact
             }
         }
