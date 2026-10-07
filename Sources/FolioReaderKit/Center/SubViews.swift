@@ -171,7 +171,6 @@ extension FolioReaderCenter {
         let navText = folioReader.preferences.navTextColor()
         let shareIcon = UIImage(readerImageNamed: "icon-navbar-share")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let audioIcon = UIImage(readerImageNamed: "icon-navbar-tts")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal) //man-speech-icon
-        let closeIcon = UIImage(readerImageNamed: "icon-navbar-close")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let tocIcon = UIImage(readerImageNamed: "icon-navbar-toc")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let fontIcon = UIImage(readerImageNamed: "icon-navbar-font")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let logoIcon = UIImage(readerImageNamed: "icon-button-back")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
@@ -182,6 +181,7 @@ extension FolioReaderCenter {
 
         var leftBarIcons = [UIBarButtonItem]()
         if readerConfig.showCloseButton {
+            let closeIcon = UIImage(readerImageNamed: "icon-navbar-close")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
             leftBarIcons.append(UIBarButtonItem(image: closeIcon, style: .plain, target: self, action: #selector(closeReader(_:))))
         }
         leftBarIcons.append(contentsOf: [toc, bookmark])

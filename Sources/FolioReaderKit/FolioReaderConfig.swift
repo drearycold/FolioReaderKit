@@ -226,6 +226,11 @@ open class FolioReaderConfig: NSObject {
     open var displayTitle = false
 
     /// Show the reader-level close button in the navigation bar.
+    ///
+    /// Hiding it removes the reader's only built-in exit: `presentReader` presents full screen, so there is
+    /// no swipe to dismiss. The host app must provide its own way out, such as a back button in its own
+    /// navigation. That exit should call `FolioReader.close()` to save the reading state and notify the
+    /// delegate, and then dismiss or pop the reader container itself, because `close()` does not.
     open var showCloseButton = true
 
     /// Force the reader settings menu tabs to use a bottom tab bar on iPadOS.
