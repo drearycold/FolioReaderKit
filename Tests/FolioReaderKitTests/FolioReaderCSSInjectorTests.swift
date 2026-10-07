@@ -60,26 +60,33 @@ class FolioReaderCSSInjectorTests: XCTestCase {
     }
 
     /// Runs the real `updateRuntimeStyle` script against `Bridge.js`; a JS syntax or runtime error fails `evaluate`.
-    func testRuntimeStyleSourceSwapsBodyClassesAgainstBridgeJS() {
+    func testRuntimeStyleSourceSwapsBodyClassesAndSetsPropertiesAgainstBridgeJS() {
         let messages = MockScriptMessageHandler()
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.addUserScript(FolioReaderScript.bridgeJS)
         configuration.userContentController.add(messages, name: "FolioReaderPage")
         let webView = loadedWebView(configuration: configuration)
-        evaluate("writingMode = 'horizontal-tb'; document.body.className = 'chapter folioStyleL1FontSize17px'; true", in: webView)
+        evaluate("writingMode = 'horizontal-tb'; document.body.className = 'chapter folioStyleVertical folioStyleScopeAll'; true", in: webView)
 
-        let classes = ["folioStyleBodyPaddingLeft1", "folioStyleBodyPaddingRight1", "folioStyleL1FontSize20px"]
+        let styleState = FolioReaderStyleState(
+            styleOverride: .PNode, font: "Gill Sans", fontSize: "20px", fontWeight: "400",
+            letterSpacing: 0, lineHeight: 0, textIndent: 0,
+            marginTop: 0, marginBottom: 0, marginLeft: 5, marginRight: 5,
+            isVerticalWritingMode: false
+        )
         for includeDebugDump in [false, true] {
             let result = evaluate(FolioReaderCSSInjector.runtimeStyleSource(
                 themeMode: 1,
-                bodyClasses: classes,
+                styleState: styleState,
                 runtimeSheets: [(id: "folio_custom_x", css: "p { color: red; }")],
                 includeDebugDump: includeDebugDump
             ), in: webView)
 
             XCTAssertEqual(result as? String, "horizontal-tb")
             let bodyClasses = (evaluate("document.body.className", in: webView) as? String ?? "").split(separator: " ").map(String.init)
-            XCTAssertEqual(Set(bodyClasses), Set(["chapter"] + classes))
+            XCTAssertEqual(Set(bodyClasses), Set(["chapter", "folioStyleHorizontal", "folioStyleScopeP"]))
+            XCTAssertEqual(evaluate("document.body.style.getPropertyValue('--folio-font-family')", in: webView) as? String, "\"Gill Sans\"")
+            XCTAssertEqual(evaluate("document.body.style.getPropertyValue('--folio-padding-left')", in: webView) as? String, "2.5vw")
             XCTAssertEqual(evaluate("document.documentElement.classList.contains('serpiaMode')", in: webView) as? Bool, true)
             XCTAssertEqual(evaluate("document.getElementById('folio_custom_x').textContent", in: webView) as? String, "p { color: red; }")
         }

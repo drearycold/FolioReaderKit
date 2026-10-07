@@ -185,7 +185,8 @@ open class FolioReaderConfig: NSObject {
     /// Extra style sheets injected after the reader's own CSS.
     ///
     /// The reader's rules use `!important` on `html body.folioStyle…` selectors, so custom rules
-    /// need `!important` to override them. `.documentBase` sheets are read when a page's web view
+    /// need `!important` to override them. The current settings are also available to custom rules
+    /// as `--folio-*` custom properties on `<body>`, for example `var(--folio-font-size)`. `.documentBase` sheets are read when a page's web view
     /// is created; `.runtime` sheets are re-read on every style refresh. Sheets with the same `id`
     /// in the same stage replace each other, the last one winning.
     open var customStyleSheets = [FolioReaderStyleSheet]()

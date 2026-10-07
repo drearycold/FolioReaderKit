@@ -38,71 +38,88 @@ class CSSGenerationTests: XCTestCase {
         )
     }
 
-    // MARK: - Body classes (expected lists follow the former JS in updateRuntimeStyle)
+    // MARK: - Body classes and properties
 
     func testBodyClassesHorizontalPlusTD() {
-        let level = { (n: Int) in [
-            "folioStyleL\(n)FontFamilyHelvetica_Neue",
-            "folioStyleL\(n)FontSize185px",
-            "folioStyleL\(n)FontWeight400",
-            "folioStyleL\(n)LetterSpacing2",
-            "folioStyleL\(n)LineHeight3",
-            "folioStyleL\(n)MarginH3",
-            "folioStyleL\(n)TextIndent5",
-        ] }
         XCTAssertEqual(
             FolioReaderCSSBuilder.bodyClasses(for: state(.PlusTD)),
-            ["folioStyleBodyPaddingLeft4", "folioStyleBodyPaddingRight5"] + level(2) + level(1)
+            ["folioStyleHorizontal", "folioStyleScopeP", "folioStyleScopeTD"]
         )
     }
 
     func testBodyClassesVerticalAllText() {
-        let classes = FolioReaderCSSBuilder.bodyClasses(for: state(.AllText, vertical: true))
-
-        XCTAssertEqual(Array(classes.prefix(2)), ["folioStyleBodyPaddingTop2", "folioStyleBodyPaddingBottom3"])
-        XCTAssertEqual(classes.count, 2 + 4 * 7)
-        XCTAssertEqual(classes[2], "folioStyleL4FontFamilyHelvetica_Neue")
-        XCTAssertEqual(classes.last, "folioStyleL1TextIndent5")
-        XCTAssertTrue(classes.contains("folioStyleL3MarginV3"))
-        XCTAssertFalse(classes.contains { $0.contains("MarginH") })
-    }
-
-    func testBodyClassesNoneHasOnlyPadding() {
         XCTAssertEqual(
-            FolioReaderCSSBuilder.bodyClasses(for: state(.None)),
-            ["folioStyleBodyPaddingLeft4", "folioStyleBodyPaddingRight5"]
+            FolioReaderCSSBuilder.bodyClasses(for: state(.AllText, vertical: true)),
+            ["folioStyleVertical", "folioStyleScopeP", "folioStyleScopeTD", "folioStyleScopeSPAN", "folioStyleScopeAll"]
         )
     }
 
-    /// Every class the reader can put on `<body>` must have a rule, or the setting silently does nothing.
-    func testEveryBodyClassHasARule() {
-        let styleSheet = FolioReaderCSSBuilder.baseStyleSheet(styleCSS: nil)
-        let fontFamilyRules = FolioReaderCSSBuilder.fontFamilyRules(familyNames: ["Helvetica Neue"])
+    func testBodyClassesNoneHasOnlyWritingMode() {
+        XCTAssertEqual(FolioReaderCSSBuilder.bodyClasses(for: state(.None)), ["folioStyleHorizontal"])
+    }
 
-        var states = [FolioReaderStyleState]()
+    func testCustomPropertiesHorizontal() {
+        let properties = FolioReaderCSSBuilder.customProperties(for: state(.PNode))
+        XCTAssertEqual(properties.map { $0.name }, FolioReaderCSSBuilder.CustomProperty.allCases.map { $0.rawValue })
+        XCTAssertEqual(properties.map { $0.value }, [
+            "\"Helvetica Neue\"", "18.5px", "400", "0.04em", "1.65",
+            "calc((0.04em + 1em) * 1)",
+            "1em", "0.65em",
+            "86vh", "86vw",
+            "5.0vh", "7.5vh", "10.0vw", "12.5vw",
+        ])
+    }
+
+    func testCustomPropertiesVerticalHangingIndent() {
+        let values = Dictionary(uniqueKeysWithValues: FolioReaderCSSBuilder.customProperties(
+            for: state(.PNode, vertical: true, textIndent: -3)
+        ).map { ($0.name, $0.value) })
+        XCTAssertEqual(values["--folio-text-indent"], "calc((0.04em + 1em) * 3) hanging")
+        XCTAssertEqual(values["--folio-paragraph-space-before"], "0em")
+        XCTAssertEqual(values["--folio-paragraph-space-after"], "0.325em")
+    }
+
+    func testZeroMarginsEmitZeroPadding() {
+        let values = Dictionary(uniqueKeysWithValues: FolioReaderCSSBuilder.customProperties(
+            for: state(.None, margins: (0, 0, 0, 0))
+        ).map { ($0.name, $0.value) })
+        XCTAssertEqual(values["--folio-padding-top"], "0.0vh")
+        XCTAssertEqual(values["--folio-padding-bottom"], "0.0vh")
+        XCTAssertEqual(values["--folio-padding-left"], "0.0vw")
+        XCTAssertEqual(values["--folio-padding-right"], "0.0vw")
+    }
+
+    func testFontFamilyIsQuotedAndEscaped() {
+        XCTAssertEqual(FolioReaderCSSBuilder.cssString("Gill Sans"), "\"Gill Sans\"")
+        XCTAssertEqual(FolioReaderCSSBuilder.cssString("a\"b\\c"), "\"a\\\"b\\\\c\"")
+    }
+
+    /// A `var()` whose property is never set resets the declaration instead of being ignored,
+    /// so every property the rules read must get a value.
+    func testEveryReferencedPropertyHasAValue() throws {
+        let regex = try NSRegularExpression(pattern: "var\\((--[a-z-]+)\\)")
+        let rules = FolioReaderCSSBuilder.settingRules
+        let referenced = Set(regex.matches(in: rules, range: NSRange(rules.startIndex..., in: rules)).compactMap {
+            Range($0.range(at: 1), in: rules).map { String(rules[$0]) }
+        })
+        XCTAssertFalse(referenced.isEmpty)
+
         for vertical in [false, true] {
-            states += FolioReader.FontSizes.map { state(.AllText, vertical: vertical, fontSize: $0) }
-            states += (1...9).map { state(.AllText, vertical: vertical, fontWeight: "\($0 * 100)") }
-            states += (0...10).map { state(.AllText, vertical: vertical, letterSpacing: $0, lineHeight: $0) }
-            states += (-4...4).map { state(.AllText, vertical: vertical, textIndent: $0) }
-            states += stride(from: 0, through: 50, by: 5).map { state(.AllText, vertical: vertical, margins: ($0, $0, $0, $0)) }
-        }
-
-        for state in states {
-            for cls in FolioReaderCSSBuilder.bodyClasses(for: state) {
-                let rules = cls.contains("FontFamily") ? fontFamilyRules : styleSheet
-                // The trailing space keeps e.g. PaddingLeft1 from matching PaddingLeft10.
-                XCTAssertTrue(rules.contains(".\(cls) "), "No rule for body class \(cls)")
-            }
+            let properties = FolioReaderCSSBuilder.customProperties(for: state(.AllText, vertical: vertical))
+            XCTAssertTrue(properties.allSatisfy { !$0.value.isEmpty })
+            XCTAssertEqual(referenced.subtracting(properties.map { $0.name }), [])
         }
     }
 
     // MARK: - Style sheets
 
-    func testFontFamilyRules() {
-        let css = FolioReaderCSSBuilder.fontFamilyRules(familyNames: ["Helvetica Neue"])
-        XCTAssertEqual(css.components(separatedBy: "\n").count, 4)
-        XCTAssertTrue(css.contains("html body.folioStyleL1FontFamilyHelvetica_Neue p, body.folioStyleL1FontFamilyHelvetica_Neue p { font-family: \"Helvetica Neue\" !important; }"))
+    func testBaseStyleSheetIsStyleCSSFollowedBySettingRules() throws {
+        let styleURL = try XCTUnwrap(Bundle.frameworkBundle().url(forResource: "Style", withExtension: "css"))
+        let styleCSS = try String(contentsOf: styleURL, encoding: .utf8)
+
+        XCTAssertEqual(FolioReaderCSSBuilder.bundledStyleCSS, styleCSS)
+        XCTAssertEqual(FolioReaderCSSBuilder.baseStyleSheet(), styleCSS + "\n" + FolioReaderCSSBuilder.settingRules)
+        XCTAssertEqual(FolioReaderCSSBuilder.baseStyleSheet(styleCSS: nil), FolioReaderCSSBuilder.settingRules)
     }
 
     func testUserFontFaceRulesEmpty() {
@@ -126,20 +143,6 @@ class CSSGenerationTests: XCTestCase {
     }
 
     // MARK: - Custom style sheets
-
-    func testRuntimeSheetsCarrySelectedFontFamilyThenRuntimeCustomSheets() {
-        let sheets = FolioReaderCSSInjector.runtimeSheets(
-            currentFont: "Gill Sans",
-            customStyleSheets: [
-                FolioReaderStyleSheet(id: "base", css: "b", stage: .documentBase),
-                FolioReaderStyleSheet(id: "live", css: "l", stage: .runtime),
-            ]
-        )
-
-        XCTAssertEqual(sheets.map { $0.id }, ["folio_style_font_families", "folio_custom_live"])
-        XCTAssertTrue(sheets[0].css.contains("body.folioStyleL1FontFamilyGill_Sans p"))
-        XCTAssertFalse(sheets[0].css.contains("Helvetica"), "Only the selected family gets rules")
-    }
 
     func testCustomSheetsFilterByStagePrefixIDsAndKeepLastDuplicate() {
         let sheets = [
@@ -166,14 +169,5 @@ class CSSGenerationTests: XCTestCase {
         XCTAssertTrue(source.contains("margin: 0 0 !important;"))
         XCTAssertFalse(source.contains("margin-top: 1em !important;"))
         XCTAssertFalse(source.contains("margin-bottom: 1em !important;"))
-    }
-
-    func testZeroBodyPaddingClassesEmitZeroPadding() {
-        let source = FolioReaderCSSBuilder.baseStyleSheet()
-
-        XCTAssertTrue(source.contains(".folioStyleBodyPaddingLeft0 { padding-left: 0.0vw !important;"))
-        XCTAssertTrue(source.contains(".folioStyleBodyPaddingRight0 { padding-right: 0.0vw !important;"))
-        XCTAssertTrue(source.contains(".folioStyleBodyPaddingTop0 { padding-top: 0.0vh !important;"))
-        XCTAssertTrue(source.contains(".folioStyleBodyPaddingBottom0 { padding-bottom: 0.0vh !important;"))
     }
 }

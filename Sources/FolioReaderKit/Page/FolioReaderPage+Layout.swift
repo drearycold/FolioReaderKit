@@ -130,8 +130,8 @@ writingMode
         let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl")
         let script = FolioReaderCSSInjector.runtimeStyleSource(
             themeMode: folioReader.themeMode,
-            bodyClasses: FolioReaderCSSBuilder.bodyClasses(for: styleState),
-            runtimeSheets: FolioReaderCSSInjector.runtimeSheets(currentFont: folioReader.currentFont, customStyleSheets: readerConfig.customStyleSheets),
+            styleState: styleState,
+            runtimeSheets: FolioReaderCSSInjector.customSheets(readerConfig.customStyleSheets, stage: .runtime),
             includeDebugDump: readerConfig.debug.contains(.htmlStyling)
         )
 

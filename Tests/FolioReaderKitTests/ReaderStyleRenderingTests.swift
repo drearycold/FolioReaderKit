@@ -69,8 +69,8 @@ class ReaderStyleRenderingTests: XCTestCase {
     private func applyStyle(_ state: FolioReaderStyleState) -> String {
         FolioReaderCSSInjector.runtimeStyleSource(
             themeMode: 0,
-            bodyClasses: FolioReaderCSSBuilder.bodyClasses(for: state),
-            runtimeSheets: FolioReaderCSSInjector.runtimeSheets(currentFont: state.font, customStyleSheets: []),
+            styleState: state,
+            runtimeSheets: [],
             includeDebugDump: false
         )
     }

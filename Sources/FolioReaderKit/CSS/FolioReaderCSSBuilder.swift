@@ -44,58 +44,85 @@ extension FolioReaderStyleState {
 
 /// Builds every CSS string and `<body>` class name used by the reader.
 ///
-/// Settings never generate new CSS at runtime: `baseStyleSheet` contains a rule for every
-/// value of every setting, and `bodyClasses(for:)` picks which of those rules apply.
-/// Both sides take their names from `ClassToken`, so selectors and classes can't drift apart.
+/// The setting rules in `baseStyleSheet` are fixed: they read every value from a `--folio-*`
+/// custom property. `updateRuntimeStyle` sets those properties on `<body>` from
+/// `customProperties(for:)` and adds `bodyClasses(for:)`, which choose the elements the rules
+/// reach. A rule must only reach elements while its properties are set, because a `var()` that
+/// refers to an unset property makes the declaration reset the property instead of being ignored.
 enum FolioReaderCSSBuilder {
 
-    /// Setting-specific part of a `folioStyleL<level><token>` class name.
-    enum ClassToken {
-        static func fontFamily(_ name: String) -> String { "FontFamily\(name.replacingOccurrences(of: " ", with: "_"))" }
-        static func fontSize(_ size: String) -> String { "FontSize\(size.replacingOccurrences(of: ".", with: ""))" }
-        static func fontWeight(_ weight: String) -> String { "FontWeight\(weight)" }
-        static func letterSpacing(_ value: Int) -> String { "LetterSpacing\(value)" }
-        static func lineHeight(_ value: Int) -> String { "LineHeight\(value)" }
-        static func marginH(_ value: Int) -> String { "MarginH\(value)" }
-        static func marginV(_ value: Int) -> String { "MarginV\(value)" }
-        static func textIndent(_ value: Int) -> String { "TextIndent\(value)" }
+    /// Classes that turn the setting rules on. The `folioStyle` prefix lets the runtime script clear them.
+    enum BodyClass {
+        static let horizontal = "folioStyleHorizontal"
+        static let vertical = "folioStyleVertical"
+
+        /// Applies the text settings to the elements of `level`; levels are cumulative.
+        static func scope(_ level: StyleOverrideTypes) -> String {
+            "folioStyleScope\(scopeNames[level] ?? "")"
+        }
+
+        private static let scopeNames: [StyleOverrideTypes: String] = [.PNode: "P", .PlusTD: "TD", .PlusSPAN: "SPAN", .AllText: "All"]
     }
 
-    enum BodyPadding: String {
-        case left = "Left", right = "Right", top = "Top", bottom = "Bottom"
+    /// Custom properties the setting rules read, set on `<body>` by `updateRuntimeStyle`.
+    enum CustomProperty: String, CaseIterable {
+        case fontFamily = "--folio-font-family"
+        case fontSize = "--folio-font-size"
+        case fontWeight = "--folio-font-weight"
+        case letterSpacing = "--folio-letter-spacing"
+        case lineHeight = "--folio-line-height"
+        case textIndent = "--folio-text-indent"
+        case paragraphSpaceBefore = "--folio-paragraph-space-before"
+        case paragraphSpaceAfter = "--folio-paragraph-space-after"
+        case imageMaxHeight = "--folio-image-max-height"
+        case imageMaxWidth = "--folio-image-max-width"
+        case paddingTop = "--folio-padding-top"
+        case paddingBottom = "--folio-padding-bottom"
+        case paddingLeft = "--folio-padding-left"
+        case paddingRight = "--folio-padding-right"
 
-        func className(_ value: Int) -> String { "folioStyleBodyPadding\(rawValue)\(value)" }
+        var reference: String { "var(\(rawValue))" }
     }
 
-    static func levelClassName(level: StyleOverrideTypes, token: String) -> String {
-        "folioStyleL\(level.rawValue)\(token)"
-    }
-
-    // MARK: - Body classes
+    // MARK: - Body classes and properties
 
     /// Classes `updateRuntimeStyle` puts on `<body>`. Each override level also applies all lower levels.
     static func bodyClasses(for state: FolioReaderStyleState) -> [String] {
-        var classes: [String]
-        if state.isVerticalWritingMode {
-            classes = [BodyPadding.top.className(state.marginTop / 5), BodyPadding.bottom.className(state.marginBottom / 5)]
-        } else {
-            classes = [BodyPadding.left.className(state.marginLeft / 5), BodyPadding.right.className(state.marginRight / 5)]
-        }
-
         let levels = StyleOverrideTypes.allCases.filter { $0 != .None && $0.rawValue <= state.styleOverride.rawValue }
-        for level in levels.reversed() {
-            classes += [
-                ClassToken.fontFamily(state.font),
-                ClassToken.fontSize(state.fontSize),
-                ClassToken.fontWeight(state.fontWeight),
-                ClassToken.letterSpacing(state.letterSpacing),
-                ClassToken.lineHeight(state.lineHeight),
-                // Paragraph spacing follows the line-height setting, not the page margins.
-                state.isVerticalWritingMode ? ClassToken.marginV(state.lineHeight) : ClassToken.marginH(state.lineHeight),
-                ClassToken.textIndent(state.textIndent + 4)
-            ].map { levelClassName(level: level, token: $0) }
-        }
-        return classes
+        return [state.isVerticalWritingMode ? BodyClass.vertical : BodyClass.horizontal] + levels.map(BodyClass.scope)
+    }
+
+    /// Values for every `CustomProperty`, in declaration order, so the rules never see an unset one.
+    static func customProperties(for state: FolioReaderStyleState) -> [(name: String, value: String)] {
+        let letterSpacing = Double(state.letterSpacing) / 50.0
+        // Paragraph spacing follows the line-height setting, not the page margins.
+        let spaceAfter = Decimal(state.lineHeight + 10) * 5 / 100
+        // The image limit follows the text indent setting: 96 at -4 down to 80 at 4.
+        let imageMax = 96 - max((state.textIndent + 4) * 2, 0)
+
+        let values: [CustomProperty: String] = [
+            .fontFamily: cssString(state.font),
+            .fontSize: state.fontSize,
+            .fontWeight: state.fontWeight,
+            .letterSpacing: "\(letterSpacing)em",
+            .lineHeight: "\(Decimal((state.lineHeight + 10) * 5) / 100 + 1)",
+            .textIndent: "calc((\(letterSpacing)em + 1em) * \(abs(state.textIndent)))\(state.textIndent < 0 ? " hanging" : "")",
+            .paragraphSpaceBefore: state.isVerticalWritingMode ? "0em" : "1em",
+            .paragraphSpaceAfter: state.isVerticalWritingMode ? "\(spaceAfter / 2)em" : "\(spaceAfter)em",
+            .imageMaxHeight: "\(imageMax)vh",
+            .imageMaxWidth: "\(imageMax)vw",
+            // Each margin step of 5 is 2.5% of the viewport.
+            .paddingTop: "\(Double(state.marginTop / 5) * 2.5)vh",
+            .paddingBottom: "\(Double(state.marginBottom / 5) * 2.5)vh",
+            .paddingLeft: "\(Double(state.marginLeft / 5) * 2.5)vw",
+            .paddingRight: "\(Double(state.marginRight / 5) * 2.5)vw",
+        ]
+        return CustomProperty.allCases.map { (name: $0.rawValue, value: values[$0] ?? "") }
+    }
+
+    /// `value` as a double-quoted CSS string.
+    static func cssString(_ value: String) -> String {
+        "\"" + value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
     // MARK: - Style sheets
@@ -103,104 +130,62 @@ enum FolioReaderCSSBuilder {
     /// The bundled `Style.css`, or `nil` if it is missing from the framework bundle.
     static let bundledStyleCSS: String? = {
         guard let cssURL = Bundle.frameworkBundle().url(forResource: "Style", withExtension: "css"),
-              let cssSource = try? String(contentsOf: cssURL) else {
+              let cssSource = try? String(contentsOf: cssURL, encoding: .utf8) else {
             print("ERROR: Could not find Style.css in bundle \(Bundle.frameworkBundle())")
             return nil
         }
         return cssSource
     }()
 
-    /// `Style.css` followed by `levelRules()`; the content of the `folio_bundle_style` element.
+    /// `Style.css` followed by `settingRules`; the content of the `folio_bundle_style` element.
     static func baseStyleSheet(styleCSS: String? = bundledStyleCSS) -> String {
-        ((styleCSS.map { [$0] } ?? []) + levelRules()).joined(separator: "\n")
+        ((styleCSS.map { [$0] } ?? []) + [settingRules]).joined(separator: "\n")
     }
 
-    /// One rule per line for every setting value `bodyClasses(for:)` can select, except font families.
-    static func levelRules() -> [String] {
-        var cssStrings = [String]()
-
-        cssStrings.append(
-            contentsOf: FolioReader.FontSizes.map {
-                levels(ClassToken.fontSize($0), def: "font-size: \($0) !important;")
-            }.flatMap { $0 }
-        )
-
-        cssStrings.append(
-            contentsOf: (1...9).map {
-                levels(ClassToken.fontWeight("\($0*100)"), def: "font-weight: \($0*100) !important;")
-            }.flatMap { $0 }
-        )
-
-        cssStrings.append(
-            contentsOf: (0...10).map {
-                levels(ClassToken.letterSpacing($0), def: "letter-spacing: \(Double($0) / 50.0)em !important; --letter-spacing: \(Double($0) / 50.0)em")
-            }.flatMap { $0 }
-        )
-
-        cssStrings.append(
-            contentsOf: (0...10).map { //1.5 ~ 2.05
-                [
-                    levels(ClassToken.lineHeight($0), def: "line-height: \(Decimal(($0 + 10) * 5) / 100 + 1) !important;"),
-                    levels(ClassToken.marginH($0), def: "margin-top: 1em; margin-bottom: \((Decimal($0 + 10) * 5) / 100)em;"),
-                    levels(ClassToken.marginV($0), def: "margin-right: 0em; margin-left: \((Decimal($0 + 10) * 5) / 200)em;")
-                ]
-            }.flatMap { $0.flatMap { $0 } }
-        )
-
-        cssStrings.append(
-            contentsOf: (0...8).map {     //-4 ~ 4
-                levels(ClassToken.textIndent($0), def: "text-indent: calc( (var(--letter-spacing) + 1em) * \(abs($0-4)) ) \($0<4 ? "hanging" : "") !important; text-align: justify !important; -webkit-hyphens: auto !important;")
-            }.flatMap { $0 }
-        )
-
-        cssStrings.append(
-            contentsOf: (0...8).map {     //-4 ~ 4
-                imgLevels(ClassToken.textIndent($0), def: "max-height: \(96 - max($0*2,0))vh !important; max-width: \(96 - max($0*2,0))vw !important;")
-            }.flatMap { $0 }
-        )
-
-        cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.left.className($0)) { padding-left: \(Double($0) * 2.5)vw !important; overflow: hidden !important;}"
-        })
-
-        cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.right.className($0)) { padding-right: \(Double($0) * 2.5)vw !important; overflow: hidden !important;}"
-        })
-
-        cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.top.className($0)) { padding-top: \(Double($0) * 2.5)vh !important;}"
-        })
-
-        cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.bottom.className($0)) { padding-bottom: \(Double($0) * 2.5)vh !important;}"
-        })
-
-        cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.left.className($0)) img.folioImg { margin-left: -\(Double(max($0-1, 0)) * 2.5)vw !important; overflow: hidden !important;}"
-        })
-
-        cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.right.className($0)) img.folioImg { margin-right: -\(Double(max($0-1, 0)) * 2.5)vw !important; overflow: hidden !important;}"
-        })
-
-        cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.top.className($0)) img.folioImg { margin-top: -\(Double(max($0-1, 0)) * 2.5)vh !important;}"
-        })
-
-        cssStrings.append(contentsOf: (0...10).map {
-            ".\(BodyPadding.bottom.className($0)) img.folioImg { margin-bottom: -\(Double(max($0-1, 0)) * 2.5)vh !important;}"
-        })
-
-        return cssStrings
-    }
-
-    /// `FontFamily*` level rules for each family. The reader passes only the selected family
-    /// (`FolioReaderCSSInjector.runtimeSheets`), so pages don't carry rules for every installed font.
-    static func fontFamilyRules(familyNames: [String]) -> String {
-        familyNames.map {
-            levels(ClassToken.fontFamily($0), def: "font-family: \"\($0)\" !important;")
-        }.flatMap { $0 }.joined(separator: "\n")
-    }
+    /// The rules behind every reader setting. Values come from `CustomProperty`, scopes from `BodyClass`.
+    static let settingRules: String = {
+        typealias P = CustomProperty
+        let horizontal = ".\(BodyClass.horizontal)"
+        let vertical = ".\(BodyClass.vertical)"
+        return """
+            \(scopedSelectors()) {
+                font-family: \(P.fontFamily.reference) !important;
+                font-size: \(P.fontSize.reference) !important;
+                font-weight: \(P.fontWeight.reference) !important;
+                letter-spacing: \(P.letterSpacing.reference) !important;
+                line-height: \(P.lineHeight.reference) !important;
+                text-indent: \(P.textIndent.reference) !important;
+                text-align: justify !important;
+                -webkit-hyphens: auto !important;
+            }
+            \(scopedSelectors()) {
+                margin-block-start: \(P.paragraphSpaceBefore.reference);
+                margin-block-end: \(P.paragraphSpaceAfter.reference);
+            }
+            \(scopedSelectors(descendant: "img.folioImg")) {
+                max-height: \(P.imageMaxHeight.reference) !important;
+                max-width: \(P.imageMaxWidth.reference) !important;
+            }
+            \(horizontal) {
+                padding-left: \(P.paddingLeft.reference) !important;
+                padding-right: \(P.paddingRight.reference) !important;
+                overflow: hidden !important;
+            }
+            \(vertical) {
+                padding-top: \(P.paddingTop.reference) !important;
+                padding-bottom: \(P.paddingBottom.reference) !important;
+            }
+            \(horizontal) img.folioImg {
+                margin-left: calc(-1 * max(\(P.paddingLeft.reference) - 2.5vw, 0vw)) !important;
+                margin-right: calc(-1 * max(\(P.paddingRight.reference) - 2.5vw, 0vw)) !important;
+                overflow: hidden !important;
+            }
+            \(vertical) img.folioImg {
+                margin-top: calc(-1 * max(\(P.paddingTop.reference) - 2.5vh, 0vh)) !important;
+                margin-bottom: calc(-1 * max(\(P.paddingBottom.reference) - 2.5vh, 0vh)) !important;
+            }
+            """
+    }()
 
     /// `@font-face` rules for user fonts, served by `EpubResourceServer` under `/_fonts/`.
     static func userFontFaceRules(descriptors: [String: CTFontDescriptor]) -> String {
@@ -285,22 +270,12 @@ enum FolioReaderCSSBuilder {
 
     // MARK: - Selectors
 
-    private static let levelTags: [StyleOverrideTypes: String] = [.PNode: "p", .PlusTD: "td", .PlusSPAN: "span", .AllText: ""]
+    private static let levelTags: [(StyleOverrideTypes, String)] = [(.PNode, "p"), (.PlusTD, "td"), (.PlusSPAN, "span"), (.AllText, "")]
 
-    /// One rule per override level, matching `<body>` classes produced by `levelClassName`.
-    private static func levels(_ token: String, def: String) -> [String] {
-        levelTags.map {
-            let className = levelClassName(level: $0, token: token)
-            let separator = $1.isEmpty ? "" : " "
-            return "html body.\(className) \($1), body.\(className)\(separator)\($1) { \(def) }"
-        }.sorted()
-    }
-
-    private static func imgLevels(_ token: String, def: String) -> [String] {
-        levelTags.map {
-            let className = levelClassName(level: $0, token: token)
-            let separator = $1.isEmpty ? "" : " "
-            return "html body.\(className) \($1) img.folioImg, body.\(className)\(separator)\($1) img.folioImg { \(def) }"
-        }.sorted()
+    /// One selector per override level, matching `BodyClass.scope`; `AllText` selects `<body>` itself.
+    private static func scopedSelectors(descendant: String? = nil) -> String {
+        levelTags.map { level, tag in
+            (["html body.\(BodyClass.scope(level))"] + [tag, descendant ?? ""].filter { !$0.isEmpty }).joined(separator: " ")
+        }.joined(separator: ",\n")
     }
 }

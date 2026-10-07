@@ -14,11 +14,9 @@ import WebKit
 enum FolioReaderCSSInjector {
 
     /// Internal `<style>` ids. Document-base sheets (bundle, user font faces, then custom) are injected
-    /// at document end; runtime sheets (font families, then custom) follow the overflow sheet.
+    /// at document end; runtime custom sheets follow the overflow sheet.
     enum StyleID {
         static let bundle = "folio_bundle_style"
-        /// Runtime sheet with the `FontFamily` rules for the selected font only.
-        static let fontFamilies = "folio_style_font_families"
         static let userFontFaces = "folio_style_user_font_faces"
         static let overflow = "folio_style_overflow"
         static let customPrefix = "folio_custom_"
@@ -47,11 +45,13 @@ enum FolioReaderCSSInjector {
     }
 
     /// Script run by `FolioReaderPage.updateRuntimeStyle`: applies the theme, swaps the `folioStyle*`
-    /// classes on `<body>`, re-applies runtime custom sheets, and evaluates to the page's `writingMode`.
+    /// classes and sets the `--folio-*` properties on `<body>` for `styleState`, re-applies runtime
+    /// custom sheets, and evaluates to the page's `writingMode`.
     /// Relies on `Bridge.js` (`themeMode`, `removeClasses`, `addClass`) and the global `writingMode`
     /// set by `updateOverflowStyle`.
-    static func runtimeStyleSource(themeMode: Int, bodyClasses: [String], runtimeSheets: [(id: String, css: String)], includeDebugDump: Bool) -> String {
-        let bodyClassesJSON = (try? JSONEncoder().encode(bodyClasses)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+    static func runtimeStyleSource(themeMode: Int, styleState: FolioReaderStyleState, runtimeSheets: [(id: String, css: String)], includeDebugDump: Bool) -> String {
+        let bodyClassesJSON = json(FolioReaderCSSBuilder.bodyClasses(for: styleState))
+        let propertiesJSON = json(FolioReaderCSSBuilder.customProperties(for: styleState).map { [$0.name, $0.value] })
         let sheets = runtimeSheets.map { upsertSource(id: $0.id, css: $0.css) }.joined(separator: "\n")
         // Posts the whole chapter HTML over the bridge (and to a temp file), so only when debugging styles.
         let debugDump = includeDebugDump ? """
@@ -65,6 +65,7 @@ enum FolioReaderCSSInjector {
             themeMode(\(themeMode));
             removeClasses(document.body, 'folioStyle\\\\w+');
             \(bodyClassesJSON).forEach(function (cls) { addClass(document.body, cls); });
+            \(propertiesJSON).forEach(function (property) { document.body.style.setProperty(property[0], property[1]); });
             if (writingMode == 'vertical-rl') {
                 document.body.style.minWidth = "100vw";
             } else {
@@ -86,13 +87,6 @@ enum FolioReaderCSSInjector {
         webView.js(upsertSource(id: id, css: css)) { _ in completion?() }
     }
 
-    /// Sheets upserted on every style refresh: the selected font's `FontFamily` rules, then the
-    /// runtime custom sheets. Only the selected family gets rules, instead of every installed one.
-    static func runtimeSheets(currentFont: String, customStyleSheets: [FolioReaderStyleSheet]) -> [(id: String, css: String)] {
-        [(id: StyleID.fontFamilies, css: FolioReaderCSSBuilder.fontFamilyRules(familyNames: [currentFont]))]
-            + customSheets(customStyleSheets, stage: .runtime)
-    }
-
     /// Custom sheets for `stage` with their injected ids, in first-appearance order; a repeated id keeps the last CSS.
     static func customSheets(_ sheets: [FolioReaderStyleSheet], stage: FolioReaderCSSStage) -> [(id: String, css: String)] {
         var order = [String]()
@@ -105,5 +99,9 @@ enum FolioReaderCSSInjector {
             cssByID[id] = sheet.css
         }
         return order.map { (id: $0, css: cssByID[$0] ?? "") }
+    }
+
+    private static func json<T: Encodable>(_ value: T) -> String {
+        (try? JSONEncoder().encode(value)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
     }
 }

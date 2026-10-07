@@ -54,6 +54,7 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 | Fix the invalid `margin-*: --2.5vw` rules for padding level 0 (`.folioStyleBodyPadding*0 img.folioImg`); re-record the snapshot on purpose | ✅ | 4-line snapshot diff; recorded with `TEST_RUNNER_FOLIO_RECORD_SNAPSHOTS=1` |
 | Inject only the selected font family's rules, as a runtime sheet, instead of every `UIFont.familyNames` entry on every page | ✅ | `RuntimeStyleJS` median 30.2 → 18.8 ms; live font switching checked on the simulator |
 | Emit only the current level rules at runtime | ❌ dropped | `RuntimeStyleJS` is ~19 ms of a ~1.9 s page load; the fixed delays are the target (Phase 4) |
+| Replace the ~400 per-value level rules with fixed rules that read `--folio-*` custom properties; font family becomes a property instead of a runtime sheet | ✅ | `ReaderStyleRenderingTests` computed-style snapshot unchanged |
 
 ### Phase 4: Reader fixes driven by YAEBR issues
 
