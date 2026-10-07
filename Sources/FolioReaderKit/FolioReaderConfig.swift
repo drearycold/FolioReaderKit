@@ -350,6 +350,14 @@ open class FolioReaderConfig: NSObject {
     open var localizedShareTextQuote = NSLocalizedString("Share text quote", comment: "")
     open var localizedSave = NSLocalizedString("Save", comment: "")
     open var localizedHighlightNote = NSLocalizedString("Note", comment: "")
+    // Accessibility labels for the icon-only items of the highlight menu.
+    open var localizedHighlightColors = NSLocalizedString("Highlight Color", comment: "")
+    open var localizedRemoveHighlight = NSLocalizedString("Remove Highlight", comment: "")
+    open var localizedHighlightYellow = NSLocalizedString("Yellow", comment: "")
+    open var localizedHighlightGreen = NSLocalizedString("Green", comment: "")
+    open var localizedHighlightBlue = NSLocalizedString("Blue", comment: "")
+    open var localizedHighlightPink = NSLocalizedString("Pink", comment: "")
+    open var localizedHighlightUnderline = NSLocalizedString("Underline", comment: "")
 
     public var debug = FolioReaderDebugOptions()
     

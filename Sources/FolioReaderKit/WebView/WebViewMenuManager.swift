@@ -409,23 +409,26 @@ class WebViewMenuManager: NSObject {
         }
     }
 
+    /// An action the edit menu shows as its icon only. `UIEditMenuInteraction` shows the title of
+    /// an action that has one and drops its image, so the title is empty and `label` goes to
+    /// VoiceOver instead. Template images (SF Symbols) take the menu's foreground color; the
+    /// reader's color swatches keep their own colors.
+    static func iconAction(_ label: String, image: UIImage?, handler: @escaping UIActionHandler) -> UIAction {
+        // `withRenderingMode` returns a new image, so the label isn't set on a shared cached one.
+        let image = image.map { $0.withRenderingMode($0.isSymbolImage ? .alwaysTemplate : .alwaysOriginal) }
+        image?.accessibilityLabel = label
+        let action = UIAction(title: "", image: image, handler: handler)
+        action.accessibilityLabel = label
+        return action
+    }
+
     func menuElementsForCurrentState() -> [UIMenuElement] {
         guard let webView = webView else { return [] }
 
-        let colors = UIImage(readerImageNamed: "colors-marker")
-        var share = UIImage(readerImageNamed: "share-marker")
-        let remove = UIImage(readerImageNamed: "no-marker")
-        let yellow = UIImage(readerImageNamed: "yellow-marker")
-        let green = UIImage(readerImageNamed: "green-marker")
-        let blue = UIImage(readerImageNamed: "blue-marker")
-        let pink = UIImage(readerImageNamed: "pink-marker")
-        let underline = UIImage(readerImageNamed: "underline-marker")
         var mdictImage = UIImage(readerImageNamed: "icon-dictionary")
         if UIDevice.current.userInterfaceIdiom == .pad {
-            share = share?.withTintColor(UITraitCollection.current.userInterfaceStyle == .dark ? .white : .black)
             mdictImage = mdictImage?.withTintColor(UITraitCollection.current.userInterfaceStyle == .dark ? .white : .black)
         } else {
-            share = share?.withTintColor(.white)
             mdictImage = mdictImage?.withTintColor(.white)
         }
 
@@ -450,28 +453,28 @@ class WebViewMenuManager: NSObject {
         let mDictAction = UIAction(title: webView.readerConfig.localizedMDictMenu, image: mdictImage) { [weak self] _ in
             self?.webView?.lookup(nil)
         }
-        let colorsAction = UIAction(title: "C", image: colors) { [weak self] _ in
+        let colorsAction = Self.iconAction(webView.readerConfig.localizedHighlightColors, image: UIImage(readerImageNamed: "colors-marker")) { [weak self] _ in
             self?.webView?.colors(nil)
         }
-        let shareAction = UIAction(title: webView.readerConfig.localizedShare, image: share) { [weak self] _ in
+        let shareAction = Self.iconAction(webView.readerConfig.localizedShare, image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in
             self?.webView?.share(nil)
         }
-        let removeAction = UIAction(title: "R", image: remove) { [weak self] _ in
+        let removeAction = Self.iconAction(webView.readerConfig.localizedRemoveHighlight, image: UIImage(systemName: "trash")) { [weak self] _ in
             self?.webView?.remove(nil)
         }
-        let yellowAction = UIAction(title: "Y", image: yellow) { [weak self] _ in
+        let yellowAction = Self.iconAction(webView.readerConfig.localizedHighlightYellow, image: UIImage(readerImageNamed: "yellow-marker")) { [weak self] _ in
             self?.webView?.setYellow(nil)
         }
-        let greenAction = UIAction(title: "G", image: green) { [weak self] _ in
+        let greenAction = Self.iconAction(webView.readerConfig.localizedHighlightGreen, image: UIImage(readerImageNamed: "green-marker")) { [weak self] _ in
             self?.webView?.setGreen(nil)
         }
-        let blueAction = UIAction(title: "B", image: blue) { [weak self] _ in
+        let blueAction = Self.iconAction(webView.readerConfig.localizedHighlightBlue, image: UIImage(readerImageNamed: "blue-marker")) { [weak self] _ in
             self?.webView?.setBlue(nil)
         }
-        let pinkAction = UIAction(title: "P", image: pink) { [weak self] _ in
+        let pinkAction = Self.iconAction(webView.readerConfig.localizedHighlightPink, image: UIImage(readerImageNamed: "pink-marker")) { [weak self] _ in
             self?.webView?.setPink(nil)
         }
-        let underlineAction = UIAction(title: "U", image: underline) { [weak self] _ in
+        let underlineAction = Self.iconAction(webView.readerConfig.localizedHighlightUnderline, image: UIImage(readerImageNamed: "underline-marker")) { [weak self] _ in
             self?.webView?.setUnderline(nil)
         }
 
