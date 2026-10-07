@@ -93,11 +93,16 @@ FolioReaderKit stores nothing itself. Return providers from your `FolioReaderDel
 
 ### Custom CSS
 
-Add your own CSS through `FolioReaderConfig.customStyleSheets`. A `.documentBase` sheet is injected once on every page load; a `.runtime` sheet is re-applied on every style refresh. The reader's own rules use `!important`, so yours need it too to win:
+Add your own CSS through `FolioReaderConfig.customStyleSheets`. A `.documentBase` sheet is injected once on every page load; a `.runtime` sheet is re-applied on every style refresh.
+
+To override one of the reader's setting rules, a rule needs `!important` and a selector at least as specific as the reader's, such as `html body.folioStyleScopeP p`. At equal specificity yours wins, because it comes later. So `p { text-indent: 0 !important; }` loses, while `html:root body p { text-indent: 0 !important; }` wins. The current settings are available as `--folio-*` custom properties on `<body>`, for example `var(--folio-font-size)`. They update live, so a rule that reads them doesn't need to be a `.runtime` sheet:
 
 ```swift
 config.customStyleSheets = [
-    FolioReaderStyleSheet(id: "app-links", css: "a { color: #8a4b08 !important; }", stage: .documentBase)
+    // Overrides the reader's paragraph rule.
+    FolioReaderStyleSheet(id: "app-paragraphs", css: "html:root body p { text-indent: 0 !important; }", stage: .documentBase),
+    // Follows the reader's font size setting.
+    FolioReaderStyleSheet(id: "app-headings", css: "h1 { font-size: calc(var(--folio-font-size) * 1.6); }", stage: .documentBase)
 ]
 ```
 
