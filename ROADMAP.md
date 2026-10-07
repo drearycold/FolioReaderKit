@@ -4,6 +4,8 @@ This is the umbrella plan for this fork. It brings together the open FolioReader
 
 Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 
+YetAnotherEBookReader issues are never marked ✅ here and are never closed from this repo; see the working rules.
+
 ## Branches and working rules
 
 | Branch | Role |
@@ -15,6 +17,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 - YAEBR links this repository as a **local package**, so it builds against whatever branch is checked out. Keep the checkout on `styling-optimization` while the umbrella is in progress, and use worktrees for side work.
 - After every merge or series of commits, run the FolioReaderKit tests **and** build YAEBR `main` against the checkout (commands below).
 - When RAG work resumes, merge `styling-optimization` into `codex/dsreader`, not the other way round.
+- **Never close YetAnotherEBookReader issues** from FolioReaderKit work. A FolioReaderKit fix can leave related problems in the app, so those issues stay open; rows below record the FolioReaderKit part only.
 
 ## Phases
 
@@ -59,8 +62,8 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 | YAEBR #99 | EPUB open performance. With `big.epub` (4,994 entries), `BookOpen` is 159 ms and `ParseEpub` 132 ms, so FolioReaderKit's parsing is not the bottleneck; time to the first page was dominated by the delays fixed above. Fixed: `viewWillAppear` re-parsed the book and re-applied the opening position on every reappearance (test: `ContainerLoadTests`). Still to check: a new `Archive` per resource request (Resource median 2–6 ms, low priority) and the YAEBR side of opening | 🔄 |
 | YAEBR #57 | Paged mode: scrolling resets the content offset. Likely root cause found: when the host shows the reader again (YAEBR's SwiftUI tabs), the container re-parsed the book, re-applied the position it was opened at and reloaded, which jumped back. Fixed with the #99 guard; confirm in YAEBR | 🔄 |
 | YAEBR #27, #17 | Rotation and resize precision. Rotation now restores to the last recorded CFI (the text at the top of the screen) via `handleAnchor`, falling back to `pageOffsetRate` when there is no usable CFI. **Needs a manual rotation check:** the simulator can't be rotated from here (Cmd-→ in Simulator) | 🔄 |
-| YAEBR #48 | Sharing works end to end (chooser, then the system share sheet), but on iOS 16+ the menu item was labelled "S" and the chooser was anchored at the zero rect, under the status bar. Fixed: localized `Share` title, chooser anchored at the selection (`sharePresentationRect`), share sheet anchored in the web view's coordinates. Checked on the iPhone 17 simulator. Note: the Example app sets `allowSharing = false` | ✅ |
-| YAEBR #100, #41 | FolioReaderKit part only. Fixed a race: `save(readPosition:)` ran on a concurrent queue, so rapid saves could leave an older position winning and several marked `takePrecedence` (test: `testRapidSavesKeepOnlyTheLastPositionWithPrecedence`, which failed 3/3 before). Saves are now serialized. Sync itself stays in YAEBR | ✅ |
+| YAEBR #48 | Sharing works end to end (chooser, then the system share sheet), but on iOS 16+ the menu item was labelled "S" and the chooser was anchored at the zero rect, under the status bar. Fixed: localized `Share` title, chooser anchored at the selection (`sharePresentationRect`), share sheet anchored in the web view's coordinates. Checked on the iPhone 17 simulator. Note: the Example app sets `allowSharing = false` | 🔄 FolioReaderKit part done; issue stays open |
+| YAEBR #100, #41 | FolioReaderKit part only. Fixed a race: `save(readPosition:)` ran on a concurrent queue, so rapid saves could leave an older position winning and several marked `takePrecedence` (test: `testRapidSavesKeepOnlyTheLastPositionWithPrecedence`, which failed 3/3 before). Saves are now serialized. Sync itself stays in YAEBR | 🔄 FolioReaderKit part done; issue stays open |
 | (lesson from YAEBR) | A failing highlight injection must not block page load or position restore. `Bridge.js` already reports per-highlight errors (`BridgeHighlightTests`), and JS errors can't stall the chain because `evaluateJavaScript` always calls back. The one stall, a released web view, now continues | ✅ |
 | (from the baseline) | Replace the page-load chain's fixed `asyncAfter` delays with readiness signals (layout-settled callbacks), which make up most of the ~1.8 s per page | ✅ `WebViewLayoutWaiter`: overflow, runtime-style, page-info and padding waits; the old delay is now only a timeout. The waits in `setScrollDirection`, `updateViewerLayout` and after animated scrolls remain |
 | (from `e7fe701`) | The unsaved scroll direction now comes from `config.scrollDirection`, so right-to-left books lost their paged default (`defaultScrollDirection`). Fixed with an RTL-aware fallback after parsing (`ReaderPreferences.parsedBookScrollDirection`). Unit-tested; no RTL sample book to check it end to end | ✅ |
@@ -126,4 +129,4 @@ xcodebuild -project YetAnotherEBookReader.xcodeproj -scheme YetAnotherEBookReade
 > Bookmarks are supported through the `FolioReaderBookmarkProvider` protocol, which you return from `FolioReaderDelegate.folioReaderBookmarkProvider(_:)`. The reader includes a bookmark list and bookmark notes. The Example app will gain an in-memory bookmark provider to show the integration.
 
 **YAEBR #48, `isShare` broken**
-> FolioReaderKit no longer has `isShare`; sharing is controlled by `FolioReaderConfig.allowSharing`. On iOS 16 and later the Share item was labelled "S" and its options appeared under the status bar. Both are fixed in FolioReaderKit; closing once YetAnotherEBookReader picks up the change.
+> FolioReaderKit no longer has `isShare`; sharing is controlled by `FolioReaderConfig.allowSharing`. On iOS 16 and later the Share item was labelled "S" and its options appeared under the status bar. Both are fixed in FolioReaderKit. Keeping this open to check sharing in the app, since related problems may remain.
