@@ -56,13 +56,13 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 
 | Issue | Item | Status |
 |---|---|---|
-| YAEBR #99 | EPUB open performance. Profile first. Candidates: re-parse on every `viewWillAppear` (no once-only guard); a new `Archive` per resource request in `EpubResourceServer`; main-actor work in `tempFixForHighlights` / `updateBundleInfo` | ⬜ |
+| YAEBR #99 | EPUB open performance. With `big.epub` (4,994 entries), `BookOpen` is 159 ms and `ParseEpub` 132 ms, so FolioReaderKit's parsing is not the bottleneck; time to the first page was dominated by the delays fixed above. Still to check: re-parsing on every `viewWillAppear`, a new `Archive` per resource request, and the YAEBR side of opening | 🔄 |
 | YAEBR #57 | Paged mode: scrolling resets the content offset. Reproduce in the Example app, fix, add a regression test | ⬜ |
 | YAEBR #27, #17 | Rotation and resize precision. Replace `pageOffsetRate` restore with a CFI or element anchor (`readium-cfi` is bundled; `FolioReaderReadPosition.cfi` exists) | ⬜ |
 | YAEBR #48 | `isShare` no longer exists; sharing is `allowSharing` plus `isSharingHighlight`. Re-test in YAEBR, then close or fix | ⬜ |
 | YAEBR #100, #41 | FolioReaderKit part only: round-trip tests for `FolioReaderReadPosition` (`cfi`, `takePrecedence`) through `FolioReaderReadPositionProvider` | ⬜ |
 | (lesson from YAEBR) | A failing highlight injection must not block page load or position restore. WebKit test for the `didFinish` chain | ⬜ |
-| (from the baseline) | Replace the page-load chain's fixed `asyncAfter` delays with readiness signals (layout-settled callbacks), which make up most of the ~1.8 s per page | ⬜ |
+| (from the baseline) | Replace the page-load chain's fixed `asyncAfter` delays with readiness signals (layout-settled callbacks), which make up most of the ~1.8 s per page | ✅ `WebViewLayoutWaiter`: overflow, runtime-style, page-info and padding waits; the old delay is now only a timeout. The waits in `setScrollDirection`, `updateViewerLayout` and after animated scrolls remain |
 | (from `e7fe701`) | The unsaved scroll direction now comes from `config.scrollDirection`, so right-to-left books lost their paged default (`defaultScrollDirection`). Fixed with an RTL-aware fallback after parsing (`ReaderPreferences.parsedBookScrollDirection`). Unit-tested; no RTL sample book to check it end to end | ✅ |
 
 ### Phase 5: FolioReaderKit feature issues
@@ -91,7 +91,14 @@ Collect with: `xcrun simctl spawn <device> log show --signpost --last 5m --style
 |---|---|---|---|---|---|---|
 | Population (人口原理), 2026-10-06, before Phase 3 | 12.7 ms | 7.8 ms | 2,950 ms | 1,825 / 2,860 ms (n=5) | ≈ 40 ms | 30.2 ms |
 | Population, after Phase 3 (selected font family only) | 12.9 ms | 7.9 ms | 2,859 ms | 1,919 / 2,774 ms (n=6) | ≈ 30 ms | 18.8 ms |
-| EPUB with many entries | – | – | – | – | – | – |
+| big.epub (4,994 entries), fixed delays (`32eff91`) | 149 ms | 137 ms | 2,671 ms | 2,124 / 2,422 ms (n=3) | – | 5.3 ms |
+| big.epub, layout waiter | 159 ms | 132 ms | 1,109 ms | 943 / 1,027 ms (n=2) | – | 12.8 ms |
+| Population, layout waiter, vertical | 17.1 ms | 11.2 ms | 1,686 ms | 1,116 / 1,550 ms (n=3) | – | 19.9 ms |
+| Population, layout waiter, horizontal paged | 27.4 ms | 8.1 ms | 1,529 ms | 1,036 / 1,410 ms (n=2) | – | 12.2 ms |
+
+To profile a book that isn't bundled, copy it into the Example app's Documents and launch with `xcrun simctl launch <device> com.roswen9.FolioReaderExample -FolioExampleBook big.epub`; the first cover then opens it.
+
+**After the layout waiter:** each layout wait settles in about 19 ms (median; under 75 ms in paged mode). Most of the remaining ~1 s per page is before `didFinish`: WebKit loading the chapter and running the user scripts, including the 14,000-line `readium-cfi.umd.js` on every chapter load. That is the next candidate.
 
 **Finding:** more than 95% of each page load is the `didFinish` chain's fixed `asyncAfter` delays (0.2 s per stage plus `delaySec()`) and WebKit's own load, not CSS or JS work. Opening and parsing a small book is negligible, so #99 needs a many-entry EPUB to profile; none of the samples has more than 34 entries.
 

@@ -20,6 +20,8 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 
 **Changed:**
 
+- Page loads wait for the web view's layout to settle (`WebViewLayoutWaiter`) instead of fixed, size-scaled delays; the old delays are now only timeouts. Time to the first page dropped from 2.7 s to 1.1 s on a 4,994-entry EPUB, and from 2.9 s to 1.5–1.7 s on a small one (iPhone 17 simulator, Debug).
+
 - CSS reaches the page as base64 decoded as UTF-8, so quotes, backslashes and non-ASCII text in CSS (for example CJK font names) are injected intact.
 - The chapter HTML and computed-style dumps run only when `FolioReaderConfig.debug` contains `.htmlStyling`. Before, they ran on every page load and every settings change.
 - Renamed the internal `updateRuntimStyle` to `updateRuntimeStyle`.

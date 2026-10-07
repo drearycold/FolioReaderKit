@@ -101,13 +101,26 @@ writingMode
                 to: webView
             ) {
                 overflowCSSInterval.end()
-                DispatchQueue.main.asyncAfter(delay: bySecond) {
+                self.waitForLayout(timeout: bySecond, label: "overflow") {
                     completion?()
                 }
             }
         }
     }
     
+    /// Continues once the web view's native content size reflects the current layout, or after
+    /// `timeout` at the latest (the fixed delay this replaces). See `WebViewLayoutWaiter`.
+    func waitForLayout(timeout: Double, label: String, _ completion: @escaping () -> Void) {
+        guard let webView = webView else {
+            DispatchQueue.main.asyncAfter(delay: timeout, execute: completion)
+            return
+        }
+        let paged = webView.cssOverflowProperty == "-webkit-paged-x"
+        WebViewLayoutWaiter.wait(for: webView, timeout: timeout, paged: paged, label: "\(label) page \(pageNumber)") { _ in
+            completion()
+        }
+    }
+
     func updateRuntimeStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
         guard let webView = webView else { return }
 
@@ -126,10 +139,10 @@ writingMode
         webView.js(script) { _ in
             runtimeStyleInterval.end()
             let delaySec = self.delaySec() + bySecond
-            DispatchQueue.main.asyncAfter(delay: delaySec) {
+            self.waitForLayout(timeout: delaySec, label: "runtimeStyle") {
                 self.layoutAdapting = "Almost Ready..."
                 self.updatePageInfo {
-                    DispatchQueue.main.asyncAfter(delay: delaySec) {
+                    self.waitForLayout(timeout: delaySec, label: "pageInfo") {
                         self.updateStyleBackgroundPadding(delay: delaySec, completion: completion != nil ? completion : {
                             self.updatePageInfo() {
                                 self.scrollWebViewByPageOffsetRate()
@@ -171,7 +184,7 @@ writingMode
             """
         ) { _ in
             paddingInterval.end()
-            DispatchQueue.main.asyncAfter(delay: bySecond) {
+            self.waitForLayout(timeout: bySecond, label: "padding") {
                 self.updatePageInfo {
                     FolioLogger.log("updateStyleBackgroundPadding pageNumber=\(self.pageNumber) minScreenCount=\(minScreenCount) totalPages=\(self.totalPages ?? 0) tryShrinking=\(tryShrinking)")
                     if self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true) {
