@@ -41,6 +41,21 @@ class WebViewLayoutWaiterTests: XCTestCase {
                       "An exact multiple of the page height must not add a page")
     }
 
+    /// Before pagination takes effect the scroll view still holds the unpaginated document size, the
+    /// same size JS reports, so that size must not count as settled in paged mode.
+    func testPagedModeRejectsTheUnpaginatedContentSize() {
+        let measured = WebViewLayoutWaiter.Measurement(document: CGSize(width: 402, height: 4201), viewport: CGSize(width: 402, height: 662))
+        let expected = WebViewLayoutWaiter.expectedContentSizes(for: measured, paged: true)
+        XCTAssertEqual(expected, [CGSize(width: 2814, height: 662)])
+        XCTAssertFalse(expected.contains { WebViewLayoutWaiter.layoutMatches(contentSize: CGSize(width: 402, height: 4201), documentSize: $0, zoomScale: 1) })
+    }
+
+    /// Some documents report the paginated size to JS already (one page high, all pages wide).
+    func testPagedModeKeepsADocumentSizeThatIsAlreadyPaginated() {
+        let measured = WebViewLayoutWaiter.Measurement(document: CGSize(width: 11200, height: 480), viewport: CGSize(width: 320, height: 480))
+        XCTAssertTrue(WebViewLayoutWaiter.expectedContentSizes(for: measured, paged: true).contains(CGSize(width: 11200, height: 480)))
+    }
+
     /// After a script grows the document, the waiter must not finish until the native content size
     /// has caught up, and it must finish well before the timeout.
     func testWaitSettlesOnceContentSizeCatchesUpWithLayout() {
@@ -66,6 +81,60 @@ class WebViewLayoutWaiterTests: XCTestCase {
         XCTAssertTrue(didSettle, "Expected the layout to settle before the timeout")
         XCTAssertLessThan(Date().timeIntervalSince(start), 2.0)
         XCTAssertEqual(webView.scrollView.contentSize.height, 5000 * webView.scrollView.zoomScale, accuracy: 2)
+    }
+
+    /// Switching a long chapter, styled like the reader's, from scrolling to `-webkit-paged-x`: the
+    /// wait must end on the paginated layout, before the timeout.
+    func testPagedWaitSettlesOnThePaginatedLayout() {
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.addUserScript(
+            FolioReaderCSSInjector.userScript(id: FolioReaderCSSInjector.StyleID.bundle, css: FolioReaderCSSBuilder.baseStyleSheet())
+        )
+        let paragraph = "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>"
+        let webView = loadedWebView(html: """
+            <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+            <body>\(String(repeating: paragraph, count: 120))</body></html>
+            """, configuration: configuration)
+        XCTAssertGreaterThan(evaluate("document.documentElement.scrollHeight", in: webView) as? Double ?? 0, 2 * Double(webView.bounds.height), "Starts as a long scrolling document")
+
+        let css = FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: false)
+        evaluate("var s = document.createElement('style'); s.textContent = \(String(reflecting: css)); document.head.appendChild(s); true", in: webView)
+
+        let settled = expectation(description: "layout settled")
+        var didSettle = false
+        var contentSizeAtSettle = CGSize.zero
+        WebViewLayoutWaiter.wait(for: webView, timeout: 3, paged: true) { result in
+            didSettle = result
+            contentSizeAtSettle = webView.scrollView.contentSize
+            settled.fulfill()
+        }
+        wait(for: [settled], timeout: 5)
+
+        XCTAssertTrue(didSettle, "Expected the paged layout to settle before the timeout")
+        XCTAssertEqual(contentSizeAtSettle.height, webView.bounds.height * webView.scrollView.zoomScale, accuracy: 2, "Settled on a paginated content size")
+        XCTAssertGreaterThan(contentSizeAtSettle.width, webView.bounds.width)
+    }
+
+    /// The scheduled polls must not keep the web view alive until the timeout.
+    func testWaitEndsWhenTheWebViewGoesAway() {
+        let ended = expectation(description: "wait ended")
+        var didSettle: Bool?
+        weak var released: WKWebView?
+        let start = Date()
+        // The pool releases the test's own autoreleased references before the wait goes on.
+        autoreleasepool {
+            let webView = loadedWebView(html: "<p>x</p>")
+            released = webView
+            WebViewLayoutWaiter.wait(for: webView, timeout: 10) { result in
+                didSettle = result
+                ended.fulfill()
+            }
+        }
+
+        wait(for: [ended], timeout: 5)
+        XCTAssertNil(released)
+        XCTAssertEqual(didSettle, false)
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2)
     }
 }
 
