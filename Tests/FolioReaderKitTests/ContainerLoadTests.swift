@@ -18,7 +18,7 @@ class ContainerLoadTests: XCTestCase {
     private var samplePath: String {
         URL(fileURLWithPath: "\(#filePath)")
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Example/Shared/Sample eBooks/Population.epub").path
+            .appendingPathComponent("Example/Shared/Sample eBooks/1984.epub").path
     }
 
     /// Hosting apps can show the reader again without recreating it, for example on a tab switch or

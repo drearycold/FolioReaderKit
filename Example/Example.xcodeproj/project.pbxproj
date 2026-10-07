@@ -24,8 +24,7 @@
 		3AAA8BA51E9BB94B00A47E5A /* The Adventures Of Sherlock Holmes - Adventure I.epub in Resources */ = {isa = PBXBuildFile; fileRef = 3AAA8B9E1E9BB94B00A47E5A /* The Adventures Of Sherlock Holmes - Adventure I.epub */; };
 		3AAA8BA61E9BB94B00A47E5A /* The Silver Chair.epub in Resources */ = {isa = PBXBuildFile; fileRef = 3AAA8B9F1E9BB94B00A47E5A /* The Silver Chair.epub */; };
 		3AAA8BA81E9BB94B00A47E5A /* The Silver Chair.epub in Resources */ = {isa = PBXBuildFile; fileRef = 3AAA8B9F1E9BB94B00A47E5A /* The Silver Chair.epub */; };
-		6E7733BB266478C0008318C3 /* Population.epub in Resources */ = {isa = PBXBuildFile; fileRef = 6E7733BA266478C0008318C3 /* Population.epub */; };
-		6E7733BC266478C0008318C3 /* Population.epub in Resources */ = {isa = PBXBuildFile; fileRef = 6E7733BA266478C0008318C3 /* Population.epub */; };
+		F01984A0000000000000B001 /* 1984.epub in Resources */ = {isa = PBXBuildFile; fileRef = 2A61345226219B8B0022FC04 /* 1984.epub */; };
 		751F8CF61ECD20110050A2CF /* Epub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751F8CF51ECD20110050A2CF /* Epub.swift */; };
 		751F8CF81ECD20110050A2CF /* Epub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751F8CF51ECD20110050A2CF /* Epub.swift */; };
 		E73092EF2F6F870300B4C322 /* FolioReaderKit in Frameworks */ = {isa = PBXBuildFile; productRef = E73092EE2F6F870300B4C322 /* FolioReaderKit */; };
@@ -52,7 +51,6 @@
 		3AAA8B9C1E9BB94B00A47E5A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3AAA8B9E1E9BB94B00A47E5A /* The Adventures Of Sherlock Holmes - Adventure I.epub */ = {isa = PBXFileReference; lastKnownFileType = file; path = "The Adventures Of Sherlock Holmes - Adventure I.epub"; sourceTree = "<group>"; };
 		3AAA8B9F1E9BB94B00A47E5A /* The Silver Chair.epub */ = {isa = PBXFileReference; lastKnownFileType = file; path = "The Silver Chair.epub"; sourceTree = "<group>"; };
-		6E7733BA266478C0008318C3 /* Population.epub */ = {isa = PBXFileReference; lastKnownFileType = file; path = Population.epub; sourceTree = "<group>"; };
 		751F8CF51ECD20110050A2CF /* Epub.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Epub.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -143,7 +141,6 @@
 		3AAA8B9D1E9BB94B00A47E5A /* Sample eBooks */ = {
 			isa = PBXGroup;
 			children = (
-				6E7733BA266478C0008318C3 /* Population.epub */,
 				2A61345226219B8B0022FC04 /* 1984.epub */,
 				3AAA8B9E1E9BB94B00A47E5A /* The Adventures Of Sherlock Holmes - Adventure I.epub */,
 				3AAA8B9F1E9BB94B00A47E5A /* The Silver Chair.epub */,
@@ -250,7 +247,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				2A61345326219B8B0022FC04 /* 1984.epub in Resources */,
-				6E7733BB266478C0008318C3 /* Population.epub in Resources */,
 				1A42C2A21C0E3A8D000F2137 /* LaunchScreen.storyboard in Resources */,
 				3AAA8BA31E9BB94B00A47E5A /* The Adventures Of Sherlock Holmes - Adventure I.epub in Resources */,
 				3AAA8BA61E9BB94B00A47E5A /* The Silver Chair.epub in Resources */,
@@ -263,7 +259,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6E7733BC266478C0008318C3 /* Population.epub in Resources */,
+				F01984A0000000000000B001 /* 1984.epub in Resources */,
 				3AAA8BA51E9BB94B00A47E5A /* The Adventures Of Sherlock Holmes - Adventure I.epub in Resources */,
 				3AAA8B981E9BB8CD00A47E5A /* Main.storyboard in Resources */,
 				3AAA8B971E9BB8CD00A47E5A /* LaunchScreen.storyboard in Resources */,

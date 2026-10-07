@@ -15,7 +15,7 @@ enum Epub: Int {
 
     var name: String {
         switch self {
-        case .bookOne:      return "Population" // standard eBook
+        case .bookOne:      return "1984" // standard eBook
         case .bookTwo:      return "The Silver Chair" // audio-eBook
         }
     }

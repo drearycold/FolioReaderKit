@@ -36,6 +36,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - With the AllText override, paragraph spacing no longer applies to `<body>` itself, which gave it extra margins in scroll mode.
 - `customStyleSheets` documents that a custom rule needs `!important` and a selector at least as specific as the built-in one, for example `html:root body p`; `p { … !important }` alone loses.
 - The API reference covers `FolioEPUBCore` as well as `FolioReaderKit` and is published to GitHub Pages (https://drearycold.github.io/FolioReaderKit/) instead of being checked in under `docs/`.
+- Example apps: the first sample book is `1984.epub` instead of `Population.epub`, which was malformed and is removed.
 - Example apps: Storyboard-Example is removed. MultipleInstance-Example covers the storyboard path, creating its two side-by-side readers in `@IBSegueAction`s with injected web servers, and CI builds it instead.
 
 **Fixed:**
@@ -46,7 +47,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - A `FolioReaderConfig` reused for another book no longer carries the direction the reader used for the previous one. The reader's own writes to `scrollDirection` (the effective direction, or the user's menu choice) no longer count as the app's choice, so a left-to-right book opened after a right-to-left one isn't paged, and the app's direction comes back when the saved choice doesn't apply.
 - On iOS 16 and later the selection menu's Share item showed the placeholder title "S", and its options popover was anchored at the top-left of the screen. It now uses `localizedShare` and anchors at the selection; the share sheet is anchored in the web view's coordinates.
 - `FolioReader.save(readPosition:for:)` applies saves in order on a serial queue. Before, rapid saves ran concurrently, so an older position could win and several could keep `takePrecedence`. Providers are also no longer called from several threads at once.
-- Example app: the preference provider uses the key-based API again, and MultipleInstance-Example bundles `Population.epub`.
+- Example app: the preference provider uses the key-based API again, and MultipleInstance-Example bundles its first sample book.
 
 **Tests:**
 
