@@ -145,6 +145,10 @@ open class FolioReaderContainer: UIViewController {
         // If user can change scroll direction use the last saved
         if self.readerConfig.canChangeScrollDirection == true {
             var scrollDirection = FolioReaderScrollDirection(rawValue: self.folioReader.currentScrollDirection) ?? .horizontalWithScrollContent
+            // A stored `.defaultVertical` is a sentinel for "no user choice", not a direction: providers
+            // that always return a value seed it as their default (YetAnotherEBookReader's
+            // `ReaderPreferenceRepository.fallbackDefaults` does). Let the configured direction win then.
+            // With nothing stored at all, `currentScrollDirection` already falls back to the config.
             if (scrollDirection == .defaultVertical && self.readerConfig.scrollDirection != .defaultVertical) {
                 scrollDirection = self.readerConfig.scrollDirection
             }
