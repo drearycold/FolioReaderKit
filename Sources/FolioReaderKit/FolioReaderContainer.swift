@@ -55,6 +55,33 @@ open class FolioReaderContainer: UIViewController {
 
         super.init(nibName: nil, bundle: Bundle.frameworkBundle())
 
+        finishInit()
+    }
+
+    /// Init a Folio Reader Container from a storyboard, with an injected web server.
+    ///
+    /// A storyboard can only call `init?(coder:)`, so create the container from an
+    /// `@IBSegueAction` or `UIStoryboard.instantiateViewController(identifier:creator:)` and call this
+    /// initializer there. The storyboard scene's class must be `FolioReaderContainer` (or this subclass).
+    ///
+    ///     @IBSegueAction func makeReader(_ coder: NSCoder) -> FolioReaderContainer? {
+    ///         FolioReaderContainer(coder: coder, config: config, folioReader: FolioReader(),
+    ///                              epubPath: path, webServer: ReadiumGCDWebServer())
+    ///     }
+    public init?(coder: NSCoder, config: FolioReaderConfig, folioReader: FolioReader, epubPath path: String, webServer: ReadiumGCDWebServer) {
+        self.readerConfig = config
+        self.folioReader = folioReader
+        self.epubPath = path
+        self.book = FRBook()
+        self.webServer = webServer
+
+        super.init(coder: coder)
+
+        finishInit()
+    }
+
+    /// Shared by the designated initializers that receive the configuration up front.
+    private func finishInit() {
         self.resourceServer = EpubResourceServer(webServer: webServer, container: self)
 
         // Configure the folio reader.
@@ -66,11 +93,12 @@ open class FolioReaderContainer: UIViewController {
         }
     }
 
+    /// Called when a storyboard creates the container without an `@IBSegueAction` or creator.
+    ///
+    /// The container then creates its own `ReadiumGCDWebServer`, and `setupConfig(_:epubPath:)`
+    /// must be called afterwards. Prefer `init?(coder:config:folioReader:epubPath:webServer:)`,
+    /// which lets the app inject the web server like the other initializers.
     required public init?(coder aDecoder: NSCoder) {
-        // When a FolioReaderContainer object is instantiated from the storyboard this function is called before.
-        // At this moment, we need to initialize all non-optional objects with default values.
-        // The function `setupConfig(config:epubPath:removeEpub:)` MUST be called afterward.
-        // See the ExampleFolioReaderContainer.swift for more information?
         self.readerConfig = FolioReaderConfig()
         self.folioReader = FolioReader()
         self.epubPath = ""
