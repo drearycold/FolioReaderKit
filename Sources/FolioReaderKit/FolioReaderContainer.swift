@@ -33,6 +33,8 @@ open class FolioReaderContainer: UIViewController {
     
     var webServer: ReadiumGCDWebServer
     private var resourceServer: EpubResourceServer?
+    /// The direction the app set on `readerConfig` before the reader started changing it, if any.
+    private var configuredScrollDirection: FolioReaderScrollDirection?
     /// Open until the first page is shown; ended by `FolioReaderCenter.pageDidLoad`.
     var firstPageInterval: FolioSignpost.Interval?
 
@@ -113,6 +115,20 @@ open class FolioReaderContainer: UIViewController {
         self.folioReader.readerContainer = self
     }
 
+    /// Applies `ReaderPreferences.resolveScrollDirection` to `readerConfig`; returns whether the
+    /// direction changed. The user's saved choice only counts while they may change the direction.
+    @discardableResult
+    func applyResolvedScrollDirection(isRtl: Bool) -> Bool {
+        let direction = ReaderPreferences.resolveScrollDirection(
+            saved: readerConfig.canChangeScrollDirection ? folioReader.preferences.savedScrollDirection : nil,
+            configured: configuredScrollDirection,
+            isRtl: isRtl
+        )
+        guard direction != readerConfig.scrollDirection else { return false }
+        readerConfig.scrollDirection = direction
+        return true
+    }
+
     /// Common Initialization
     open func initialization() {
         // Register custom fonts
@@ -142,22 +158,11 @@ open class FolioReaderContainer: UIViewController {
         //let canChangeScrollDirection = self.readerConfig.canChangeScrollDirection
         //self.readerConfig.canChangeScrollDirection = self.readerConfig.isDirection(canChangeScrollDirection, canChangeScrollDirection, false)
 
-        // If user can change scroll direction use the last saved
-        if self.readerConfig.canChangeScrollDirection == true {
-            var scrollDirection = FolioReaderScrollDirection(rawValue: self.folioReader.currentScrollDirection) ?? .horizontalWithScrollContent
-            // A stored `.defaultVertical` is a sentinel for "no user choice", not a direction: providers
-            // that always return a value seed it as their default (YetAnotherEBookReader's
-            // `ReaderPreferenceRepository.fallbackDefaults` does). Let the configured direction win then.
-            // With nothing stored at all, `currentScrollDirection` already falls back to the config.
-            if (scrollDirection == .defaultVertical && self.readerConfig.scrollDirection != .defaultVertical) {
-                scrollDirection = self.readerConfig.scrollDirection
-            }
-
-            // Assign only on change, so an untouched config still counts as not explicitly set.
-            if self.readerConfig.scrollDirection != scrollDirection {
-                self.readerConfig.scrollDirection = scrollDirection
-            }
-        }
+        // From here on the reader writes the effective direction into `readerConfig.scrollDirection`,
+        // so remember what the app asked for first. The book isn't parsed yet; this is re-resolved
+        // with the real `isRtl` once it is.
+        configuredScrollDirection = readerConfig.hasExplicitScrollDirection ? readerConfig.scrollDirection : nil
+        applyResolvedScrollDirection(isRtl: false)
 
         let hideBars = readerConfig.hideBars
         self.readerConfig.shouldHideNavigationOnTap = ((hideBars == true) ? true : self.readerConfig.shouldHideNavigationOnTap)
@@ -248,13 +253,7 @@ open class FolioReaderContainer: UIViewController {
                         }
                     }
 
-                    if let direction = ReaderPreferences.parsedBookScrollDirection(
-                        isRtl: self.book.spine.isRtl,
-                        hasSavedDirection: self.folioReader.preferences.hasSavedScrollDirection,
-                        hasExplicitConfigDirection: self.readerConfig.hasExplicitScrollDirection,
-                        canChangeScrollDirection: self.readerConfig.canChangeScrollDirection
-                    ) {
-                        self.readerConfig.scrollDirection = direction
+                    if self.applyResolvedScrollDirection(isRtl: self.book.spine.isRtl) {
                         self.centerViewController?.collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
                         self.centerViewController?.collectionViewLayout.invalidateLayout()
                     }

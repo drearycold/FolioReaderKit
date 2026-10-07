@@ -207,8 +207,9 @@ open class FolioReaderConfig: NSObject {
         didSet { hasExplicitScrollDirection = true }
     }
 
-    /// `true` once `scrollDirection` has been assigned, whether by the app or by the reader applying
-    /// a saved direction. While it is `false` and nothing is saved, right-to-left books open in
+    /// `true` once `scrollDirection` has been assigned. The container reads it when its view loads,
+    /// before it writes the effective direction itself: if the app assigned a direction, that
+    /// direction is used unless the user saved another; if not, right-to-left books open in
     /// `.horizontalWithPagedContent`.
     public private(set) var hasExplicitScrollDirection = false
 

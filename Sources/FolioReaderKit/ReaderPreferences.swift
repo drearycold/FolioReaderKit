@@ -197,34 +197,47 @@ public class ReaderPreferences {
         }
     }
 
-    /// Whether the user has saved a scroll direction for this reader.
-    public var hasSavedScrollDirection: Bool {
-        pref(intFor: .currentScrollDirection, default: -1) != -1
+    /// The direction the user chose in the menu, or `nil` if they haven't chosen one.
+    ///
+    /// The menu only saves `.vertical`, `.horizontalWithPagedContent` and `.horizontalWithScrollContent`.
+    /// A stored `.defaultVertical` is a placeholder some providers seed as their default
+    /// (YetAnotherEBookReader does), so it counts as no choice, as do missing and unknown values.
+    public var savedScrollDirection: FolioReaderScrollDirection? {
+        guard let direction = FolioReaderScrollDirection(rawValue: pref(intFor: .currentScrollDirection, default: -1)),
+              direction != .defaultVertical else { return nil }
+        return direction
     }
 
-    /// The direction a just-parsed book should switch to, or `nil` to keep the current one.
-    /// Right-to-left books open in paged mode unless the user saved a direction or the app set one.
-    /// The book is parsed after the initial direction is applied, so this runs once parsing finishes.
-    static func parsedBookScrollDirection(isRtl: Bool, hasSavedDirection: Bool, hasExplicitConfigDirection: Bool, canChangeScrollDirection: Bool) -> FolioReaderScrollDirection? {
-        guard isRtl, canChangeScrollDirection, !hasSavedDirection, !hasExplicitConfigDirection else { return nil }
-        return .horizontalWithPagedContent
+    /// Whether the user has chosen a scroll direction for this reader.
+    public var hasSavedScrollDirection: Bool {
+        savedScrollDirection != nil
+    }
+
+    /// The one rule for which direction a reader uses: the user's choice, else the direction the app
+    /// configured, else paged for right-to-left books and scrolling otherwise.
+    static func resolveScrollDirection(saved: FolioReaderScrollDirection?, configured: FolioReaderScrollDirection?, isRtl: Bool) -> FolioReaderScrollDirection {
+        saved ?? configured ?? (isRtl ? .horizontalWithPagedContent : .horizontalWithScrollContent)
     }
 
     public var defaultScrollDirection: FolioReaderScrollDirection {
         folioReader?.readerContainer?.book.spine.isRtl == true ? .horizontalWithPagedContent : .horizontalWithScrollContent
     }
-    /// Check the current scroll direction. When nothing has been saved, defaults to the reader
-    /// config's `scrollDirection` (so a host app's configured direction is honoured), or to
-    /// `defaultScrollDirection` when no container is attached.
+
+    /// The scroll direction in effect. Once a container is attached it keeps the resolved direction
+    /// in its reader config; before that, the saved choice or `defaultScrollDirection`.
+    /// Setting it saves the user's choice and applies it.
     public var currentScrollDirection: Int {
         get {
-            let fallback = folioReader?.readerConfig?.scrollDirection ?? defaultScrollDirection
-            return pref(intFor: .currentScrollDirection, default: fallback.rawValue)
+            if let config = folioReader?.readerConfig {
+                return config.scrollDirection.rawValue
+            }
+            return (savedScrollDirection ?? defaultScrollDirection).rawValue
         }
         set (value) {
             pref(setInt: value, for: .currentScrollDirection)
 
             let direction = FolioReaderScrollDirection(rawValue: value) ?? defaultScrollDirection
+            folioReader?.readerConfig?.scrollDirection = direction
             folioReader?.readerCenter?.currentPage?.setScrollDirection(direction)
         }
     }
