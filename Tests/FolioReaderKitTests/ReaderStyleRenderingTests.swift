@@ -65,6 +65,33 @@ class ReaderStyleRenderingTests: XCTestCase {
         assertSnapshot(lines.joined(separator: "\n") + "\n", named: "computedStyles.txt")
     }
 
+    /// Backs the `FolioReaderConfig.customStyleSheets` documentation: `!important` alone loses to the
+    /// reader's `html body.folioStyleScopeP p` rule, and a selector of equal specificity wins by coming later.
+    func testCustomRulesNeedImportantAndMatchingSpecificity() {
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.addUserScript(FolioReaderScript.bridgeJS)
+        configuration.userContentController.addUserScript(
+            FolioReaderCSSInjector.userScript(id: FolioReaderCSSInjector.StyleID.bundle, css: FolioReaderCSSBuilder.baseStyleSheet())
+        )
+        let webView = loadedWebView(html: page, configuration: configuration)
+        let state = Self.cases()[1].1   // horizontal, override=only <p>, font size 18.5px
+        XCTAssertEqual(state.styleOverride, .PNode)
+
+        func paragraphFontSize(withCustomRule rule: String) -> String? {
+            evaluate("writingMode = 'horizontal-tb'; true", in: webView)
+            evaluate(FolioReaderCSSInjector.runtimeStyleSource(
+                themeMode: 0,
+                styleState: state,
+                runtimeSheets: [(id: "folio_custom_test", css: rule)],
+                includeDebugDump: false
+            ), in: webView)
+            return evaluate("window.getComputedStyle(document.getElementById('p')).fontSize", in: webView) as? String
+        }
+
+        XCTAssertEqual(paragraphFontSize(withCustomRule: "p { font-size: 30px !important; }"), "18.5px")
+        XCTAssertEqual(paragraphFontSize(withCustomRule: "html:root body p { font-size: 30px !important; }"), "30px")
+    }
+
     /// The script `FolioReaderPage.updateRuntimeStyle` runs for `state`.
     private func applyStyle(_ state: FolioReaderStyleState) -> String {
         FolioReaderCSSInjector.runtimeStyleSource(
