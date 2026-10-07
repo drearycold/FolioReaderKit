@@ -77,6 +77,88 @@ final class FolioReaderPageFrameTests: XCTestCase {
         )
     }
 
+    func testPagedMarginsCombineWithReservedComponents() {
+        let input = makeInput(
+            scrollDirection: .horizontalWithPagedContent,
+            currentMarginTop: 10,
+            currentMarginBottom: 20,
+            currentMarginLeft: 30,
+            currentMarginRight: 40,
+            statusbarHeight: 44,
+            pageIndicatorHeight: 70
+        )
+
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.webViewFrame(input: input),
+            CGRect(x: 0, y: 84, width: 400, height: 566)
+        )
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.anchorBoundsFrame(input: input),
+            CGRect(x: 60, y: 128, width: 260, height: 566)
+        )
+    }
+
+    func testVerticalWritingModeAppliesHorizontalMarginsOnlyWhenPaged() {
+        let paged = makeInput(
+            writingMode: "vertical-rl",
+            scrollDirection: .horizontalWithPagedContent,
+            currentMarginTop: 10,
+            currentMarginBottom: 20,
+            currentMarginLeft: 30,
+            currentMarginRight: 40,
+            statusbarHeight: 44,
+            pageIndicatorHeight: 70
+        )
+
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.webViewFrame(input: paged),
+            CGRect(x: 60, y: 44, width: 260, height: 686)
+        )
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.anchorBoundsFrame(input: paged),
+            CGRect(x: 60, y: 84, width: 260, height: 566)
+        )
+
+        let scrolled = makeInput(
+            writingMode: "vertical-rl",
+            scrollDirection: .vertical,
+            currentMarginTop: 10,
+            currentMarginBottom: 20,
+            currentMarginLeft: 30,
+            currentMarginRight: 40,
+            statusbarHeight: 44,
+            pageIndicatorHeight: 70
+        )
+
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.webViewFrame(input: scrolled),
+            CGRect(x: 0, y: 44, width: 400, height: 686)
+        )
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.anchorBoundsFrame(input: scrolled),
+            CGRect(x: 60, y: 84, width: 260, height: 566)
+        )
+    }
+
+    func testOversizedPagedMarginsCollapseHeightWithoutMovingOrigin() {
+        let input = makeInput(
+            scrollDirection: .horizontalWithPagedContent,
+            currentMarginTop: 100,
+            currentMarginBottom: 100,
+            statusbarHeight: 44,
+            pageIndicatorHeight: 70
+        )
+
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.webViewFrame(input: input),
+            CGRect(x: 0, y: 444, width: 400, height: 0)
+        )
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.anchorBoundsFrame(input: input),
+            CGRect(x: 0, y: 488, width: 400, height: 0)
+        )
+    }
+
     private func makeInput(
         bounds: CGRect = CGRect(x: 0, y: 0, width: 400, height: 800),
         writingMode: String = "horizontal-tb",

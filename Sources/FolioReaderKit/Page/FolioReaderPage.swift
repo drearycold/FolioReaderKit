@@ -389,64 +389,33 @@ struct FolioReaderPageFrameInput {
 enum FolioReaderPageFrameCalculator {
     static func webViewFrame(input: FolioReaderPageFrameInput) -> CGRect {
         let metrics = FrameMetrics(input: input)
+        let paged = metrics.pagedPadding
 
-        return metrics.byWritingMode(
-            horizontal: CGRect(
-                x: input.bounds.origin.x,
-                y: metrics.isDirection(
-                    input.bounds.origin.y + metrics.topComponentTotal,
-                    input.bounds.origin.y + metrics.topComponentTotal + metrics.paddingTop,
-                    input.bounds.origin.y + metrics.topComponentTotal
-                ),
-                width: input.bounds.width,
-                height: max(metrics.isDirection(
-                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal,
-                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal - metrics.paddingTop - metrics.paddingBottom,
-                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal
-                ), 0)
-            ),
-            vertical: CGRect(
-                x: metrics.isDirection(
-                    input.bounds.origin.x,
-                    input.bounds.origin.x + metrics.paddingLeft,
-                    input.bounds.origin.x
-                ),
-                y: input.bounds.origin.y + metrics.topComponentTotal,
-                width: metrics.isDirection(
-                    input.bounds.width,
-                    input.bounds.width - metrics.paddingLeft - metrics.paddingRight,
-                    input.bounds.width
-                ),
-                height: input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal
-            )
-        )
+        return input.bounds
+            .inset(by: metrics.reserved)
+            .inset(by: metrics.byWritingMode(
+                horizontal: UIEdgeInsets(top: paged.top, left: 0, bottom: paged.bottom, right: 0),
+                vertical: UIEdgeInsets(top: 0, left: paged.left, bottom: 0, right: paged.right)
+            ))
+            .clampedToNonNegativeSize
     }
 
     static func anchorBoundsFrame(input: FolioReaderPageFrameInput) -> CGRect {
         let metrics = FrameMetrics(input: input)
-        let verticalAnchorStatusbarOffset = input.reserveSafeAreaInsidePageFrame ? input.statusbarHeight : 0
+        let paged = metrics.pagedPadding
 
         return metrics.byWritingMode(
-            horizontal: CGRect(
-                x: input.bounds.origin.x + metrics.paddingLeft,
-                y: metrics.isDirection(
-                    input.bounds.origin.y + metrics.topComponentTotal,
-                    input.bounds.origin.y + metrics.topComponentTotal + metrics.paddingTop,
-                    input.bounds.origin.y + metrics.topComponentTotal
-                ) + verticalAnchorStatusbarOffset,
-                width: input.bounds.width - metrics.paddingLeft - metrics.paddingRight,
-                height: max(metrics.isDirection(
-                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal,
-                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal - metrics.paddingTop - metrics.paddingBottom,
-                    input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal
-                ), 0)
-            ),
-            vertical: CGRect(
-                x: input.bounds.origin.x + metrics.paddingLeft,
-                y: input.bounds.origin.y + metrics.topComponentTotal + metrics.paddingTop,
-                width: input.bounds.width - metrics.paddingLeft - metrics.paddingRight,
-                height: max(input.bounds.height - metrics.topComponentTotal - metrics.bottomComponentTotal - metrics.paddingTop - metrics.paddingBottom, 0)
-            )
+            horizontal: input.bounds
+                .inset(by: metrics.reserved)
+                .inset(by: UIEdgeInsets(top: paged.top, left: metrics.padding.left, bottom: paged.bottom, right: metrics.padding.right))
+                .clampedToNonNegativeSize
+                // Historical behavior: the reserved status bar height is counted twice.
+                // Shift after clamping, because offsetBy standardizes a negative-size rect.
+                .offsetBy(dx: 0, dy: metrics.reserved.top),
+            vertical: input.bounds
+                .inset(by: metrics.reserved)
+                .inset(by: metrics.padding)
+                .clampedToNonNegativeSize
         )
     }
 }
@@ -454,43 +423,41 @@ enum FolioReaderPageFrameCalculator {
 private struct FrameMetrics {
     let input: FolioReaderPageFrameInput
 
-    var topComponentTotal: CGFloat {
-        input.reserveSafeAreaInsidePageFrame ? input.statusbarHeight : 0
+    /// Status bar and page indicator space kept inside the page frame.
+    var reserved: UIEdgeInsets {
+        let showsPageIndicator = input.reservePageIndicatorInsidePageFrame && !input.hidePageIndicator
+        return UIEdgeInsets(
+            top: input.reserveSafeAreaInsidePageFrame ? input.statusbarHeight : 0,
+            left: 0,
+            bottom: showsPageIndicator ? input.pageIndicatorHeight : 0,
+            right: 0
+        )
     }
 
-    var bottomComponentTotal: CGFloat {
-        guard input.reservePageIndicatorInsidePageFrame, !input.hidePageIndicator else { return 0 }
-        return input.pageIndicatorHeight
+    /// User margins; each margin level is 1/200 of the page size.
+    var padding: UIEdgeInsets {
+        UIEdgeInsets(
+            top: floor(CGFloat(input.currentMarginTop) / 200 * input.pageHeight),
+            left: floor(CGFloat(input.currentMarginLeft) / 200 * input.pageWidth),
+            bottom: floor(CGFloat(input.currentMarginBottom) / 200 * input.pageHeight),
+            right: floor(CGFloat(input.currentMarginRight) / 200 * input.pageWidth)
+        )
     }
 
-    var paddingTop: CGFloat {
-        floor(CGFloat(input.currentMarginTop) / 200 * input.pageHeight)
-    }
-
-    var paddingBottom: CGFloat {
-        floor(CGFloat(input.currentMarginBottom) / 200 * input.pageHeight)
-    }
-
-    var paddingLeft: CGFloat {
-        floor(CGFloat(input.currentMarginLeft) / 200 * input.pageWidth)
-    }
-
-    var paddingRight: CGFloat {
-        floor(CGFloat(input.currentMarginRight) / 200 * input.pageWidth)
-    }
-
-    func isDirection<T>(_ vertical: T, _ horizontalContentPaged: T, _ horizontalContentScroll: T) -> T {
-        switch input.scrollDirection {
-        case .vertical, .defaultVertical:
-            return vertical
-        case .horizontalWithPagedContent:
-            return horizontalContentPaged
-        case .horizontalWithScrollContent:
-            return horizontalContentScroll
-        }
+    /// Only horizontal paged content puts the user margins into the frame;
+    /// the other scroll directions leave them to the CSS body padding.
+    var pagedPadding: UIEdgeInsets {
+        input.scrollDirection == .horizontalWithPagedContent ? padding : .zero
     }
 
     func byWritingMode<T>(horizontal: T, vertical: T) -> T {
         input.writingMode == "vertical-rl" ? vertical : horizontal
+    }
+}
+
+private extension CGRect {
+    /// Reads `size` directly, because `width` and `height` return standardized (absolute) values.
+    var clampedToNonNegativeSize: CGRect {
+        CGRect(origin: origin, size: CGSize(width: max(size.width, 0), height: max(size.height, 0)))
     }
 }
