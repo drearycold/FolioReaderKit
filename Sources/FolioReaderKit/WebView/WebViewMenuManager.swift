@@ -82,12 +82,30 @@ class WebViewMenuManager: NSObject {
     func share(_ sender: Any?) {
         guard let webView = webView else { return }
 
-        let presentationRect: CGRect
         if let menuController = sender as? UIMenuController {
-            presentationRect = menuController.menuFrame
-        } else {
-            presentationRect = lastMenuRect
+            presentShareChooser(webView: webView, presentationRect: menuController.menuFrame)
+            return
         }
+        // With UIEditMenuInteraction there is no menu frame to anchor to, and lastMenuRect is only
+        // set when the reader opens its own menu. Anchor at the current selection instead.
+        webView.js("getRectForSelectedText()") { [weak self, weak webView] rectString in
+            guard let self = self, let webView = webView else { return }
+            let selectionRect = rectString.map { NSCoder.cgRect(for: $0) } ?? .zero
+            let presentationRect = Self.sharePresentationRect(selectionRect: selectionRect, fallback: self.lastMenuRect, in: webView.bounds)
+            self.presentShareChooser(webView: webView, presentationRect: presentationRect)
+        }
+    }
+
+    /// Where the share chooser points: the selection, else the last menu rect, else the view's
+    /// centre. Never the zero rect, which anchors the popover under the status bar.
+    static func sharePresentationRect(selectionRect: CGRect, fallback: CGRect, in bounds: CGRect) -> CGRect {
+        for candidate in [selectionRect, fallback] where !candidate.isEmpty && bounds.intersects(candidate) {
+            return candidate
+        }
+        return CGRect(x: bounds.midX, y: bounds.midY, width: 1, height: 1)
+    }
+
+    private func presentShareChooser(webView: FolioReaderWebView, presentationRect: CGRect) {
         
         guard let currentPage = webView.folioReader.readerCenter?.currentPage,
               let currentPageWebView = currentPage.webView
@@ -136,7 +154,7 @@ class WebViewMenuManager: NSObject {
         alertController.addAction(cancel)
 
         if let alert = alertController.popoverPresentationController {
-            alert.sourceView = webView.folioReader.readerCenter?.currentPage
+            alert.sourceView = webView
             alert.sourceRect = presentationRect
         }
 
@@ -435,7 +453,7 @@ class WebViewMenuManager: NSObject {
         let colorsAction = UIAction(title: "C", image: colors) { [weak self] _ in
             self?.webView?.colors(nil)
         }
-        let shareAction = UIAction(title: "S", image: share) { [weak self] _ in
+        let shareAction = UIAction(title: webView.readerConfig.localizedShare, image: share) { [weak self] _ in
             self?.webView?.share(nil)
         }
         let removeAction = UIAction(title: "R", image: remove) { [weak self] _ in

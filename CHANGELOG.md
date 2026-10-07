@@ -33,6 +33,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - Runtime style changes no longer add a new `WKUserScript` each time.
 - `FolioReaderContainer` loads its book once. Before, every `viewWillAppear` (a host switching tabs, or a full-screen sheet closing) re-parsed the book, re-applied the position it was opened at and reloaded the pages, which sent the reader back to that position.
 - Zero page margins are respected (`FolioReaderPageFrameCalculator`).
+- On iOS 16 and later the selection menu's Share item showed the placeholder title "S", and its options popover was anchored at the top-left of the screen. It now uses `localizedShare` and anchors at the selection; the share sheet is anchored in the web view's coordinates.
 - `FolioReader.save(readPosition:for:)` applies saves in order on a serial queue. Before, rapid saves ran concurrently, so an older position could win and several could keep `takePrecedence`. Providers are also no longer called from several threads at once.
 - Example app: the preference provider uses the key-based API again, and MultipleInstance-Example bundles `Population.epub`.
 
