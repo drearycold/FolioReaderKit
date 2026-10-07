@@ -61,7 +61,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 | YAEBR #27, #17 | Rotation and resize precision. Replace `pageOffsetRate` restore with a CFI or element anchor (`readium-cfi` is bundled; `FolioReaderReadPosition.cfi` exists) | ⬜ |
 | YAEBR #48 | `isShare` no longer exists; sharing is `allowSharing` plus `isSharingHighlight`. Re-test in YAEBR, then close or fix | ⬜ |
 | YAEBR #100, #41 | FolioReaderKit part only: round-trip tests for `FolioReaderReadPosition` (`cfi`, `takePrecedence`) through `FolioReaderReadPositionProvider` | ⬜ |
-| (lesson from YAEBR) | A failing highlight injection must not block page load or position restore. WebKit test for the `didFinish` chain | ⬜ |
+| (lesson from YAEBR) | A failing highlight injection must not block page load or position restore. `Bridge.js` already reports per-highlight errors (`BridgeHighlightTests`), and JS errors can't stall the chain because `evaluateJavaScript` always calls back. The one stall, a released web view, now continues | ✅ |
 | (from the baseline) | Replace the page-load chain's fixed `asyncAfter` delays with readiness signals (layout-settled callbacks), which make up most of the ~1.8 s per page | ✅ `WebViewLayoutWaiter`: overflow, runtime-style, page-info and padding waits; the old delay is now only a timeout. The waits in `setScrollDirection`, `updateViewerLayout` and after animated scrolls remain |
 | (from `e7fe701`) | The unsaved scroll direction now comes from `config.scrollDirection`, so right-to-left books lost their paged default (`defaultScrollDirection`). Fixed with an RTL-aware fallback after parsing (`ReaderPreferences.parsedBookScrollDirection`). Unit-tested; no RTL sample book to check it end to end | ✅ |
 
