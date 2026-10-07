@@ -29,6 +29,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 **Fixed:**
 
 - Runtime style changes no longer add a new `WKUserScript` each time.
+- `FolioReaderContainer` loads its book once. Before, every `viewWillAppear` (a host switching tabs, or a full-screen sheet closing) re-parsed the book, re-applied the position it was opened at and reloaded the pages, which sent the reader back to that position.
 - Zero page margins are respected (`FolioReaderPageFrameCalculator`).
 - Example app: the preference provider uses the key-based API again, and MultipleInstance-Example bundles `Population.epub`.
 

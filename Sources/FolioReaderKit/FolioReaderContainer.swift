@@ -28,6 +28,8 @@ open class FolioReaderContainer: UIViewController {
     public var folioReader: FolioReader
 
     fileprivate var errorOnLoad = false
+    /// The book that has been (or is being) loaded, so reappearing doesn't parse it again.
+    private var loadedEpubPath: String?
     
     var webServer: ReadiumGCDWebServer
     private var resourceServer: EpubResourceServer?
@@ -173,7 +175,12 @@ open class FolioReaderContainer: UIViewController {
         defer {
             super.viewWillAppear(animated)
         }
-        
+
+        // Hosts can show the reader again without recreating it (tab switches, full-screen sheets).
+        // Loading again would re-parse the book and re-apply the position it was opened at.
+        guard loadedEpubPath != epubPath else { return }
+        loadedEpubPath = epubPath
+
         Task {
             let bookName = (self.epubPath as NSString).lastPathComponent
             let openInterval = FolioSignpost.begin("BookOpen", bookName)

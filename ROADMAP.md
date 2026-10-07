@@ -56,8 +56,8 @@ Status: ✅ done · 🔄 in progress · ⬜ not started · ⏸ deferred
 
 | Issue | Item | Status |
 |---|---|---|
-| YAEBR #99 | EPUB open performance. With `big.epub` (4,994 entries), `BookOpen` is 159 ms and `ParseEpub` 132 ms, so FolioReaderKit's parsing is not the bottleneck; time to the first page was dominated by the delays fixed above. Still to check: re-parsing on every `viewWillAppear`, a new `Archive` per resource request, and the YAEBR side of opening | 🔄 |
-| YAEBR #57 | Paged mode: scrolling resets the content offset. Reproduce in the Example app, fix, add a regression test | ⬜ |
+| YAEBR #99 | EPUB open performance. With `big.epub` (4,994 entries), `BookOpen` is 159 ms and `ParseEpub` 132 ms, so FolioReaderKit's parsing is not the bottleneck; time to the first page was dominated by the delays fixed above. Fixed: `viewWillAppear` re-parsed the book and re-applied the opening position on every reappearance (test: `ContainerLoadTests`). Still to check: a new `Archive` per resource request (Resource median 2–6 ms, low priority) and the YAEBR side of opening | 🔄 |
+| YAEBR #57 | Paged mode: scrolling resets the content offset. Likely root cause found: when the host shows the reader again (YAEBR's SwiftUI tabs), the container re-parsed the book, re-applied the position it was opened at and reloaded, which jumped back. Fixed with the #99 guard; confirm in YAEBR | 🔄 |
 | YAEBR #27, #17 | Rotation and resize precision. Replace `pageOffsetRate` restore with a CFI or element anchor (`readium-cfi` is bundled; `FolioReaderReadPosition.cfi` exists) | ⬜ |
 | YAEBR #48 | `isShare` no longer exists; sharing is `allowSharing` plus `isSharingHighlight`. Re-test in YAEBR, then close or fix | ⬜ |
 | YAEBR #100, #41 | FolioReaderKit part only: round-trip tests for `FolioReaderReadPosition` (`cfi`, `takePrecedence`) through `FolioReaderReadPositionProvider` | ⬜ |
