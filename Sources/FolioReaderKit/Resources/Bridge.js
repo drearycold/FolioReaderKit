@@ -917,10 +917,14 @@ var getAnchorOffset = function(target, horizontal) {
             
             // An element CFI (an image, an SVG) resolves here too, to the element with a NaN offset;
             // measuring that collapsed range gives the current scroll position. Locate it as an element below.
-            if (textInfo && textInfo.textNode && textInfo.textNode.nodeType == 3 && Number.isFinite(textInfo.textOffset)) {
+            if (textInfo && textInfo.textNode && textInfo.textNode.nodeType == 3 && textInfo.textNode.length > 0 && Number.isFinite(textInfo.textOffset)) {
+                // A position at the end of the text: getVisibleCFI records one when the edge of the
+                // view cuts the last line or column. Measuring past the end throws, which sent the
+                // restore to the whole element; measure the last character instead.
+                const textOffset = Math.min(textInfo.textOffset, textInfo.textNode.length - 1)
                 let range = document.createRange()
-                range.setStart(textInfo.textNode, textInfo.textOffset)
-                range.setEnd(textInfo.textNode, textInfo.textOffset+1)
+                range.setStart(textInfo.textNode, textOffset)
+                range.setEnd(textInfo.textNode, textOffset + 1)
                 
                 let rangeClientBounds = range.getBoundingClientRect()
                 window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI rangeClientBounds ${rangeClientBounds.left}:${rangeClientBounds.right}:${rangeClientBounds.top}:${rangeClientBounds.bottom} scrollX=${window.scrollX} scrollY=${window.scrollY} rangeText=${range.toString().trim()}`);
@@ -969,12 +973,13 @@ var getAnchorOffset = function(target, horizontal) {
     }
     
     // Measured like the text above, from the element's first box: where it starts if it is broken
-    // across pages, and independent of its offsetParent. The center keeps a box that reaches a page
-    // edge on its own page.
+    // across pages, and independent of its offsetParent. In paged mode the center keeps a box that
+    // reaches a page edge on its own page; scrolling shows the start of the box, its top or, in
+    // vertical writing, its right edge.
     const rect = elem.getClientRects()[0] || elem.getBoundingClientRect()
     
     if (writingMode == "vertical-rl") {
-        return -(rect.left + rect.width / 2 + window.scrollX);
+        return -((horizontal ? rect.left + rect.width / 2 : rect.right) + window.scrollX);
     }
     
     if (horizontal) {
@@ -1516,19 +1521,26 @@ function getVisibleCFI(horizontal) {
             firstHorizontalTop = horizontal ? offY : 0;
             window.webkit.messageHandlers.FolioReaderPage.postMessage("getVisibleCFI first " + horizontal + " " + first.outerHTML);
             
-            for (var i = 0; i < first.childNodes.length; i++) {
-                if (first.childNodes[i].nodeType == 1) {    //element
-                    
+            // All of its text, not only its own text nodes: the visible part of a paragraph can be
+            // inside a child element (<p>text<span>more text</span></p>), and measuring only the
+            // paragraph's own text recorded the whole paragraph, whose top is lines back. Text inside a
+            // highlight is left out, as before; the CFI library skips <highlight> elements.
+            const textNodes = getTextNodesIn(first, false).filter(function (node) {
+                for (let parent = node.parentNode; parent && parent != first; parent = parent.parentNode) {
+                    if (parent.nodeName.toUpperCase() == "HIGHLIGHT") { return false }
                 }
-                if (first.childNodes[i].nodeType == 3) {    //text
-                    if (!first.childNodes[i].textContent) {
+                return true
+            })
+            for (var i = 0; i < textNodes.length; i++) {
+                if (textNodes[i].nodeType == 3) {    //text
+                    if (!textNodes[i].textContent) {
                         continue
                     }
                     
                     let range = document.createRange();
                     
-                    range.setStart(first.childNodes[i], 0);
-                    range.setEnd(first.childNodes[i], first.childNodes[i].textContent.length);
+                    range.setStart(textNodes[i], 0);
+                    range.setEnd(textNodes[i], textNodes[i].textContent.length);
                     
                     const clientRect = range.getBoundingClientRect();
                     if (clientRect.width == 0 || clientRect.height == 0) {
@@ -1539,7 +1551,7 @@ function getVisibleCFI(horizontal) {
                                         (clientRect.left > window.innerWidth || clientRect.right < 0) :
                                         (clientRect.top > window.innerHeight || clientRect.bottom < 0)
                                         )
-                    window.webkit.messageHandlers.FolioReaderPage.postMessage(`getVisibleCFI range ${isVisible} ${clientRect.left}:${clientRect.right}:${clientRect.top}:${clientRect.bottom} w:h=${clientRect.width}:${clientRect.height} window=${window.innerWidth}:${window.innerHeight} ${first.childNodes[i].textContent.trim()}`);
+                    window.webkit.messageHandlers.FolioReaderPage.postMessage(`getVisibleCFI range ${isVisible} ${clientRect.left}:${clientRect.right}:${clientRect.top}:${clientRect.bottom} w:h=${clientRect.width}:${clientRect.height} window=${window.innerWidth}:${window.innerHeight} ${textNodes[i].textContent.trim()}`);
                     
                     if (isVisible) {
                         firstRange = range;

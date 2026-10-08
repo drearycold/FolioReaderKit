@@ -14,7 +14,7 @@ import XCTest
 /// from somewhere else, as after reopening a book or rotating.
 @MainActor
 class BridgeImagePositionTests: XCTestCase {
-    enum Layout { case paged, scroll, pagedVertical }
+    enum Layout { case paged, scroll, pagedVertical, scrollVertical }
 
     /// Escaped, so the markup is also well-formed XHTML.
     static let dataImage = "data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='600' height='800'&gt;&lt;rect width='100%' height='100%' fill='gray'/&gt;&lt;/svg&gt;"
@@ -32,12 +32,12 @@ class BridgeImagePositionTests: XCTestCase {
     }
 
     private func chapter(_ body: String, _ layout: Layout, xhtml: Bool) -> WKWebView {
-        readerChapter(body, paged: layout == .paged || layout == .pagedVertical, verticalWriting: layout == .pagedVertical, xhtml: xhtml)
+        readerChapter(body, paged: layout == .paged || layout == .pagedVertical, verticalWriting: layout == .pagedVertical || layout == .scrollVertical, xhtml: xhtml)
     }
 
     /// The partial CFI `FolioReaderPage.getWebViewScrollPosition` records, parsed as it parses it.
     private func recordedCFI(_ webView: WKWebView, _ layout: Layout, file: StaticString = #filePath, line: UInt = #line) -> String {
-        let script = layout == .paged || layout == .pagedVertical ? "getVisibleMiddleCFI(true)" : "getVisibleCFI(false)"
+        let script = layout == .paged || layout == .pagedVertical ? "getVisibleMiddleCFI(true)" : "getVisibleCFI(\(layout == .scrollVertical))"
         let json = evaluate(script, in: webView, file: file, line: line) as? String ?? "{}"
         let cfi = FolioReaderPage.recordedPosition(fromVisibleCFIJSON: json).cfi
         XCTAssertFalse(cfi.isEmpty, "Recorded a position: \(json)", file: file, line: line)
@@ -58,6 +58,8 @@ class BridgeImagePositionTests: XCTestCase {
             return CGPoint(x: 0, y: min(offset, webView.scrollView.contentSize.height - webView.bounds.height))
         case .pagedVertical:
             return CGPoint(x: webView.scrollView.contentSize.width - ((offset / width).rounded(.up) + 1) * width, y: 0)
+        case .scrollVertical:
+            return CGPoint(x: FolioReaderPage.verticalWritingScrollOffset(anchorOffset: offset, contentWidth: webView.scrollView.contentSize.width, viewWidth: width), y: 0)
         }
     }
 
@@ -150,13 +152,12 @@ class BridgeImagePositionTests: XCTestCase {
 
     // MARK: - Element anchors
 
-    /// Table-of-contents links restore to an element by id, through the same element lookup. Vertical
-    /// writing in scroll mode is left out: its restore offsets are wrong for text as well (ROADMAP).
+    /// Table-of-contents links restore to an element by id, through the same element lookup.
     func testElementAnchorsRestore() throws {
-        for layout in [Layout.paged, .pagedVertical, .scroll] {
+        for layout in [Layout.paged, .pagedVertical, .scroll, .scrollVertical] {
             let webView = chapter(Self.paragraphs(1...80), layout, xhtml: false)
             for id in ["p25", "p70"] {
-                scrollNatively(webView, to: layout == .pagedVertical ? CGPoint(x: webView.scrollView.contentSize.width - webView.bounds.width, y: 0) : .zero)
+                scrollNatively(webView, to: scrollOrigin(webView))
                 scrollNatively(webView, to: restorePoint(id, layout, in: webView))
                 let r = rect(of: id, in: webView)
                 XCTAssertTrue(webView.bounds.intersects(r), "\(layout) \(id) is on screen at \(r)")

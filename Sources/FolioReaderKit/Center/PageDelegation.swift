@@ -58,11 +58,7 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
         updateSubviewFrames()
         
         if self.isScrolling == false {
-            if self.folioReader.needsRTLChange {
-                page.scrollPageToBottom()
-            } else {
-                page.scrollPageToOffset(.zero, animated: false, retry: 0)
-            }
+            page.scrollPageToChapterStart()
         }
         
         // Go to fragment if needed

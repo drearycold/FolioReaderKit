@@ -50,13 +50,7 @@ extension FolioReaderPage {
                     }
                 }
             } vertical: {
-                switch self.readerConfig.scrollDirection {
-                case .horizontalWithPagedContent:
-                    let page = ceil(offset / webView.frame.width)
-                    self.scrollPageToOffset(webView.scrollView.contentSize.width - (page+1) * webView.frame.width, animated: true)
-                default:
-                    self.scrollPageToOffset(offset + webView.frame.width, animated: animated)
-                }
+                self.scrollVerticalWriting(toAnchor: anchor, measured: offset, animated: self.readerConfig.scrollDirection == .horizontalWithPagedContent || animated)
             }
             
             self.folioReader.readerCenter?.currentWebViewScrollPositions.removeValue(forKey: self.pageNumber - 1)
@@ -66,6 +60,53 @@ extension FolioReaderPage {
             }
             
             completion?()
+        }
+    }
+
+    /// Vertical writing in scroll mode: the content offset that shows the anchor `getAnchorOffset`
+    /// measured as `offset`, its start (the right edge of its column) at the right edge of the view.
+    ///
+    /// The chapter starts at the right end of the content. `getAnchorOffset` returns
+    /// `-(right + scrollX)`, so the view shows the anchor at its right edge after scrolling
+    /// `offset + viewWidth` from the start. Using that distance as the content offset, which counts
+    /// from the left, restored every position mirrored: the start of a chapter to its end.
+    static func verticalWritingScrollOffset(anchorOffset offset: CGFloat, contentWidth: CGFloat, viewWidth: CGFloat) -> CGFloat {
+        verticalWritingContentOffset(fromStart: offset + viewWidth, contentWidth: contentWidth, viewWidth: viewWidth)
+    }
+
+    /// Vertical writing: the content offset of a view scrolled `distance` from the start of the
+    /// chapter, the right end of the content.
+    static func verticalWritingContentOffset(fromStart distance: CGFloat, contentWidth: CGFloat, viewWidth: CGFloat) -> CGFloat {
+        let start = max(contentWidth - viewWidth, 0)
+        return min(max(start - distance, 0), start)
+    }
+
+    /// Vertical writing: scrolls to `anchor`, whose `getAnchorOffset` is `offset`, by its distance from
+    /// the start of the chapter, then measures again and corrects, retrying like `scrollPageToOffset`.
+    ///
+    /// Content offsets count from the left while the chapter starts at the right, and the page keeps
+    /// changing after a load or a layout change: the body's `min-width`, rounded up to whole screens,
+    /// and its padding animate over 0.6 s. WebKit keeps the text in place when the width grows by
+    /// moving the offset, so retrying the offset computed before (as `scrollPageToOffset` does) moved
+    /// the text back by the growth, two columns on an iPhone; and reflowing columns move the anchor
+    /// itself. Each retry measures the anchor and works the offset out from the current width.
+    func scrollVerticalWriting(toAnchor anchor: String, measured offset: CGFloat, animated: Bool, retry: Int = 5) {
+        guard let webView = webView else { return }
+        let width = webView.frame.width
+        let distance = readerConfig.scrollDirection == .horizontalWithPagedContent
+            ? ceil(offset / width) * width    // the start of the page that holds the anchor
+            : offset + width                  // the anchor's start at the right edge of the view
+        let target = CGPoint(x: Self.verticalWritingContentOffset(
+            fromStart: distance, contentWidth: webView.scrollView.contentSize.width, viewWidth: width
+        ), y: 0)
+        if target != webView.scrollView.contentOffset {
+            setScrollViewContentOffset(target, animated: animated)
+        }
+        guard retry > 0 else { return }
+        DispatchQueue.main.asyncAfter(delay: 0.1 * Double(retry)) {
+            self.getAnchorOffset(anchor) { offset in
+                self.scrollVerticalWriting(toAnchor: anchor, measured: offset, animated: animated, retry: retry - 1)
+            }
         }
     }
 

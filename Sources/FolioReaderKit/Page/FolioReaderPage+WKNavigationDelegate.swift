@@ -243,11 +243,7 @@ extension FolioReaderPage {
                                 guard self.folioReader.readerCenter?.currentPageNumber == hrefPage else { return }
                                 guard let currentPage = self.folioReader.readerCenter?.currentPage else { return }
                                 currentPage.waitForLayoutFinish {
-                                    if self.folioReader.needsRTLChange {
-                                        currentPage.scrollPageToBottom()
-                                    } else {
-                                        currentPage.scrollPageToOffset(.zero, animated: false, retry: 0)
-                                    }
+                                    currentPage.scrollPageToChapterStart()
                                 }
                             }
                         }

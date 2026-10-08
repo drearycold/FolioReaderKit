@@ -143,6 +143,21 @@ extension FolioReaderPage {
         }
     }
 
+    /// Shows the start of the chapter. Vertical writing reads right to left whatever the scroll
+    /// direction, so its start is the right end of the content; a content offset of 0, which a
+    /// `.vertical` direction gave it, is the end of the chapter.
+    func scrollPageToChapterStart() {
+        guard let webView = webView else { return }
+        if writingMode == "vertical-rl" {
+            let start = Self.verticalWritingContentOffset(fromStart: 0, contentWidth: webView.scrollView.contentSize.width, viewWidth: webView.frame.width)
+            setScrollViewContentOffset(CGPoint(x: start, y: 0), animated: false)
+        } else if folioReader.needsRTLChange {
+            scrollPageToBottom()
+        } else {
+            scrollPageToOffset(.zero, animated: false, retry: 0)
+        }
+    }
+
     /**
      Scrolls the page to bottom
      */
