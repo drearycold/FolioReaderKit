@@ -409,7 +409,7 @@ class FolioReaderBookmarkList: UITableViewController {
         
         let reader = self.folioReader
         
-        currentPage.getWebViewScrollPosition { position in
+        currentPage.getWebViewScrollPosition(onFailure: { completion?() }) { position in
             let bookmark = FolioReaderBookmark()
             bookmark.pos_type = "epubcfi"
             bookmark.page = currentPage.pageNumber

@@ -27,9 +27,25 @@ extension FolioReaderPage {
         endLoadInterval(ifLoading: navigation)
     }
 
+    /// iOS reclaims web content processes, mostly while the app is in the background. WebKit only
+    /// reloads the page itself when this method isn't implemented, and then from the old URL: if the
+    /// server had moved to another port, `handlePolicy` didn't recognise it and sent it to Safari.
+    /// Reload from the server's port at the recorded position instead, now if the app is active, else
+    /// when it becomes active (`FolioReaderContainer`); the server is suspended in the background.
     public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         loadInterval?.end("terminated")
         loadInterval = nil
+        needsReload = true
+        // Nothing may record or save a position from the dead page meanwhile.
+        layoutAdapting = .initializing
+        guard UIApplication.shared.applicationState == .active else { return }
+        readerContainer?.restartResourceServer()
+        folioReader.readerCenter?.reloadPages(all: false)
+    }
+
+    /// The reader's own resource server, on any port: pages, styles, fonts.
+    static func isReaderServerURL(_ url: URL) -> Bool {
+        url.scheme == "http" && ["localhost", "127.0.0.1", "::1"].contains(url.host ?? "")
     }
 
     /// Ends `loadInterval` if `navigation` is the load it measures. Starting another load cancels
@@ -169,10 +185,10 @@ extension FolioReaderPage {
         } else if let referer = request.value(forHTTPHeaderField: "Referer"),
                   let refererURL = URL(string: referer),
                   refererURL.host == "localhost",
-                  refererURL.port == Int(readerContainer?.webServer.port ?? 0),
+                  refererURL.port == Int(readerContainer?.pagePort ?? 0),
                   url.scheme == "http",
                   url.host == "localhost",
-                  url.port == Int(readerContainer?.webServer.port ?? 0),
+                  url.port == Int(readerContainer?.pagePort ?? 0),
                   let anchorFromURL = url.fragment {
             self.webView?.js("getClickAnchorOffset('\(anchorFromURL)')") { offset in
                 let snippetVC = FolioReaderAnchorPreview(
@@ -190,7 +206,7 @@ extension FolioReaderPage {
                 self.folioReader.readerCenter?.present(snippetVC, animated: true, completion: nil)
             }
             return false
-        } else if scheme == "file" || (url.scheme == "http" && url.host == "localhost" && (url.port ?? 0) == Int(readerContainer?.webServer.port ?? 0)) {
+        } else if scheme == "file" || (url.scheme == "http" && url.host == "localhost" && (url.port ?? 0) == Int(readerContainer?.pagePort ?? 0)) {
             
             if navigationAction.navigationType == .linkActivated {
                 self.pushNavigateWebViewScrollPositions()
@@ -264,6 +280,14 @@ extension FolioReaderPage {
             } else {
                 return true
             }
+        } else if Self.isReaderServerURL(url) {
+            // The reader's server on a port it no longer uses. Never hand it to Safari, which can't
+            // reach it: load the chapter again from the current port.
+            needsReload = true
+            DispatchQueue.main.async {
+                self.folioReader.readerCenter?.reloadPages(all: false)
+            }
+            return false
         } else if scheme == "mailto" {
             print("Email")
             return true

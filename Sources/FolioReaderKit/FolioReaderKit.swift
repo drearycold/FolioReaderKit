@@ -451,7 +451,15 @@ extension FolioReader {
 
         print("saveReaderState before getVisibleCFI \(Date())")
         
-        currentPage.getWebViewScrollPosition() { position in
+        currentPage.getWebViewScrollPosition(onFailure: {
+            // A page that couldn't be measured keeps the position it last recorded.
+            if let position = readerCenter.currentWebViewScrollPositions[currentPage.pageNumber - 1],
+               FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: currentPage.pageNumber),
+               let bookId = readerCenter.book.name?.deletingPathExtension {
+                self.save(readPosition: position, for: bookId)
+            }
+            completion?()
+        }) { position in
             print("saveReaderState after getVisibleCFI \(Date())")
 
             print("saveReaderState position cfi=\(position.cfi)")

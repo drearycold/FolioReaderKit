@@ -78,6 +78,11 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     /// every relayout (two lines per portrait/landscape round trip in scroll mode). Cleared by
     /// dragging, page-item turns, the back button, the scrubber, anchor links and cell reuse.
     var pinnedPosition: FolioReaderReadPosition?
+
+    /// The resource server port the chapter was loaded from.
+    var loadedPort: UInt = 0
+    /// The web content process died; the chapter must be loaded again (`FolioReaderCenter.reloadPages`).
+    var needsReload = false
     var menuIsVisible = false
     var firstLoadReloaded = false
     

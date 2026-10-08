@@ -33,6 +33,13 @@ open class FolioReaderContainer: UIViewController {
     
     var webServer: ReadiumGCDWebServer
     private var resourceServer: EpubResourceServer?
+    private var didBecomeActiveObserver: NSObjectProtocol?
+
+    /// The port pages load from. Stable while the server is suspended in the background, when
+    /// `webServer.port` reads 0.
+    var pagePort: UInt {
+        resourceServer?.port ?? webServer.port
+    }
     /// Open until the first page is shown; ended by `FolioReaderCenter.pageDidLoad`.
     var firstPageInterval: FolioSignpost.Interval?
 
@@ -116,6 +123,9 @@ open class FolioReaderContainer: UIViewController {
     deinit {
         // Closed before any page was shown.
         firstPageInterval?.end("closed")
+        if let didBecomeActiveObserver = didBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(didBecomeActiveObserver)
+        }
     }
 
     /// Applies `ReaderPreferences.resolveScrollDirection` to `readerConfig`; returns whether the
@@ -157,6 +167,7 @@ open class FolioReaderContainer: UIViewController {
 
     override open func viewDidLoad() {
         super.viewDidLoad()
+        observeApplicationDidBecomeActive()
 
         //let canChangeScrollDirection = self.readerConfig.canChangeScrollDirection
         //self.readerConfig.canChangeScrollDirection = self.readerConfig.isDirection(canChangeScrollDirection, canChangeScrollDirection, false)
@@ -214,8 +225,12 @@ open class FolioReaderContainer: UIViewController {
         }
 
         // Hosts can show the reader again without recreating it (tab switches, full-screen sheets).
-        // Loading again would re-parse the book and re-apply the position it was opened at.
-        guard loadedEpubPath != epubPath else { return }
+        // Loading again would re-parse the book and re-apply the position it was opened at; the
+        // server, stopped when the reader disappeared, starts again.
+        guard loadedEpubPath != epubPath else {
+            restartResourceServer()
+            return
+        }
         loadedEpubPath = epubPath
 
         Task {
@@ -298,6 +313,26 @@ open class FolioReaderContainer: UIViewController {
     override open func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         resourceServer?.stop()
+    }
+
+    /// Starts the resource server again if it doesn't listen, on the pages' port if it can, and
+    /// reloads the pages if it had to move.
+    func restartResourceServer() {
+        guard folioReader.isReaderReady, let resourceServer = resourceServer, !resourceServer.isListening else { return }
+        if resourceServer.start() {
+            centerViewController?.reloadPages(all: true)
+        }
+    }
+
+    /// Returning from the background: the server's own restart may have failed to bind (it is
+    /// ignored), and a page whose web content process was reclaimed waits to be reloaded.
+    private func observeApplicationDidBecomeActive() {
+        guard didBecomeActiveObserver == nil else { return }
+        didBecomeActiveObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self, self.viewIfLoaded?.window != nil else { return }
+            self.restartResourceServer()
+            self.centerViewController?.reloadPages(all: false)
+        }
     }
 
     override open func viewDidAppear(_ animated: Bool) {

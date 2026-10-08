@@ -25,7 +25,9 @@ extension FolioReaderPage {
         // The first text on screen, for the new layout to start from. The offset ratio, the fallback,
         // doesn't carry over between paged and scroll layouts, whose content sizes differ: switching
         // went back about a screen, or to the start of the chapter.
-        getWebViewScrollPosition(firstVisibleText: true) { position in
+        getWebViewScrollPosition(firstVisibleText: true, onFailure: {
+            self.applyScrollDirection(direction, restoring: nil)
+        }) { position in
             let restorable = FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: self.pageNumber)
             self.applyScrollDirection(direction, restoring: restorable ? position : nil)
         }

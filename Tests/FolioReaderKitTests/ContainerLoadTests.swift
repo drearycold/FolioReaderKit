@@ -45,6 +45,25 @@ class ContainerLoadTests: XCTestCase {
         withExtendedLifetime(container) {}
     }
 
+    /// `viewWillDisappear` stops the resource server (a tab switch, a full-screen sheet). Reappearing
+    /// no longer reloads the book, so it must start the server again, on the port the pages use.
+    func testReappearingRestartsTheServerOnTheSamePort() throws {
+        let folioReader = FolioReader()
+        let webServer = ReadiumGCDWebServer()
+        let container = FolioReaderContainer(withConfig: FolioReaderConfig(), folioReader: folioReader, epubPath: samplePath, webServer: webServer)
+        container.loadViewIfNeeded()
+        container.viewWillAppear(false)
+        waitUntil("first load") { folioReader.isReaderReady && webServer.port != 0 }
+        let port = webServer.port
+
+        container.viewWillDisappear(false)
+        container.viewWillAppear(false)
+        waitUntil("server running again") { webServer.port != 0 }
+        XCTAssertEqual(webServer.port, port, "Pages keep their URLs")
+        container.viewWillDisappear(false)
+        withExtendedLifetime(container) {}
+    }
+
     /// A reader opened with `presentReader` / `prepareReader` saves its state when the app leaves the
     /// foreground. The observers used `saveReaderState(completion:)` as their selector, so the
     /// notification arrived where the closure goes and was called and released as one: the Example

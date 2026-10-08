@@ -230,8 +230,12 @@ extension FolioReaderPage {
 
     /// - Parameter firstVisibleText: record the first visible text in paged mode too, as the start of a
     ///   different layout (a scroll-direction switch); otherwise paged mode records the middle of the page.
-    func getWebViewScrollPosition(firstVisibleText: Bool = false, completion: ((_ position: FolioReaderReadPosition) -> Void)? = nil) {
-        guard let webView = webView else {
+    /// - Parameter onFailure: called instead of `completion` when the page couldn't be measured: its
+    ///   web content process died, so the script returned nothing. Its position used to come out as the
+    ///   start of the chapter, which was then saved.
+    func getWebViewScrollPosition(firstVisibleText: Bool = false, onFailure: (() -> Void)? = nil, completion: ((_ position: FolioReaderReadPosition) -> Void)? = nil) {
+        guard let webView = webView, !needsReload else {
+            onFailure?()
             return
         }
 
@@ -241,6 +245,10 @@ extension FolioReaderPage {
         // Paged mode records the middle of the page, which survives a relayout; see getVisibleMiddleCFI.
         let locate = readerConfig.scrollDirection == .horizontalWithPagedContent && !firstVisibleText ? "getVisibleMiddleCFI" : "getVisibleCFI"
         webView.js("\(locate)(\(isHorizontal))") { jsonString in
+            guard let jsonString = jsonString, (try? JSONSerialization.jsonObject(with: Data(jsonString.utf8))) != nil else {
+                onFailure?()
+                return
+            }
             let (cfi, snippet, message) = Self.recordedPosition(fromVisibleCFIJSON: jsonString)
             #if DEBUG
             if cfi.isEmpty, self.pageNumber > 1 {
