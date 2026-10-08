@@ -60,8 +60,30 @@ final class FolioReaderPageFrameTests: XCTestCase {
         )
         XCTAssertEqual(
             FolioReaderPageFrameCalculator.anchorBoundsFrame(input: input),
-            CGRect(x: 0, y: 88, width: 400, height: 686)
+            CGRect(x: 0, y: 44, width: 400, height: 686)
         )
+    }
+
+    /// `FolioReaderAnchorPreview` adds the link's offset in the web view to the anchor bounds' top.
+    /// The status bar height used to be added twice, so the preview opened a status bar lower.
+    func testHorizontalAnchorBoundsStartAtTheWebViewTop() {
+        for scrollDirection in [FolioReaderScrollDirection.horizontalWithPagedContent, .horizontalWithScrollContent, .vertical] {
+            for reserveSafeArea in [true, false] {
+                let input = makeInput(
+                    scrollDirection: scrollDirection,
+                    currentMarginTop: 10,
+                    currentMarginBottom: 20,
+                    statusbarHeight: 62,
+                    pageIndicatorHeight: 70,
+                    reserveSafeAreaInsidePageFrame: reserveSafeArea
+                )
+                XCTAssertEqual(
+                    FolioReaderPageFrameCalculator.anchorBoundsFrame(input: input).minY,
+                    FolioReaderPageFrameCalculator.webViewFrame(input: input).minY,
+                    "\(scrollDirection), reserve safe area: \(reserveSafeArea)"
+                )
+            }
+        }
     }
 
     func testHiddenPageIndicatorDoesNotReserveIndicatorHeight() {
@@ -94,7 +116,7 @@ final class FolioReaderPageFrameTests: XCTestCase {
         )
         XCTAssertEqual(
             FolioReaderPageFrameCalculator.anchorBoundsFrame(input: input),
-            CGRect(x: 60, y: 128, width: 260, height: 566)
+            CGRect(x: 60, y: 84, width: 260, height: 566)
         )
     }
 
@@ -155,7 +177,7 @@ final class FolioReaderPageFrameTests: XCTestCase {
         )
         XCTAssertEqual(
             FolioReaderPageFrameCalculator.anchorBoundsFrame(input: input),
-            CGRect(x: 0, y: 488, width: 400, height: 0)
+            CGRect(x: 0, y: 444, width: 400, height: 0)
         )
     }
 

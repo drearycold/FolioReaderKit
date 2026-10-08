@@ -416,6 +416,8 @@ enum FolioReaderPageFrameCalculator {
             .clampedToNonNegativeSize
     }
 
+    /// The text area in the page's coordinates, where `FolioReaderAnchorPreview` places itself. In
+    /// horizontal writing its top is the web view's top, which the anchor offset counts from.
     static func anchorBoundsFrame(input: FolioReaderPageFrameInput) -> CGRect {
         let metrics = FrameMetrics(input: input)
         let paged = metrics.pagedPadding
@@ -424,10 +426,7 @@ enum FolioReaderPageFrameCalculator {
             horizontal: input.bounds
                 .inset(by: metrics.reserved)
                 .inset(by: UIEdgeInsets(top: paged.top, left: metrics.padding.left, bottom: paged.bottom, right: metrics.padding.right))
-                .clampedToNonNegativeSize
-                // Historical behavior: the reserved status bar height is counted twice.
-                // Shift after clamping, because offsetBy standardizes a negative-size rect.
-                .offsetBy(dx: 0, dy: metrics.reserved.top),
+                .clampedToNonNegativeSize,
             vertical: input.bounds
                 .inset(by: metrics.reserved)
                 .inset(by: metrics.padding)

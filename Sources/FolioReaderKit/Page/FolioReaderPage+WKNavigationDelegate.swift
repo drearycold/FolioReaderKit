@@ -191,11 +191,12 @@ extension FolioReaderPage {
                   url.port == Int(readerContainer?.pagePort ?? 0),
                   let anchorFromURL = url.fragment {
             self.webView?.js("getClickAnchorOffset('\(anchorFromURL)')") { offset in
+                // The preview covers the window, so place it in the window's coordinates.
                 let snippetVC = FolioReaderAnchorPreview(
                     self.folioReader,
                     url,
                     CGFloat(truncating: NumberFormatter().number(from: offset ?? "0") ?? 0),
-                    self.anchorBoundsFrame()
+                    self.convert(self.anchorBoundsFrame(), to: nil)
                 )
 
                 snippetVC.anchorLabel.text = url.absoluteString
