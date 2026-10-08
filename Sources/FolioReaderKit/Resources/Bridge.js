@@ -1650,6 +1650,107 @@ function getVisibleCFI(horizontal) {
     })
 }
 
+/**
+ Paged mode: the CFI of the middle character of the text on the current page, in the same JSON as
+ `getVisibleCFI`, which it falls back to.
+
+ Restoring a position shows the page that holds it. A page's first character usually comes before
+ the text that brought the reader to that page, so recording it moves the position back a little on
+ every relayout (rotation, font size, window size). The middle of a page stays inside that page in
+ either layout.
+ */
+function getVisibleMiddleCFI(horizontal) {
+    try {
+        // Pages run right to left in vertical-rl.
+        const pagesRightToLeft = writingMode == "vertical-rl"
+
+        // -1 on an earlier page, 0 on this one, 1 on a later one.
+        function sideOf(rect) {
+            const x = rect.left + rect.width / 2
+            const side = x < 0 ? -1 : (x >= window.innerWidth ? 1 : 0)
+            return pagesRightToLeft ? -side : side
+        }
+        function charRect(node, index) {
+            const range = document.createRange()
+            range.setStart(node, index)
+            range.setEnd(node, index + 1)
+            const rects = range.getClientRects()
+            return rects.length && rects[0].width > 0 ? rects[0] : null
+        }
+        // Collapsed whitespace has no box; use the nearest character that has one.
+        function nearestBoxedIndex(node, index) {
+            for (let delta = 0; delta < node.length; delta++) {
+                if (index + delta < node.length && charRect(node, index + delta)) return index + delta
+                if (index - delta >= 0 && charRect(node, index - delta)) return index - delta
+            }
+            return -1
+        }
+        function charSide(node, index) {
+            const boxed = nearestBoxedIndex(node, index)
+            return boxed < 0 ? 0 : sideOf(charRect(node, boxed))
+        }
+        // First index in [lo, hi) for which `test` holds, assuming it holds for a suffix.
+        function firstWhere(lo, hi, test) {
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1
+                if (test(mid)) hi = mid; else lo = mid + 1
+            }
+            return lo
+        }
+
+        const nodes = getTextAndImgNodesIn(document.body, false).filter(function (node) {
+            if (node.nodeType != 3 || !node.parentNode || node.parentNode.tagName == "HIGHLIGHT") return false
+            const range = document.createRange()
+            range.selectNodeContents(node)
+            return range.getClientRects().length > 0
+        })
+
+        // Text runs in reading order, so the nodes on this page are a contiguous run.
+        const firstNode = firstWhere(0, nodes.length, function (i) { return charSide(nodes[i], nodes[i].length - 1) >= 0 })
+        const endNode = firstWhere(firstNode, nodes.length, function (i) { return charSide(nodes[i], 0) > 0 })
+
+        const spans = []
+        let total = 0
+        for (let i = firstNode; i < endNode; i++) {
+            const node = nodes[i]
+            const start = firstWhere(0, node.length, function (k) { return charSide(node, k) >= 0 })
+            const end = firstWhere(start, node.length, function (k) { return charSide(node, k) > 0 })
+            if (end > start) {
+                spans.push([node, start, end])
+                total += end - start
+            }
+        }
+        if (total == 0) {
+            return getVisibleCFI(horizontal)
+        }
+
+        let target = total >> 1
+        for (const [node, start, end] of spans) {
+            if (target >= end - start) {
+                target -= end - start
+                continue
+            }
+            const offset = nearestBoxedIndex(node, start + target)
+            if (offset < 0) break
+            const offsetComponent = window.EPUBcfi.generateCharacterOffsetCFIComponent(node, offset, [], ["highlight"], [])
+            // The snippet titles bookmarks, so it still starts where the page does.
+            const snippet = spans[0][0].textContent.substr(spans[0][1], 64)
+            return JSON.stringify({
+                cfi: window.EPUBcfi.generateElementCFIComponent(node.parentNode, [], ["highlight"], []),
+                snippet: snippet,
+                rangeComponent: "",
+                rangeSnippet: "",
+                offsetComponent: offsetComponent,
+                offsetSnippet: snippet,
+                message: `middle ${offsetComponent} of ${total} visible characters`
+            })
+        }
+    } catch (e) {
+        window.webkit.messageHandlers.FolioReaderPage.postMessage(`getVisibleMiddleCFI error ${e}`)
+    }
+    return getVisibleCFI(horizontal)
+}
+
 // Class based onClick listener
 
 function addClassBasedOnClickListener(schemeName, querySelector, attributeName, selectAll) {

@@ -194,7 +194,9 @@ extension FolioReaderPage {
         let isHorizontal: Bool = self.byWritingMode(
             self.folioReader.readerConfig?.isDirection(false, true, false),
             true) ?? false
-        webView.js("getVisibleCFI(\(isHorizontal))") { jsonString in
+        // Paged mode records the middle of the page, which survives a relayout; see getVisibleMiddleCFI.
+        let locate = readerConfig.scrollDirection == .horizontalWithPagedContent ? "getVisibleMiddleCFI" : "getVisibleCFI"
+        webView.js("\(locate)(\(isHorizontal))") { jsonString in
             var cfi = ""
             var snippet = ""
             var message = ""

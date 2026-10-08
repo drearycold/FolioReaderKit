@@ -26,6 +26,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 **Changed:**
 
 - Rotation restores the reading position to the text that was at the top of the screen (its CFI) instead of the same scroll ratio, which drifted when text reflowed. `handleAnchor(...)` gained `flashTarget:` (default `true`) to skip the yellow flash.
+- In paged mode the reading position is the middle of the visible text (`getVisibleMiddleCFI` in `Bridge.js`) instead of its first character. Restoring shows the page that holds the position, and a page usually starts before the text that brought the reader there, so recording the start moved the reader back about half a page on every rotation or other relayout; the middle stays on the same page. Positions saved by earlier versions still restore to the same page. The snippet, used for bookmark titles, still comes from the start of the page. Scroll mode is unchanged.
 
 - Page loads wait for the web view's layout to settle (`WebViewLayoutWaiter`) instead of fixed, size-scaled delays; the old delays are now only timeouts. Time to the first page dropped from 2.7 s to 1.1 s on a 4,994-entry EPUB, and from 2.9 s to 1.5–1.7 s on a small one (iPhone 17 simulator, Debug).
 
