@@ -61,7 +61,7 @@ Styling works by **fixed rules that read `--folio-*` custom properties set on `<
 `FolioReader` itself holds no persisted state. `ReaderPreferences` (reached through `folioReader.preferences`) wraps every setting and reads or writes it through `FolioReaderPreferenceProvider`. The provider comes from the `FolioReaderDelegate.folioReaderPreferenceProvider(_:)` callback. If no provider is supplied, every read returns its default and every write is a no-op. Keys are defined in `ReaderPreferenceKeys.swift`.
 
 The provider protocols are in `Providers/`: Preference, Highlight, Bookmark, ReadPosition, and Sharing. **If you change one, also update:**
-- the example implementations in `Example/Example/ViewController.swift` (`FolioReaderUserDefaultsPreferenceProvider`, `FolioReaderInMemoryHighlightProvider`) and `Example/Example/FolioReaderUserDefaults.swift`
+- the example implementations in `Example/Example/ViewController.swift` (`FolioReaderUserDefaultsPreferenceProvider`, `FolioReaderInMemoryHighlightProvider`, `FolioReaderInMemoryBookmarkProvider`, `FolioReaderInMemoryReadPositionProvider`) and `Example/Example/FolioReaderUserDefaults.swift`
 - the mocks in `Tests/FolioReaderKitTests/MockHelpers.swift` (`MockPreferenceProvider`, `MockHighlightProvider`, `MockBookmarkProvider`, `MockReadPositionProvider`, `MockFolioReaderDelegate`). Tests use `MockWKScriptMessage` / `MockScriptMessageHandler` to drive the JS bridge without a real `WKWebView`.
 
 Setting changes that need pages to re-layout post `.folioReaderNeedRefreshPageMode`, which each `FolioReaderPage` observes. Reader state is auto-saved on `willResignActive` / `willTerminate`, guarded by `isReaderOpen` / `isReaderReady`.

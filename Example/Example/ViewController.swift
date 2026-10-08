@@ -18,7 +18,15 @@ class ViewController: UIViewController {
 
     var preferenceProvider: FolioReaderPreferenceProvider?
     var highlightProvider: FolioReaderHighlightProvider?
-    
+    var bookmarkProvider: FolioReaderBookmarkProvider?
+    var readPositionProvider: FolioReaderReadPositionProvider?
+
+    /// Bookmarks and reading positions, kept in memory for as long as the app runs, one store per book
+    /// (keyed like the reader's `bookId`: the file name without its extension). The bookmark protocol
+    /// removes and updates bookmarks by position alone, so each book needs its own store.
+    private var bookmarkProviders = [String: FolioReaderInMemoryBookmarkProvider]()
+    private var readPositionProviders = [String: FolioReaderInMemoryReadPositionProvider]()
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -63,6 +71,17 @@ class ViewController: UIViewController {
         // Scope persisted settings to this book's identifier before the reader starts reading them.
         self.preferenceProvider = FolioReaderUserDefaultsPreferenceProvider(
             folioReader, identifier: readerConfiguration.identifier)
+
+        let bookId = URL(fileURLWithPath: bookPath).deletingPathExtension().lastPathComponent
+        let bookmarkProvider = bookmarkProviders[bookId] ?? FolioReaderInMemoryBookmarkProvider()
+        bookmarkProviders[bookId] = bookmarkProvider
+        self.bookmarkProvider = bookmarkProvider
+        let readPositionProvider = readPositionProviders[bookId] ?? FolioReaderInMemoryReadPositionProvider()
+        readPositionProviders[bookId] = readPositionProvider
+        self.readPositionProvider = readPositionProvider
+        // The reader opens at `savedPositionForCurrentBook`; it doesn't look the position up itself.
+        readerConfiguration.savedPositionForCurrentBook = readPositionProvider.folioReaderReadPosition(folioReader, bookId: bookId)
+
         folioReader.presentReader(
             parentViewController: self,
             withEpubPath: bookPath,
@@ -133,6 +152,26 @@ extension ViewController: FolioReaderDelegate {
             let highlightProvider = FolioReaderInMemoryHighlightProvider(folioReader)
             self.highlightProvider = highlightProvider
             return highlightProvider
+        }
+    }
+
+    func folioReaderBookmarkProvider(_ folioReader: FolioReader) -> FolioReaderBookmarkProvider {
+        if let bookmarkProvider = bookmarkProvider {
+            return bookmarkProvider
+        } else {
+            let bookmarkProvider = FolioReaderInMemoryBookmarkProvider()
+            self.bookmarkProvider = bookmarkProvider
+            return bookmarkProvider
+        }
+    }
+
+    func folioReaderReadPositionProvider(_ folioReader: FolioReader) -> FolioReaderReadPositionProvider {
+        if let readPositionProvider = readPositionProvider {
+            return readPositionProvider
+        } else {
+            let readPositionProvider = FolioReaderInMemoryReadPositionProvider()
+            self.readPositionProvider = readPositionProvider
+            return readPositionProvider
         }
     }
 }
@@ -217,6 +256,103 @@ public class FolioReaderInMemoryHighlightProvider: NSObject, FolioReaderHighligh
     
     public func folioReaderHighlight(_ folioReader: FolioReader, saveNoteFor highlight: FolioReaderHighlight) {
         highlights[highlight.highlightId] = highlight
+    }
+}
+
+/// Bookmarks for one book, keyed by position (a CFI).
+public class FolioReaderInMemoryBookmarkProvider: NSObject, FolioReaderBookmarkProvider {
+    private var bookmarks = [String: FolioReaderBookmark]()
+
+    public func folioReaderBookmark(_ folioReader: FolioReader, added bookmark: FolioReaderBookmark, completion: Completion?) {
+        guard let pos = bookmark.pos else {
+            completion?(FolioReaderBookmarkError.emptyError("Bookmark without a position") as NSError)
+            return
+        }
+        if let existing = bookmarks[pos] {
+            completion?(FolioReaderBookmarkError.duplicateError(existing.title) as NSError)
+            return
+        }
+        bookmarks[pos] = bookmark
+        completion?(nil)
+    }
+
+    public func folioReaderBookmark(_ folioReader: FolioReader, removed bookmarkPos: String) {
+        bookmarks.removeValue(forKey: bookmarkPos)
+    }
+
+    public func folioReaderBookmark(_ folioReader: FolioReader, updated bookmarkPos: String, title: String) {
+        bookmarks[bookmarkPos]?.title = title
+    }
+
+    public func folioReaderBookmark(_ folioReader: FolioReader, getBy bookmarkPos: String) -> FolioReaderBookmark? {
+        return bookmarks[bookmarkPos]
+    }
+
+    public func folioReaderBookmark(_ folioReader: FolioReader, allByBookId bookId: String, andPage page: NSNumber?) -> [FolioReaderBookmark] {
+        return bookmarks.values.filter { $0.bookId == bookId && (page == nil || $0.page == page?.intValue) }.sorted()
+    }
+
+    public func folioReaderBookmark(_ folioReader: FolioReader) -> [FolioReaderBookmark] {
+        return bookmarks.values.sorted()
+    }
+}
+
+/// Reading positions, one per device for each book, as a sync service would keep them. The reader
+/// marks the position it opened at, and each later save, with `takePrecedence`. It saves from a
+/// background queue and reads on the main thread, hence the lock.
+public class FolioReaderInMemoryReadPositionProvider: NSObject, FolioReaderReadPositionProvider {
+    private var positions = [String: [String: FolioReaderReadPosition]]()   // bookId → deviceId → position
+    private let lock = NSLock()
+
+    private func locked<T>(_ body: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return body()
+    }
+
+    public func folioReaderReadPosition(_ folioReader: FolioReader, bookId: String) -> FolioReaderReadPosition? {
+        return locked {
+            positions[bookId]?.values.max {
+                ($0.takePrecedence ? 1 : 0, $0.epoch) < ($1.takePrecedence ? 1 : 0, $1.epoch)
+            }
+        }
+    }
+
+    public func folioReaderReadPosition(_ folioReader: FolioReader, bookId: String, by rootPageNumber: Int) -> FolioReaderReadPosition? {
+        let structuralStyle = folioReader.structuralStyle
+        let trackingStyle = folioReader.structuralTrackingTocLevel
+        return locked {
+            positions[bookId]?.values.first {
+                $0.structuralStyle == structuralStyle
+                    && $0.positionTrackingStyle == trackingStyle
+                    && $0.structuralRootPageNumber == rootPageNumber
+            }
+        }
+    }
+
+    public func folioReaderReadPosition(_ folioReader: FolioReader, bookId: String, set readPosition: FolioReaderReadPosition, completion: Completion?) {
+        locked { positions[bookId, default: [:]][readPosition.deviceId] = readPosition }
+        completion?(nil)
+    }
+
+    public func folioReaderReadPosition(_ folioReader: FolioReader, bookId: String, remove readPosition: FolioReaderReadPosition) {
+        locked { _ = positions[bookId]?.removeValue(forKey: readPosition.deviceId) }
+    }
+
+    public func folioReaderReadPosition(_ folioReader: FolioReader, bookId: String, getById deviceId: String) -> [FolioReaderReadPosition] {
+        return locked { positions[bookId]?[deviceId].map { [$0] } ?? [] }
+    }
+
+    public func folioReaderReadPosition(_ folioReader: FolioReader, allByBookId bookId: String) -> [FolioReaderReadPosition] {
+        return locked { positions[bookId].map { Array($0.values) } ?? [] }
+    }
+
+    public func folioReaderReadPosition(_ folioReader: FolioReader) -> [FolioReaderReadPosition] {
+        return locked { positions.values.flatMap { $0.values } }
+    }
+
+    public func folioReaderPositionHistory(_ folioReader: FolioReader, bookId: String) -> [FolioReaderReadPositionHistory] {
+        return []
     }
 }
 

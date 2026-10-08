@@ -89,7 +89,11 @@ FolioReaderKit stores nothing itself. Return providers from your `FolioReaderDel
 | `folioReaderBookmarkProvider(_:)` | `FolioReaderBookmarkProvider` | Bookmarks and bookmark notes |
 | `folioReaderReadPositionProvider(_:)` | `FolioReaderReadPositionProvider` | Reading position |
 
-`Example/Example/ViewController.swift` shows a `UserDefaults`-backed preference provider and an in-memory highlight provider.
+`Example/Example/ViewController.swift` shows a `UserDefaults`-backed preference provider and in-memory highlight, bookmark and read-position providers.
+
+- The `bookId` the reader passes to providers is the EPUB's file name without its extension.
+- Bookmark removal, renaming and lookup pass only the bookmark's position, so keep one bookmark store per book.
+- The reader opens at `FolioReaderConfig.savedPositionForCurrentBook` and doesn't look the position up itself. To reopen a book where it was left, set it from your read-position provider before presenting the reader, as the Example does.
 
 ### Custom CSS
 
