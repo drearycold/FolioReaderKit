@@ -156,8 +156,15 @@ public class FolioReader: NSObject {
     // Add necessary observers
     fileprivate func addObservers() {
         removeObservers()
-        NotificationCenter.default.addObserver(self, selector: #selector(saveReaderState), name: UIApplication.willResignActiveNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(saveReaderState), name: UIApplication.willTerminateNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationWillLeaveForeground(_:)), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationWillLeaveForeground(_:)), name: UIApplication.willTerminateNotification, object: nil)
+    }
+
+    /// Saves the reader state when the app leaves the foreground. A handler of its own: with
+    /// `saveReaderState(completion:)` as the selector, the notification arrived where the closure
+    /// goes and was called and released as one, which crashed the app.
+    @objc private func applicationWillLeaveForeground(_ notification: Notification) {
+        saveReaderState()
     }
 
     /// Remove necessary observers

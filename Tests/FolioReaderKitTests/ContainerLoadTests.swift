@@ -45,6 +45,20 @@ class ContainerLoadTests: XCTestCase {
         withExtendedLifetime(container) {}
     }
 
+    /// A reader opened with `presentReader` / `prepareReader` saves its state when the app leaves the
+    /// foreground. The observers used `saveReaderState(completion:)` as their selector, so the
+    /// notification arrived where the closure goes and was called and released as one: the Example
+    /// crashed every time it went to the background.
+    func testLeavingTheForegroundDoesNotCrash() {
+        let folioReader = FolioReader()
+        folioReader.prepareReader(parentViewController: UIViewController(), withEpubPath: samplePath, andConfig: FolioReaderConfig(), folioReaderCenterDelegate: nil, webServer: ReadiumGCDWebServer())
+
+        NotificationCenter.default.post(name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.post(name: UIApplication.willTerminateNotification, object: nil)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        withExtendedLifetime(folioReader) {}
+    }
+
     private func waitUntil(_ description: String, timeout: TimeInterval = 10, _ condition: () -> Bool) {
         let deadline = Date().addingTimeInterval(timeout)
         while !condition() && Date() < deadline {
