@@ -237,8 +237,12 @@ public class ReaderPreferences {
             pref(setInt: value, for: .currentScrollDirection)
 
             let direction = FolioReaderScrollDirection(rawValue: value) ?? defaultScrollDirection
-            folioReader?.readerConfig?.applyEffectiveScrollDirection(direction)
-            folioReader?.readerCenter?.currentPage?.setScrollDirection(direction)
+            if let page = folioReader?.readerCenter?.currentPage {
+                // It records where the reader is in the current layout, then applies the direction.
+                page.setScrollDirection(direction)
+            } else {
+                folioReader?.readerConfig?.applyEffectiveScrollDirection(direction)
+            }
         }
     }
 

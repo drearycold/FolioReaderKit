@@ -10,14 +10,36 @@ extension FolioReaderPage {
     func setScrollDirection(_ direction: FolioReaderScrollDirection) {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
-        guard let readerCenter = self.folioReader.readerCenter, let webView = webView else { return }
-        let currentPageNumber = readerCenter.currentPageNumber
-        
+        guard self.folioReader.readerCenter != nil, let webView = webView else {
+            readerConfig.applyEffectiveScrollDirection(direction)
+            return
+        }
+
         self.layoutAdapting = .scrollDirection
 
-        // Get internal page offset before layout change
+        // Both are measured in the current layout, so the reader config must still have the current
+        // direction. The settings applied the new one first, which measured a scrolled page along
+        // the paged axis: the position became the chapter heading, and the offset ratio 0.
         self.updatePageOffsetRate()
-        
+
+        // The first text on screen, for the new layout to start from. The offset ratio, the fallback,
+        // doesn't carry over between paged and scroll layouts, whose content sizes differ: switching
+        // went back about a screen, or to the start of the chapter.
+        let isHorizontal = byWritingMode(readerConfig.isDirection(false, true, false), true)
+        webView.js("getVisibleCFI(\(isHorizontal))") { json in
+            let cfi = Self.recordedPosition(fromVisibleCFIJSON: json).cfi
+            let anchorCFI = "epubcfi(/\(self.pageNumber * 2)/2\(cfi))"
+            self.applyScrollDirection(direction, restoring: cfi.isEmpty || !FolioReaderCenter.isRestorableCFI(anchorCFI, pageNumber: self.pageNumber) ? nil : anchorCFI)
+        }
+    }
+
+    private func applyScrollDirection(_ direction: FolioReaderScrollDirection, restoring anchorCFI: String?) {
+        guard let readerCenter = self.folioReader.readerCenter, let webView = webView else {
+            self.layoutAdapting = nil
+            return
+        }
+        let currentPageNumber = readerCenter.currentPageNumber
+
         // Change layout
         self.readerConfig.applyEffectiveScrollDirection(direction)
         readerCenter.collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
@@ -38,13 +60,26 @@ extension FolioReaderPage {
         DispatchQueue.main.asyncAfter(delay: delaySec()) {
             webView.setupScrollDirection()
             self.updateOverflowStyle(delay: self.delaySec()) {
-                self.scrollWebViewByPageOffsetRate(animated: false)
-                
+                if anchorCFI == nil {
+                    self.scrollWebViewByPageOffsetRate(animated: false)
+                }
+
                 DispatchQueue.main.asyncAfter(delay: self.delaySec() + 0.2) {
                     self.updatePageInfo() {
-                        self.updateScrollPosition(delay: self.delaySec()) {
-                            self.updateStyleBackgroundPadding(delay: self.delaySec()) {
-                                self.layoutAdapting = nil
+                        guard let anchorCFI = anchorCFI else {
+                            self.updateScrollPosition(delay: self.delaySec()) {
+                                self.updateStyleBackgroundPadding(delay: self.delaySec()) {
+                                    self.layoutAdapting = nil
+                                }
+                            }
+                            return
+                        }
+                        self.updateStyleBackgroundPadding(delay: self.delaySec()) {
+                            // handleAnchor waits while the page is adapting.
+                            self.layoutAdapting = nil
+                            self.handleAnchor(anchorCFI, offsetInWindow: 0, avoidBeginningAnchors: false, animated: false, flashTarget: false) {
+                                self.updatePageOffsetRate()
+                                self.updatePageInfo()
                             }
                         }
                     }
