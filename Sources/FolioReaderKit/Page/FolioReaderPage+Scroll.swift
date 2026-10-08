@@ -186,6 +186,23 @@ extension FolioReaderPage {
         }
     }
     
+    /// Reads the JSON of `getVisibleCFI` / `getVisibleMiddleCFI`: the partial CFI of the character
+    /// offset if there is one, else of the element, with its snippet.
+    static func recordedPosition(fromVisibleCFIJSON json: String?) -> (cfi: String, snippet: String, message: String) {
+        guard let json = json,
+              let object = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else {
+            return ("", "", "json fail")
+        }
+        let message = object["message"] as? String ?? "Missing message in json"
+        if let offsetComponent = object["offsetComponent"] as? String,
+           let offsetSnippet = object["offsetSnippet"] as? String,
+           offsetComponent.isEmpty == false {
+            return (offsetComponent, offsetSnippet, message)
+        }
+        // The snippet only labels the position; without one the element CFI still counts.
+        return (object["cfi"] as? String ?? "", object["snippet"] as? String ?? "", message)
+    }
+
     func getWebViewScrollPosition(completion: ((_ position: FolioReaderReadPosition) -> Void)? = nil) {
         guard let webView = webView else {
             return
@@ -197,26 +214,7 @@ extension FolioReaderPage {
         // Paged mode records the middle of the page, which survives a relayout; see getVisibleMiddleCFI.
         let locate = readerConfig.scrollDirection == .horizontalWithPagedContent ? "getVisibleMiddleCFI" : "getVisibleCFI"
         webView.js("\(locate)(\(isHorizontal))") { jsonString in
-            var cfi = ""
-            var snippet = ""
-            var message = ""
-            if let jsonString = jsonString,
-               let jsonData = jsonString.data(using: .utf8),
-               let jsonDict = try? JSONSerialization.jsonObject(with: jsonData) as? [String:Any] {
-                message = (jsonDict["message"] as? String) ?? "Missing message in json"
-                if let offsetComponent = jsonDict["offsetComponent"] as? String,
-                   let offsetSnippet = jsonDict["offsetSnippet"] as? String,
-                   offsetComponent.isEmpty == false {
-                    cfi = offsetComponent
-                    snippet = offsetSnippet
-                } else if let jsonCFI = jsonDict["cfi"] as? String,
-                   let jsonSnippet = jsonDict["snippet"] as? String {
-                    cfi = jsonCFI
-                    snippet = jsonSnippet
-                }
-            } else {
-                message = "json fail"
-            }
+            let (cfi, snippet, message) = Self.recordedPosition(fromVisibleCFIJSON: jsonString)
             #if DEBUG
             if cfi.isEmpty, self.pageNumber > 1 {
                 let alertController = UIAlertController(title: "Empty CFI pageNumber=\(self.pageNumber ?? 0)", message: message, preferredStyle: .alert)

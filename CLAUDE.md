@@ -71,5 +71,6 @@ Setting changes that need pages to re-layout post `.folioReaderNeedRefreshPageMo
 - The public API uses `open` classes with `public` initializers.
 - Several enum cases and method names are misspelled on purpose and are part of the API, for example `FolioReaderScrollDirection.horitonzalWithPagedContent`. Search all call sites, including the `Example/` projects, before renaming anything.
 - `Style.css` puts `-webkit-transition: all 0.6s` on `html` and `body`, so `getComputedStyle` right after a style change can return mid-transition values. Tests that read computed styles must turn transitions off, as `ReaderStyleRenderingTests` does.
+- WebKit position tests build pages with `readerChapter` (`WebViewTestSupport.swift`): the reader's scripts and CSS, `-webkit-paged-x` or scroll, optionally served as XHTML. Insert the overflow style before the last resize (WebKit doesn't always paginate otherwise), scroll with `scrollNatively` (a JS `scrollTo` updates `scrollX` before the boxes move), and restore from a different offset than the one recorded, or a restore that returns the current offset looks correct.
 - `Sources/FolioReaderKit/Vendor/` (`HAControls`, `SMSegmentView`) contains vendored third-party UI code.
 - `.gemini/` is git-ignored and holds local tool artifacts. Do not commit it.

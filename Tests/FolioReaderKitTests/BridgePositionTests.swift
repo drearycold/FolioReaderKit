@@ -29,58 +29,14 @@ class BridgePositionTests: XCTestCase {
         let paragraphs = (1...160).map { index in
             "<p>Paragraph \(index): the quick brown fox jumps over the lazy dog, 敏捷的棕色狐狸跳过了懒狗，第\(index)段。</p>"
         }.joined()
-        let configuration = WKWebViewConfiguration()
-        configuration.userContentController.addUserScript(FolioReaderScript.readiumCFIJS)
-        configuration.userContentController.addUserScript(FolioReaderScript.bridgeJS)
-        configuration.userContentController.addUserScript(
-            FolioReaderCSSInjector.userScript(id: FolioReaderCSSInjector.StyleID.bundle, css: FolioReaderCSSBuilder.baseStyleSheet()
-                + "\nhtml, body { -webkit-transition: none !important; transition: none !important; }")
-        )
-        configuration.userContentController.add(MockScriptMessageHandler(), name: "FolioReaderPage")
-        let webView = loadedWebView(html: """
-            <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-            <body><h1>Chapter</h1>\(paragraphs)</body></html>
-            """, configuration: configuration)
-
-        let state = FolioReaderStyleState(styleOverride: .PNode, font: "", fontSize: "20px", fontWeight: "400", letterSpacing: 0, lineHeight: 2, textIndent: 2, marginTop: 5, marginBottom: 5, marginLeft: 5, marginRight: 5, isVerticalWritingMode: verticalWriting)
-        let mode = verticalWriting ? "vertical-rl" : "horizontal-tb"
-        evaluate("writingMode = '\(mode)'; document.documentElement.style.writingMode = writingMode; "
-            + FolioReaderCSSInjector.runtimeStyleSource(themeMode: 0, styleState: state, runtimeSheets: [], includeDebugDump: false) + "; true", in: webView)
-        let overflow = FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: verticalWriting)
-        evaluate("var s = document.createElement('style'); s.textContent = \(String(reflecting: overflow)); document.head.appendChild(s); true", in: webView)
-        evaluate(Self.helpers, in: webView)
-        // Resize after styling: WebKit doesn't always paginate when -webkit-paged-x arrives with no
-        // viewport change after it.
-        resize(webView, to: Self.portrait)
+        let webView = readerChapter("<h1>Chapter</h1>" + paragraphs, paged: true, verticalWriting: verticalWriting, size: Self.portrait)
         XCTAssertGreaterThan(evaluate("document.body.getClientRects().length", in: webView) as? Int ?? 0, 10, "The chapter is paginated")
+        evaluate(Self.helpers, in: webView)
         return webView
     }
 
-    /// Pagination and the scroll range settle after the styles or the viewport change, as in the reader.
-    private func waitForLayout(_ webView: WKWebView) {
-        let settled = expectation(description: "layout settled")
-        WebViewLayoutWaiter.wait(for: webView, timeout: 3, paged: true) { _ in settled.fulfill() }
-        wait(for: [settled], timeout: 5)
-    }
-
-    private func resize(_ webView: WKWebView, to size: CGSize) {
-        webView.frame = CGRect(origin: .zero, size: size)
-        waitUntil("viewport \(size)") {
-            (evaluate("[window.innerWidth, window.innerHeight]", in: webView) as? [Double]) == [Double(size.width), Double(size.height)]
-        }
-        waitForLayout(webView)
-    }
-
-    /// Shows `page` the way the reader does, by scrolling the native scroll view, and waits until the
-    /// page sees the new offset. A JS `scrollTo` updates `scrollX` before the character boxes follow.
     private func show(_ page: Int, in webView: WKWebView, file: StaticString = #filePath, line: UInt = #line) {
-        let x = CGFloat(page) * webView.bounds.width
-        waitUntil("page \(page)", file: file, line: line) {
-            // Retried, because the content size can lag a relayout and clamp the offset.
-            webView.scrollView.setContentOffset(CGPoint(x: x, y: 0), animated: false)
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-            return evaluate("window.scrollX", in: webView) as? Double == Double(x)
-        }
+        scrollNatively(webView, to: CGPoint(x: CGFloat(page) * webView.bounds.width, y: 0), file: file, line: line)
     }
 
     private func record(_ function: String, in webView: WKWebView) throws -> String {
@@ -92,17 +48,6 @@ class BridgePositionTests: XCTestCase {
             XCTAssertTrue((object["message"] as? String ?? "").hasPrefix("middle "), "Found the middle, no fallback: \(json)")
         }
         return offsetComponent
-    }
-
-    private func waitUntil(_ description: String, timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line, _ condition: () -> Bool) {
-        let deadline = Date().addingTimeInterval(timeout)
-        while !condition() {
-            guard Date() < deadline else {
-                XCTFail("Timed out waiting for \(description)", file: file, line: line)
-                return
-            }
-            RunLoop.main.run(until: Date().addingTimeInterval(0.03))
-        }
     }
 
     func testMiddleIsOnTheCurrentPageAfterItsStart() throws {
@@ -134,7 +79,7 @@ class BridgePositionTests: XCTestCase {
         show(startPage, in: webView)
         var position = try record("getVisibleMiddleCFI", in: webView)
         for size in Array(repeating: [Self.landscape, Self.portrait], count: 4).joined() {
-            resize(webView, to: size)
+            resize(webView, to: size, paged: true)
             let page = try XCTUnwrap(evaluate("__pageOf('\(position)')", in: webView) as? Int)
             show(page, in: webView)
             position = try record("getVisibleMiddleCFI", in: webView)
@@ -150,9 +95,7 @@ class BridgePositionTests: XCTestCase {
         let width = webView.bounds.width
         var middles = Set<String>()
         for page in [0, 2, 5] {
-            let x = webView.scrollView.contentSize.width - CGFloat(page + 1) * width
-            webView.scrollView.setContentOffset(CGPoint(x: x, y: 0), animated: false)
-            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            scrollNatively(webView, to: CGPoint(x: webView.scrollView.contentSize.width - CGFloat(page + 1) * width, y: 0))
             let middle = try record("getVisibleMiddleCFI", in: webView)
             middles.insert(middle)
             let centerX = evaluate("""

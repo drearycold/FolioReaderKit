@@ -138,7 +138,10 @@ function getTextAndImgNodesIn(node, includeWhitespaceNodes) {
     var textNodes = [], whitespace = /^\s*$/;
 
     function getTextAndImgNodes(node) {
-        if (node.nodeType == 3 || (node.nodeType == 1 && node.nodeName == "IMG")) {
+        // An <svg> stands for its content, like an <img>: calibre wraps covers and plates in
+        // <svg><image>. XHTML chapters report lowercase names.
+        const name = node.nodeType == 1 ? node.nodeName.toUpperCase() : ""
+        if (node.nodeType == 3 || name == "IMG" || name == "SVG") {
             if (includeWhitespaceNodes || !whitespace.test(node.nodeValue)) {
                 textNodes.push(node);
             }
@@ -912,7 +915,9 @@ var getAnchorOffset = function(target, horizontal) {
             const textInfo = window.EPUBcfi.getTextTerminusInfoWithPartialCFI(encodeURI(partialCFI), document, [], [], [])
             window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI textInfo ${textInfo.textNode.textContent.trim()} ${textInfo.textOffset}`);
             
-            if (textInfo && textInfo.textNode) {
+            // An element CFI (an image, an SVG) resolves here too, to the element with a NaN offset;
+            // measuring that collapsed range gives the current scroll position. Locate it as an element below.
+            if (textInfo && textInfo.textNode && textInfo.textNode.nodeType == 3 && Number.isFinite(textInfo.textOffset)) {
                 let range = document.createRange()
                 range.setStart(textInfo.textNode, textInfo.textOffset)
                 range.setEnd(textInfo.textNode, textInfo.textOffset+1)
@@ -963,15 +968,20 @@ var getAnchorOffset = function(target, horizontal) {
         return 0
     }
     
+    // Measured like the text above, from the element's first box: where it starts if it is broken
+    // across pages, and independent of its offsetParent. The center keeps a box that reaches a page
+    // edge on its own page.
+    const rect = elem.getClientRects()[0] || elem.getBoundingClientRect()
+    
     if (writingMode == "vertical-rl") {
-        return elem.offsetLeft + elem.offsetWidth;
+        return -(rect.left + rect.width / 2 + window.scrollX);
     }
     
     if (horizontal) {
-        return document.body.clientWidth * Math.floor(elem.offsetTop / window.innerHeight);
+        return rect.left + rect.width / 2 + window.scrollX;
     }
     
-    return elem.offsetTop;
+    return rect.top + window.scrollY;
 }
 
 var getClickAnchorOffset = function(target) {
@@ -1445,7 +1455,9 @@ function wrappingSentencesWithinPTags(){
 
 function visible(elem) {
     if (elem.nodeType === 3) return true;
-    return !(elem.clientHeight === 0 || elem.clientWidth === 0);
+    // The layout box, which an outer <svg> has even where client sizes don't apply.
+    const rect = elem.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
 }
 
 function getVisibleCFI(horizontal) {
@@ -1461,7 +1473,7 @@ function getVisibleCFI(horizontal) {
         if (!elem || elem == first) {
             continue
         }
-        if (elem.tagName == "HIGHLIGHT") {
+        if (elem.nodeName.toUpperCase() == "HIGHLIGHT") {
             continue
         }
         //Calculate the offset to the document
@@ -1621,7 +1633,8 @@ function getVisibleCFI(horizontal) {
     var message = ""
     if (first) {
         cfiStart = window.EPUBcfi.generateElementCFIComponent(first,[],["highlight"],[])
-        snippet = first.innerText
+        // An <svg> has no innerText, and a missing snippet drops it from the JSON.
+        snippet = first.innerText ?? first.textContent ?? ""
         message = `first ${cfiStart} ${snippet} ${first.outerHTML}`
         
         if (firstRange) {
@@ -1699,7 +1712,7 @@ function getVisibleMiddleCFI(horizontal) {
         }
 
         const nodes = getTextAndImgNodesIn(document.body, false).filter(function (node) {
-            if (node.nodeType != 3 || !node.parentNode || node.parentNode.tagName == "HIGHLIGHT") return false
+            if (node.nodeType != 3 || !node.parentNode || node.parentNode.nodeName.toUpperCase() == "HIGHLIGHT") return false
             const range = document.createRange()
             range.selectNodeContents(node)
             return range.getClientRects().length > 0
