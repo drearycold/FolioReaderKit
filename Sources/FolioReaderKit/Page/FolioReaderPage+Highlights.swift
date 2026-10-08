@@ -7,7 +7,7 @@ import UIKit
 
 extension FolioReaderPage {
     func injectHighlights(completion: (() -> Void)? = nil) {
-        self.layoutAdapting = "Preparing Document Annotations..."
+        self.layoutAdapting = .annotations
         
         guard let bookId = (self.book.name as NSString?)?.deletingPathExtension else {
             completion?()

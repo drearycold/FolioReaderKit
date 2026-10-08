@@ -359,6 +359,10 @@ open class FolioReaderConfig: NSObject {
     open var localizedHighlightBlue = NSLocalizedString("Blue", comment: "")
     open var localizedHighlightPink = NSLocalizedString("Pink", comment: "")
     open var localizedHighlightUnderline = NSLocalizedString("Underline", comment: "")
+    /// Shown over a chapter while it loads.
+    open var localizedPageLoading = NSLocalizedString("Loading…", comment: "")
+    /// Shown over a page while it is laid out again, after a setting change or a rotation.
+    open var localizedPageRelayout = NSLocalizedString("Updating layout…", comment: "")
 
     public var debug = FolioReaderDebugOptions()
     

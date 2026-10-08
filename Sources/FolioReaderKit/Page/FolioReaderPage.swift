@@ -96,7 +96,8 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         return self.window?.windowScene?.statusBarManager?.statusBarFrame.height ?? 0
     }
     
-     var layoutAdapting: String? = nil {
+    /// Set while the page loads or is laid out again; `activityView` covers it meanwhile.
+    var layoutAdapting: PageLayoutStage? = nil {
         didSet {
             if let layoutAdapting = layoutAdapting {
                 if pageNumber != 1 {

@@ -13,7 +13,7 @@ extension FolioReaderPage {
         guard let readerCenter = self.folioReader.readerCenter, let webView = webView else { return }
         let currentPageNumber = readerCenter.currentPageNumber
         
-        self.layoutAdapting = "Changing Document Layout..."
+        self.layoutAdapting = .scrollDirection
 
         // Get internal page offset before layout change
         self.updatePageOffsetRate()
@@ -56,7 +56,7 @@ extension FolioReaderPage {
     func updateOverflowStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
         guard let webView = webView else { return }
         
-        self.layoutAdapting = "Preparing Document Layout..."
+        self.layoutAdapting = .layout
         
         let overflowInterval = FolioSignpost.begin("OverflowJS", "page \(pageNumber)")
         webView.js(
@@ -124,7 +124,7 @@ writingMode
     func updateRuntimeStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
         guard let webView = webView else { return }
 
-        self.layoutAdapting = "Preparing Document Style..."
+        self.layoutAdapting = .style
         self.updatePageOffsetRate()
 
         let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame)
@@ -140,7 +140,7 @@ writingMode
             runtimeStyleInterval.end()
             let delaySec = self.delaySec() + bySecond
             self.waitForLayout(timeout: delaySec, label: "runtimeStyle") {
-                self.layoutAdapting = "Almost Ready..."
+                self.layoutAdapting = .almostReady
                 self.updatePageInfo {
                     self.waitForLayout(timeout: delaySec, label: "pageInfo") {
                         self.updateStyleBackgroundPadding(delay: delaySec, completion: completion != nil ? completion : {
@@ -160,7 +160,7 @@ writingMode
     }
     
     func updateStyleBackgroundPadding(delay bySecond: Double, tryShrinking: Bool = true, completion: (() -> Void)? = nil) {
-        self.layoutAdapting = "Finalizing..."
+        self.layoutAdapting = .finalizing
         
         var minScreenCount = 1
         if self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true) {
@@ -214,7 +214,7 @@ writingMode
     func updateViewerLayout(delay bySecond: Double) {
         guard let webView = webView else { return }
         
-        self.layoutAdapting = "Updating Document Layout..."
+        self.layoutAdapting = .viewerLayout
         self.updatePageOffsetRate()
         
         webView.js(

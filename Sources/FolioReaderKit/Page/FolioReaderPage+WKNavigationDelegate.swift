@@ -57,7 +57,7 @@ extension FolioReaderPage {
         
         preprocessor.append("document.body.style.minHeight = null;")
         
-        self.layoutAdapting = "Preparing Document Structure..."
+        self.layoutAdapting = .structure
         let preprocessInterval = FolioSignpost.begin("PreprocessJS", "page \(pageNumber)")
         self.webView?.js(preprocessor) {_ in
             preprocessInterval.end()

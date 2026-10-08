@@ -43,7 +43,7 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         cell.loadInterval?.end("replaced")
         cell.loadInterval = nil
         cell.loadNavigation = nil
-        cell.layoutAdapting = "Initializing..."
+        cell.layoutAdapting = .initializing
         
         cell.webView?.scrollView.delegate = self.scrollHandler
         cell.webView?.scrollView.contentInsetAdjustmentBehavior = .never

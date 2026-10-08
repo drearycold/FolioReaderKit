@@ -51,7 +51,7 @@ extension FolioReaderCenter {
         let currentIndexPath = getCurrentIndexPath()
         
         if currentPage.layoutAdapting == nil {
-            currentPage.layoutAdapting = "Transitioning..."
+            currentPage.layoutAdapting = .transition
             currentPage.updatePageOffsetRate()
         }
         let pageOffsetRate = currentPage.pageOffsetRate
