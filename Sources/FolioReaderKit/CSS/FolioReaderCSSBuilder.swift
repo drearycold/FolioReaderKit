@@ -21,10 +21,12 @@ struct FolioReaderStyleState: Equatable {
     var marginLeft: Int
     var marginRight: Int
     var isVerticalWritingMode: Bool
+    /// Keep text clear of the left and right safe area (`FolioReaderConfig.reserveSafeAreaInsidePageFrame`).
+    var reserveSafeArea = true
 }
 
 extension FolioReaderStyleState {
-    init(preferences: ReaderPreferences, isVerticalWritingMode: Bool) {
+    init(preferences: ReaderPreferences, isVerticalWritingMode: Bool, reserveSafeArea: Bool) {
         self.init(
             styleOverride: preferences.styleOverride,
             font: preferences.currentFont,
@@ -37,7 +39,8 @@ extension FolioReaderStyleState {
             marginBottom: preferences.currentMarginBottom,
             marginLeft: preferences.currentMarginLeft,
             marginRight: preferences.currentMarginRight,
-            isVerticalWritingMode: isVerticalWritingMode
+            isVerticalWritingMode: isVerticalWritingMode,
+            reserveSafeArea: reserveSafeArea
         )
     }
 }
@@ -78,6 +81,8 @@ enum FolioReaderCSSBuilder {
         case paddingBottom = "--folio-padding-bottom"
         case paddingLeft = "--folio-padding-left"
         case paddingRight = "--folio-padding-right"
+        case safeAreaLeft = "--folio-safe-area-left"
+        case safeAreaRight = "--folio-safe-area-right"
 
         var reference: String { "var(\(rawValue))" }
     }
@@ -110,6 +115,10 @@ enum FolioReaderCSSBuilder {
             .paddingBottom: "\(Double(state.marginBottom / 5) * 2.5)vh",
             .paddingLeft: "\(Double(state.marginLeft / 5) * 2.5)vw",
             .paddingRight: "\(Double(state.marginRight / 5) * 2.5)vw",
+            // The page frame keeps clear of the status bar only; in landscape the Dynamic Island or
+            // notch is at the side, inside the web view. `env()` follows rotation without a refresh.
+            .safeAreaLeft: state.reserveSafeArea ? "env(safe-area-inset-left, 0px)" : "0px",
+            .safeAreaRight: state.reserveSafeArea ? "env(safe-area-inset-right, 0px)" : "0px",
         ]
         return CustomProperty.allCases.map { (name: $0.rawValue, value: values[$0] ?? "") }
     }
@@ -163,8 +172,8 @@ enum FolioReaderCSSBuilder {
                 max-width: 84vw !important;
             }
             \(horizontal) {
-                padding-left: \(P.paddingLeft.reference) !important;
-                padding-right: \(P.paddingRight.reference) !important;
+                padding-left: calc(\(P.paddingLeft.reference) + \(P.safeAreaLeft.reference)) !important;
+                padding-right: calc(\(P.paddingRight.reference) + \(P.safeAreaRight.reference)) !important;
                 overflow: hidden !important;
             }
             \(vertical) {

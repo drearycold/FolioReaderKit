@@ -116,7 +116,7 @@ config.customStyleSheets = [
 |---|---|---|
 | `showCloseButton` | `true` | Show the reader's close button |
 | `forceBottomMenuTabBar` | `false` | Keep the settings tabs at the bottom on iPadOS |
-| `reserveSafeAreaInsidePageFrame` | `true` | Inset pages by the status bar and safe area |
+| `reserveSafeAreaInsidePageFrame` | `true` | Inset pages by the status bar and safe area, including the Dynamic Island in landscape |
 | `reservePageIndicatorInsidePageFrame` | `true` | Inset pages by the page indicator |
 
 Set both `reserve…` options to `false` and the margins to `0` for edge-to-edge pages.

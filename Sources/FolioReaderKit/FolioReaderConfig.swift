@@ -264,7 +264,8 @@ open class FolioReaderConfig: NSObject {
     /// Hide the page indicator
     open var hidePageIndicator = false
 
-    /// Reserve safe-area/status-bar height inside each page frame.
+    /// Keep pages clear of the safe area: the status bar height inside each page frame, and in
+    /// landscape the left and right insets (Dynamic Island, notch) as body padding in horizontal writing.
     open var reserveSafeAreaInsidePageFrame = true
 
     /// Reserve page-indicator height inside each page frame.

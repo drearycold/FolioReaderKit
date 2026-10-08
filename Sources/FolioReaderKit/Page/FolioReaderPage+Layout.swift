@@ -67,17 +67,17 @@ writingMode = window.getComputedStyle(document.body).getPropertyValue("writing-m
     var viewport = document.querySelector("meta[name=viewport]");
     if (viewport) {
         if (writingMode == "vertical-rl") {
-            viewport.setAttribute('content', 'height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0');
+            viewport.setAttribute('content', 'height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover');
         } else {
-            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0');
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover');
         }
     } else {
         var metaTag=document.createElement('meta');
         metaTag.name = "viewport"
         if (writingMode == "vertical-rl") {
-            metaTag.content = "height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+            metaTag.content = "height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover"
         } else {
-            metaTag.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+            metaTag.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover"
         }
         document.head.appendChild(metaTag);
     }
@@ -127,7 +127,7 @@ writingMode
         self.layoutAdapting = "Preparing Document Style..."
         self.updatePageOffsetRate()
 
-        let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl")
+        let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame)
         let script = FolioReaderCSSInjector.runtimeStyleSource(
             themeMode: folioReader.themeMode,
             styleState: styleState,

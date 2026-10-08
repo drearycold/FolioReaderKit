@@ -66,7 +66,17 @@ class CSSGenerationTests: XCTestCase {
             "calc((0.04em + 1em) * 1)",
             "1em", "0.65em",
             "5.0vh", "7.5vh", "10.0vw", "12.5vw",
+            "env(safe-area-inset-left, 0px)", "env(safe-area-inset-right, 0px)",
         ])
+    }
+
+    /// Apps that turn off `reserveSafeAreaInsidePageFrame` want edge-to-edge pages, in landscape too.
+    func testSideSafeAreaFollowsTheReserveSetting() {
+        var edgeToEdge = state(.PNode)
+        edgeToEdge.reserveSafeArea = false
+        let values = Dictionary(uniqueKeysWithValues: FolioReaderCSSBuilder.customProperties(for: edgeToEdge).map { ($0.name, $0.value) })
+        XCTAssertEqual(values["--folio-safe-area-left"], "0px")
+        XCTAssertEqual(values["--folio-safe-area-right"], "0px")
     }
 
     func testCustomPropertiesVerticalHangingIndent() {
