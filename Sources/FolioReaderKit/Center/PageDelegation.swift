@@ -80,11 +80,10 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
             self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text = position.cfi
             DispatchQueue.main.asyncAfter(delay: 0.2) {
                 page.handleAnchor(position.cfi, offsetInWindow: 0, avoidBeginningAnchors: true, animated: true) {
-                    DispatchQueue.main.asyncAfter(delay: 0.5) {
-                        page.getWebViewScrollPosition { position in
-                            self.currentWebViewScrollPositions[page.pageNumber - 1] = position
-                        }
-                    }
+                    // Keep the position restored to until the reader moves, as a rotation does: measuring
+                    // again recorded the start of its line, a little earlier on every reopen.
+                    page.pinnedPosition = position
+                    self.currentWebViewScrollPositions[page.pageNumber - 1] = position
                 }
             }
         } else if let position = self.folioReader.readerCenter?.currentWebViewScrollPositions[page.pageNumber - 1] {

@@ -25,15 +25,13 @@ extension FolioReaderPage {
         // The first text on screen, for the new layout to start from. The offset ratio, the fallback,
         // doesn't carry over between paged and scroll layouts, whose content sizes differ: switching
         // went back about a screen, or to the start of the chapter.
-        let isHorizontal = byWritingMode(readerConfig.isDirection(false, true, false), true)
-        webView.js("getVisibleCFI(\(isHorizontal))") { json in
-            let cfi = Self.recordedPosition(fromVisibleCFIJSON: json).cfi
-            let anchorCFI = "epubcfi(/\(self.pageNumber * 2)/2\(cfi))"
-            self.applyScrollDirection(direction, restoring: cfi.isEmpty || !FolioReaderCenter.isRestorableCFI(anchorCFI, pageNumber: self.pageNumber) ? nil : anchorCFI)
+        getWebViewScrollPosition(firstVisibleText: true) { position in
+            let restorable = FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: self.pageNumber)
+            self.applyScrollDirection(direction, restoring: restorable ? position : nil)
         }
     }
 
-    private func applyScrollDirection(_ direction: FolioReaderScrollDirection, restoring anchorCFI: String?) {
+    private func applyScrollDirection(_ direction: FolioReaderScrollDirection, restoring anchorPosition: FolioReaderReadPosition?) {
         guard let readerCenter = self.folioReader.readerCenter, let webView = webView else {
             self.layoutAdapting = nil
             return
@@ -60,13 +58,13 @@ extension FolioReaderPage {
         DispatchQueue.main.asyncAfter(delay: delaySec()) {
             webView.setupScrollDirection()
             self.updateOverflowStyle(delay: self.delaySec()) {
-                if anchorCFI == nil {
+                if anchorPosition == nil {
                     self.scrollWebViewByPageOffsetRate(animated: false)
                 }
 
                 DispatchQueue.main.asyncAfter(delay: self.delaySec() + 0.2) {
                     self.updatePageInfo() {
-                        guard let anchorCFI = anchorCFI else {
+                        guard let anchorPosition = anchorPosition else {
                             self.updateScrollPosition(delay: self.delaySec()) {
                                 self.updateStyleBackgroundPadding(delay: self.delaySec()) {
                                     self.layoutAdapting = nil
@@ -77,7 +75,7 @@ extension FolioReaderPage {
                         self.updateStyleBackgroundPadding(delay: self.delaySec()) {
                             // handleAnchor waits while the page is adapting.
                             self.layoutAdapting = nil
-                            self.handleAnchor(anchorCFI, offsetInWindow: 0, avoidBeginningAnchors: false, animated: false, flashTarget: false) {
+                            self.restorePinned(anchorPosition) {
                                 self.updatePageOffsetRate()
                                 self.updatePageInfo()
                             }

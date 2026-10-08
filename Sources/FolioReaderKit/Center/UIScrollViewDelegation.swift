@@ -33,7 +33,11 @@ class ReaderScrollDelegateHandler: NSObject, UIScrollViewDelegate, UICollectionV
         center.clearRecentlyScrolled()
         center.recentlyScrolled = true
         center.pointNow = scrollView.contentOffset
-        
+
+        if let page = center.currentPage, page.webView?.scrollView === scrollView {
+            page.pinnedPosition = nil
+        }
+
         if let currentPage = center.currentPage {
             currentPage.webView?.createMenu(onHighlight: false)
             currentPage.webView?.setMenuVisible(false)
@@ -94,8 +98,19 @@ class ReaderScrollDelegateHandler: NSObject, UIScrollViewDelegate, UICollectionV
                 }
             } else {
                 center.scrollScrubber?.scrollViewDidEndDecelerating(scrollView)
+                self.recordPosition(afterScrolling: scrollView)
             }
         })
+    }
+
+    /// Records where a page's own scrolling came to rest. Positions were otherwise only recorded when
+    /// the screen-page number changed, so in scroll mode the stored one could be up to a screen
+    /// behind, and a rotation restored the reader there.
+    private func recordPosition(afterScrolling scrollView: UIScrollView) {
+        guard let page = center?.currentPage,
+              page.webView?.scrollView === scrollView,
+              page.layoutAdapting == nil else { return }
+        page.getAndRecordScrollPosition()
     }
 
     open func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -104,6 +119,9 @@ class ReaderScrollDelegateHandler: NSObject, UIScrollViewDelegate, UICollectionV
 
         if decelerate == false {
             center.isScrolling = false
+            if !(scrollView is UICollectionView) {
+                recordPosition(afterScrolling: scrollView)
+            }
         }
 
         let timer = Timer(timeInterval:center.recentlyScrolledDelay, target: center, selector: #selector(FolioReaderCenter.clearRecentlyScrolled), userInfo: nil, repeats: false)

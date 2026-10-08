@@ -119,6 +119,15 @@ extension FolioReaderPage {
      - parameter offset:   The offset to scroll
      - parameter animated: Enable or not scrolling animation
      */
+    /// Restores `position` with `handleAnchor`, then keeps it as the recorded position (`pinnedPosition`).
+    func restorePinned(_ position: FolioReaderReadPosition, completion: (() -> Void)? = nil) {
+        handleAnchor(position.cfi, offsetInWindow: 0, avoidBeginningAnchors: false, animated: false, flashTarget: false) {
+            self.pinnedPosition = position
+            self.folioReader.readerCenter?.currentWebViewScrollPositions[self.pageNumber - 1] = position
+            completion?()
+        }
+    }
+
     public func scrollPageToOffset(_ offset: CGFloat, animated: Bool, retry: Int = 5, completion: (() -> Void)? = nil) {
         guard let webView = webView else {
             return
@@ -177,9 +186,10 @@ extension FolioReaderPage {
     }
 
     func getAndRecordScrollPosition() {
+        guard pinnedPosition == nil else { return }
         getWebViewScrollPosition { position in
             //prevent overwriting last known good cfi
-            if self.layoutAdapting != nil {
+            if self.layoutAdapting != nil || self.pinnedPosition != nil {
                 return
             }
             
@@ -218,7 +228,9 @@ extension FolioReaderPage {
         return (object["cfi"] as? String ?? "", object["snippet"] as? String ?? "", message)
     }
 
-    func getWebViewScrollPosition(completion: ((_ position: FolioReaderReadPosition) -> Void)? = nil) {
+    /// - Parameter firstVisibleText: record the first visible text in paged mode too, as the start of a
+    ///   different layout (a scroll-direction switch); otherwise paged mode records the middle of the page.
+    func getWebViewScrollPosition(firstVisibleText: Bool = false, completion: ((_ position: FolioReaderReadPosition) -> Void)? = nil) {
         guard let webView = webView else {
             return
         }
@@ -227,7 +239,7 @@ extension FolioReaderPage {
             self.folioReader.readerConfig?.isDirection(false, true, false),
             true) ?? false
         // Paged mode records the middle of the page, which survives a relayout; see getVisibleMiddleCFI.
-        let locate = readerConfig.scrollDirection == .horizontalWithPagedContent ? "getVisibleMiddleCFI" : "getVisibleCFI"
+        let locate = readerConfig.scrollDirection == .horizontalWithPagedContent && !firstVisibleText ? "getVisibleMiddleCFI" : "getVisibleCFI"
         webView.js("\(locate)(\(isHorizontal))") { jsonString in
             let (cfi, snippet, message) = Self.recordedPosition(fromVisibleCFIJSON: jsonString)
             #if DEBUG

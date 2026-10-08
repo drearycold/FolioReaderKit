@@ -23,6 +23,9 @@ extension FolioReaderPage {
             return
         }
         
+        // A new destination; `restorePinned` pins its position again once the scroll has started.
+        self.pinnedPosition = nil
+
         getAnchorOffset(anchor) { offset in
             if let infoLabelText = self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text {
                 self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text = "\(offset) \(infoLabelText)"

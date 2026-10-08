@@ -71,6 +71,13 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     var tapStartLocation: CGPoint?
     var tapStartPageNumber: Int?
     var tapStartedWhileScrolling = false
+
+    /// A position the page was just restored to (rotation, scroll-direction switch), kept as the
+    /// recorded one until the reader moves. A restore shows the line, column or page that holds the
+    /// position, which starts before it; recording what is then on screen moved the position back on
+    /// every relayout (two lines per portrait/landscape round trip in scroll mode). Cleared by
+    /// dragging, page-item turns, the back button, the scrubber, anchor links and cell reuse.
+    var pinnedPosition: FolioReaderReadPosition?
     var menuIsVisible = false
     var firstLoadReloaded = false
     

@@ -224,6 +224,7 @@ extension FolioReaderCenter {
         guard let position = self.navigateWebViewScrollPositions.popLast() else { return }
         self.navigationItem.rightBarButtonItems?.last?.isEnabled = !self.navigateWebViewScrollPositions.isEmpty
         if position.0 == currentPageNumber {
+            self.currentPage?.pinnedPosition = nil
             self.currentPage?.setScrollViewContentOffset(position.1, animated: true)
         } else {
             self.changePageWith(page: position.0) {     //depends on `currentWebViewScrollPositions` to in page reposition

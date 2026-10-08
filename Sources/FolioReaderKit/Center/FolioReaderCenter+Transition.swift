@@ -55,9 +55,10 @@ extension FolioReaderCenter {
             currentPage.updatePageOffsetRate()
         }
         let pageOffsetRate = currentPage.pageOffsetRate
-        // The text at the top of the screen, which survives reflow; the offset ratio is the fallback.
-        let anchorCFI = currentWebViewScrollPositions[currentPage.pageNumber - 1].map { $0.cfi }
-            .flatMap { Self.isRestorableCFI($0, pageNumber: currentPage.pageNumber) ? $0 : nil }
+        // The recorded position (the text at the top in scroll mode, the middle of the page in paged
+        // mode), which survives reflow; the offset ratio is the fallback.
+        let anchorPosition = (currentPage.pinnedPosition ?? currentWebViewScrollPositions[currentPage.pageNumber - 1])
+            .flatMap { Self.isRestorableCFI($0.cfi, pageNumber: currentPage.pageNumber) ? $0 : nil }
         
         FolioLogger.log("TRANS1 pageOffsetRate=\(currentPage.pageOffsetRate) contentSize=\(currentPage.webView?.scrollView.contentSize ?? .zero) contentOffset=\(currentPage.webView?.scrollView.contentOffset ?? .zero)")
         
@@ -83,10 +84,10 @@ extension FolioReaderCenter {
                         DispatchQueue.main.asyncAfter(delay: currentPage.delaySec() + 0.5) {   //need some time for webView finishing paging
                             currentPage.updatePageInfo() {
                                 currentPage.updateStyleBackgroundPadding(delay: 0.2) {
-                                    if let anchorCFI = anchorCFI {
-                                        FolioLogger.log("TRANS3 restoring cfi=\(anchorCFI)")
+                                    if let anchorPosition = anchorPosition {
+                                        FolioLogger.log("TRANS3 restoring cfi=\(anchorPosition.cfi)")
                                         currentPage.layoutAdapting = nil
-                                        currentPage.handleAnchor(anchorCFI, offsetInWindow: 0, avoidBeginningAnchors: false, animated: false, flashTarget: false) {
+                                        currentPage.restorePinned(anchorPosition) {
                                             currentPage.updatePageOffsetRate()
                                             currentPage.updatePageInfo()
                                         }
