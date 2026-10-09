@@ -200,8 +200,9 @@ public class ReaderPreferences {
     /// The direction the user chose in the menu, or `nil` if they haven't chosen one.
     ///
     /// The menu only saves `.vertical`, `.horizontalWithPagedContent` and `.horizontalWithScrollContent`.
-    /// A stored `.defaultVertical` is a placeholder some providers seed as their default
-    /// (YetAnotherEBookReader does), so it counts as no choice, as do missing and unknown values.
+    /// A stored `.defaultVertical` counts as no choice, as do missing and unknown values: providers
+    /// that seed a default should seed that. Any other stored direction counts as the user's choice,
+    /// so a seeded concrete direction overrides the configured direction and the right-to-left default.
     public var savedScrollDirection: FolioReaderScrollDirection? {
         guard let direction = FolioReaderScrollDirection(rawValue: pref(intFor: .currentScrollDirection, default: -1)),
               direction != .defaultVertical else { return nil }
