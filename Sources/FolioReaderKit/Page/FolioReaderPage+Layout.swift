@@ -197,16 +197,14 @@ writingMode
     }
     
     func updateStyleBackgroundPadding(delay bySecond: Double, tryShrinking: Bool = true, completion: (() -> Void)? = nil) {
+        let fillsScreens = self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true)
+        let step = BackgroundPaddingSearch.Step(screens: fillsScreens ? max(self.totalPages ?? 1, 1) : 1, shrinking: tryShrinking)
+        applyBackgroundPadding(step, search: BackgroundPaddingSearch(), fillsScreens: fillsScreens, delay: bySecond, completion: completion)
+    }
+
+    private func applyBackgroundPadding(_ step: BackgroundPaddingSearch.Step, search: BackgroundPaddingSearch, fillsScreens: Bool, delay bySecond: Double, completion: (() -> Void)?) {
         self.layoutAdapting = .finalizing
-        
-        var minScreenCount = 1
-        if self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true) {
-            minScreenCount = self.totalPages ?? minScreenCount
-            if minScreenCount < 1 {
-                minScreenCount = 1
-            }
-        }
-        
+
         // must set width instead of minWidth, otherwise there will be an extra blank page after calling scrollView.setContentOffset
         // could be a bug?
         // and shrinking by 100vw has no effect on totalPages
@@ -214,35 +212,26 @@ writingMode
         self.webView?.js(
             """
             if (writingMode == 'vertical-rl') {
-                document.body.style.width     = "\(minScreenCount * 100 - (tryShrinking ? 200 : 0))vw"
+                document.body.style.width     = "\(step.screens * 100 - (step.shrinking ? 200 : 0))vw"
             } else {
-                document.body.style.minHeight = "\(minScreenCount * 100 - (tryShrinking ? 100 : 0))vh"
+                document.body.style.minHeight = "\(step.screens * 100 - (step.shrinking ? 100 : 0))vh"
             }
             """
         ) { _ in
             paddingInterval.end()
             self.waitForLayout(timeout: bySecond, label: "padding") {
                 self.updatePageInfo {
-                    FolioLogger.log("updateStyleBackgroundPadding pageNumber=\(self.pageNumber) minScreenCount=\(minScreenCount) totalPages=\(self.totalPages ?? 0) tryShrinking=\(tryShrinking)")
-                    if self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true) {
-                        if tryShrinking {
-                            if (self.totalPages ?? 0) < minScreenCount {   //shrinked one page, try again
-                                self.updateStyleBackgroundPadding(delay: bySecond, tryShrinking: true, completion: completion)
-                            } else {  //stop shrinking
-                                self.updateStyleBackgroundPadding(delay: bySecond, tryShrinking: false, completion: completion)
-                            }
-                        } else {
-                            if (self.totalPages ?? 0) > minScreenCount {
-                                self.updateStyleBackgroundPadding(delay: bySecond, tryShrinking: true, completion: completion)
-                            } else if (self.totalPages ?? 0) < minScreenCount {
-                                self.updateStyleBackgroundPadding(delay: bySecond, tryShrinking: false, completion: completion)
-                            } else {
-                                completion?()
-                            }
+                    let totalPages = self.totalPages ?? 0
+                    FolioLogger.log("updateStyleBackgroundPadding pageNumber=\(self.pageNumber) minScreenCount=\(step.screens) totalPages=\(totalPages) tryShrinking=\(step.shrinking)")
+                    var search = search
+                    guard fillsScreens, let next = search.next(after: step, totalPages: totalPages) else {
+                        if fillsScreens, step.shrinking || totalPages != step.screens {
+                            FolioLogger.log("updateStyleBackgroundPadding pageNumber=\(self.pageNumber) gave up: the page count doesn't follow the body")
                         }
-                    } else {
                         completion?()
+                        return
                     }
+                    self.applyBackgroundPadding(next, search: search, fillsScreens: fillsScreens, delay: bySecond, completion: completion)
                 }
             }
         }
@@ -276,5 +265,37 @@ writingMode
                 }
             }
         }
+    }
+}
+
+/// `updateStyleBackgroundPadding`'s search for the body size that fills whole screens, so the last
+/// page has the page background: it sizes the body short of the page count while the count falls,
+/// then to the count.
+struct BackgroundPaddingSearch {
+    struct Step: Hashable {
+        /// The page count the body is sized from.
+        let screens: Int
+        /// The body is sized short of `screens` (two screens in vertical writing, one otherwise), to
+        /// see whether the page count falls.
+        let shrinking: Bool
+    }
+
+    private var taken = Set<Step>()
+
+    /// The step after `step`, from the page count measured with it, or nil when the search is over:
+    /// the body fills `step.screens` pages, or the next step was taken before. A page count that
+    /// doesn't follow the body (pages wider than the screen) would otherwise go round forever.
+    mutating func next(after step: Step, totalPages: Int) -> Step? {
+        taken.insert(step)
+        let screens = max(totalPages, 1)
+        let next: Step
+        if step.shrinking {
+            next = Step(screens: screens, shrinking: totalPages < step.screens)
+        } else if totalPages != step.screens {
+            next = Step(screens: screens, shrinking: totalPages > step.screens)
+        } else {
+            return nil
+        }
+        return taken.contains(next) ? nil : next
     }
 }
