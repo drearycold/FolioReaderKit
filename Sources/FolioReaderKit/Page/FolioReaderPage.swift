@@ -81,6 +81,9 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
 
     /// The resource server port the chapter was loaded from.
     var loadedPort: UInt = 0
+    /// Counts the chapter loads started in this page. A reload of the same chapter keeps the page
+    /// number, so the load chain checks this too before acting on the page.
+    var loadGeneration = 0
     /// The web content process died; the chapter must be loaded again (`FolioReaderCenter.reloadPages`).
     var needsReload = false
     var menuIsVisible = false

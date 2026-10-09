@@ -73,16 +73,21 @@ extension FolioReaderPage {
         
         preprocessor.append("document.body.style.minHeight = null;")
         
+        // Still the load this chain started for: the same chapter (reloadChapter, after the web
+        // content process died or the server moved) restarts the chain with a new generation.
+        let loadGeneration = self.loadGeneration
+        let isCurrentLoad = { self.pageNumber == pageNumber && self.loadGeneration == loadGeneration }
+
         self.layoutAdapting = .structure
         let preprocessInterval = FolioSignpost.begin("PreprocessJS", "page \(pageNumber)")
         self.webView?.js(preprocessor) {_ in
             preprocessInterval.end()
-            guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch \(pageNumber) vs \(self.pageNumber)"); return }
+            guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch \(pageNumber) vs \(self.pageNumber)"); return }
 
             FolioLogger.log("bridgeFinished pageNumber=\(String(describing: self.pageNumber)) size=\(String(describing: self.book.spine.spineReferences[self.pageNumber-1].resource.size))")
             
             self.updateOverflowStyle(delay: 0.2) {
-                guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateOverflowStyle \(pageNumber) vs \(self.pageNumber)"); return }
+                guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateOverflowStyle \(pageNumber) vs \(self.pageNumber)"); return }
                 FolioLogger.log("bridgeFinished updateOverflowStyle pageNumber=\(pageNumber)")
 
                 if self.writingMode == "vertical-rl" {
@@ -90,22 +95,22 @@ extension FolioReaderPage {
                 }
                 
                 self.updateRuntimeStyle(delay: 0.2) {
-                    guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateRuntimeStyle \(pageNumber) vs \(self.pageNumber)"); return }
+                    guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateRuntimeStyle \(pageNumber) vs \(self.pageNumber)"); return }
 
                     FolioLogger.log("bridgeFinished updateRuntimeStyle pageNumber=\(pageNumber)")
                     
                     self.injectHighlights() {
-                        guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch injectHighlights \(pageNumber) vs \(self.pageNumber)"); return }
+                        guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch injectHighlights \(pageNumber) vs \(self.pageNumber)"); return }
                         FolioLogger.log("bridgeFinished injectHighlights pageNumber=\(pageNumber)")
 
                         self.updatePageInfo() {
-                            guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch updatePageInfo \(pageNumber) vs \(self.pageNumber)"); return }
+                            guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch updatePageInfo \(pageNumber) vs \(self.pageNumber)"); return }
                             FolioLogger.log("bridgeFinished updatePageInfo pageNumber=\(pageNumber)")
 
                             self.updateStyleBackgroundPadding(delay: 0.2, tryShrinking: false) {
                                 FolioLogger.log("bridgeFinished updateStyleBackgroundPadding pageNumber=\(pageNumber)")
                                 
-                                guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch beforeShow \(pageNumber) vs \(self.pageNumber)"); return }
+                                guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch beforeShow \(pageNumber) vs \(self.pageNumber)"); return }
                                 
                                 self.layoutAdapting = nil
                                 webView.isHidden = false

@@ -81,6 +81,7 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         FolioLogger.log("webView.load url=\(url.absoluteString)")
         page.loadedPort = readerContainer.pagePort
         page.needsReload = false
+        page.loadGeneration += 1
         page.loadInterval = FolioSignpost.begin("PageLoad", "page \(page.pageNumber)", log: FolioSignpost.milestones)
         page.loadNavigation = page.webView?.load(URLRequest(url: url))
     }

@@ -226,9 +226,11 @@ open class FolioReaderContainer: UIViewController {
 
         // Hosts can show the reader again without recreating it (tab switches, full-screen sheets).
         // Loading again would re-parse the book and re-apply the position it was opened at; the
-        // server, stopped when the reader disappeared, starts again.
+        // server, stopped when the reader disappeared, starts again. A page whose web content process
+        // died while the reader was hidden reloads now: becoming active skipped it, off screen.
         guard loadedEpubPath != epubPath else {
             restartResourceServer()
+            centerViewController?.reloadPages(all: false)
             return
         }
         loadedEpubPath = epubPath
