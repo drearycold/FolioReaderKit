@@ -24,7 +24,7 @@ class BridgeHighlightTests: XCTestCase {
         let loader = BridgePageLoadWaiter(expectation(description: "page loaded"))
         webView.navigationDelegate = loader
         webView.loadHTMLString("<html><head></head><body><p id=\"p1\">Some text to highlight.</p></body></html>", baseURL: nil)
-        wait(for: [loader.loaded], timeout: 10)
+        wait(for: [loader.loaded], timeout: webKitTimeout)
 
         let malformed = #"[{"highlightId":"h1","cfiStart":"/4/2[nope]:0","cfiEnd":"/4/2[nope]:4","style":"highlight-yellow"},{"highlightId":"h2"}]"#
         let encoded = Data(malformed.utf8).base64EncodedString()
@@ -37,7 +37,7 @@ class BridgeHighlightTests: XCTestCase {
             scriptError = error
             done.fulfill()
         }
-        wait(for: [done], timeout: 10)
+        wait(for: [done], timeout: webKitTimeout)
 
         XCTAssertNil(scriptError, "injectHighlights must not throw: \(String(describing: scriptError))")
         let results = try XCTUnwrap((output as? String)?.data(using: .utf8).flatMap { try? JSONDecoder().decode([String].self, from: $0) })

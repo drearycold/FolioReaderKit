@@ -9,6 +9,10 @@ import WebKit
 import XCTest
 @testable import FolioReaderKit
 
+/// How long a page load or a script may take. Locally both take milliseconds; on a CI runner the
+/// first WebKit tests ran while the simulator was still busy after booting, and loads took over 10 s.
+let webKitTimeout: TimeInterval = 30
+
 @MainActor
 extension XCTestCase {
     /// A chapter laid out as the reader lays out pages: `Bridge.js` and the CFI library, the bundled
@@ -98,7 +102,7 @@ extension XCTestCase {
         } else {
             webView.loadHTMLString(html, baseURL: nil)
         }
-        wait(for: [loader.loaded], timeout: 10)
+        wait(for: [loader.loaded], timeout: webKitTimeout)
         return webView
     }
 
@@ -112,7 +116,7 @@ extension XCTestCase {
             output = result
             done.fulfill()
         }
-        wait(for: [done], timeout: 10)
+        wait(for: [done], timeout: webKitTimeout)
         return output
     }
 }

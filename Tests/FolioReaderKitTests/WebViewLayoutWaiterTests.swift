@@ -63,7 +63,7 @@ class WebViewLayoutWaiterTests: XCTestCase {
         let loader = PageLoadWaiter(expectation(description: "page loaded"))
         webView.navigationDelegate = loader
         webView.loadHTMLString("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body style=\"margin:0\"><p>x</p></body></html>", baseURL: nil)
-        wait(for: [loader.loaded], timeout: 10)
+        wait(for: [loader.loaded], timeout: webKitTimeout)
 
         let grown = expectation(description: "document grown")
         webView.evaluateJavaScript("document.body.style.height = '5000px'; true") { _, _ in grown.fulfill() }
