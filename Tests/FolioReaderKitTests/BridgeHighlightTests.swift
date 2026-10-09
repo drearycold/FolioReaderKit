@@ -16,6 +16,7 @@ class BridgeHighlightTests: XCTestCase {
     /// A highlight without its encoded content fields and with an unusable CFI (what a host can
     /// persist by mistake) must come back as a per-highlight error, not abort the batch.
     func testMalformedHighlightIsReportedNotThrown() throws {
+        warmUpWebKit()
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.addUserScript(FolioReaderScript.readiumCFIJS)
         configuration.userContentController.addUserScript(FolioReaderScript.bridgeJS)

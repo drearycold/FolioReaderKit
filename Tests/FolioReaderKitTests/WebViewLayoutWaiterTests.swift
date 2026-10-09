@@ -59,6 +59,7 @@ class WebViewLayoutWaiterTests: XCTestCase {
     /// After a script grows the document, the waiter must not finish until the native content size
     /// has caught up, and it must finish well before the timeout.
     func testWaitSettlesOnceContentSizeCatchesUpWithLayout() {
+        warmUpWebKit()
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
         let loader = PageLoadWaiter(expectation(description: "page loaded"))
         webView.navigationDelegate = loader
@@ -120,6 +121,8 @@ class WebViewLayoutWaiterTests: XCTestCase {
         let ended = expectation(description: "wait ended")
         var didSettle: Bool?
         weak var released: WKWebView?
+        // The time bound is for the wait, not WebKit's first page.
+        warmUpWebKit()
         let start = Date()
         // The pool releases the test's own autoreleased references before the wait goes on.
         autoreleasepool {

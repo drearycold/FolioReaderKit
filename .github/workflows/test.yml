@@ -46,8 +46,8 @@ jobs:
           echo "DESTINATION=platform=iOS Simulator,id=$UDID" >> "$GITHUB_ENV"
           echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
 
-      # A freshly booted simulator stays busy for minutes after booting; WebKit tests that ran then
-      # timed out loading pages. Boot it now, so it settles while the packages build.
+      # Boot now, so the simulator settles while the packages build. (WebKit's own wait on a
+      # runner, its first page in the test process, is taken once by the tests: warmUpWebKit.)
       - name: Boot simulator
         run: xcrun simctl boot "$SIMULATOR_UDID" || true
 

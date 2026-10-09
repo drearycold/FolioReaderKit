@@ -9,9 +9,12 @@ import WebKit
 import XCTest
 @testable import FolioReaderKit
 
-/// How long a page load or a script may take. Locally both take milliseconds; on a CI runner the
-/// first WebKit tests ran while the simulator was still busy after booting, and loads took over 10 s.
+/// How long a page load or a script may take, once WebKit is warm (`warmUpWebKit`). Locally both
+/// take milliseconds.
 let webKitTimeout: TimeInterval = 30
+
+/// Whether a test in this process has waited for WebKit's first page and script.
+@MainActor private var webKitIsWarm = false
 
 @MainActor
 extension XCTestCase {
@@ -92,8 +95,27 @@ extension XCTestCase {
         }
     }
 
+    /// Waits, once per test process, for WebKit's first page and script. On a CI runner the first web
+    /// content process asks the WebPrivacy service for its lists ("Failed to request query parameters
+    /// from WebPrivacy") and runs no script until it gives up ("Unable to hide query parameters from
+    /// script (missing data)"), 50 to 100 s later; pages after that don't wait. The first WebKit
+    /// test waits for it here, instead of every early test timing out.
+    func warmUpWebKit() {
+        guard !webKitIsWarm else { return }
+        webKitIsWarm = true
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+        let loader = NavigationWaiter(expectation(description: "WebKit warm-up page loaded"))
+        webView.navigationDelegate = loader
+        webView.loadHTMLString("<p>warm-up</p>", baseURL: nil)
+        wait(for: [loader.loaded], timeout: 300)
+        let evaluated = expectation(description: "WebKit warm-up script")
+        webView.evaluateJavaScript("document.body.textContent") { _, _ in evaluated.fulfill() }
+        wait(for: [evaluated], timeout: 300)
+    }
+
     /// A 320×480 web view that has finished loading `html`, parsed as `mimeType` if given.
     func loadedWebView(html: String, mimeType: String? = nil, configuration: WKWebViewConfiguration = WKWebViewConfiguration()) -> WKWebView {
+        warmUpWebKit()
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480), configuration: configuration)
         let loader = NavigationWaiter(expectation(description: "page loaded"))
         webView.navigationDelegate = loader
