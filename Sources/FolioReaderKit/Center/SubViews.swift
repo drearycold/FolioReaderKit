@@ -171,17 +171,22 @@ extension FolioReaderCenter {
         let navText = folioReader.preferences.navTextColor()
         let shareIcon = UIImage(readerImageNamed: "icon-navbar-share")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let audioIcon = UIImage(readerImageNamed: "icon-navbar-tts")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal) //man-speech-icon
-        let closeIcon = UIImage(readerImageNamed: "icon-navbar-close")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let tocIcon = UIImage(readerImageNamed: "icon-navbar-toc")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let fontIcon = UIImage(readerImageNamed: "icon-navbar-font")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let logoIcon = UIImage(readerImageNamed: "icon-button-back")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
         let bookmarkIcon = UIImage(readerImageNamed: "icon-navbar-bookmark")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
 
-        let menu = UIBarButtonItem(image: closeIcon, style: .plain, target: self, action:#selector(closeReader(_:)))
         let toc = UIBarButtonItem(image: tocIcon, style: .plain, target: self, action:#selector(presentChapterList(_:)))
         let bookmark = UIBarButtonItem(image: bookmarkIcon, style: .plain, target: self, action: #selector(presentBookmarkList(_:)))
-        
-        navigationItem.leftBarButtonItems = [menu, toc, bookmark]
+
+        var leftBarIcons = [UIBarButtonItem]()
+        if readerConfig.showCloseButton {
+            let closeIcon = UIImage(readerImageNamed: "icon-navbar-close")?.imageTintColor(navText)?.withRenderingMode(.alwaysOriginal)
+            leftBarIcons.append(UIBarButtonItem(image: closeIcon, style: .plain, target: self, action: #selector(closeReader(_:))))
+        }
+        leftBarIcons.append(contentsOf: [toc, bookmark])
+
+        navigationItem.leftBarButtonItems = leftBarIcons
 
         var rightBarIcons = [UIBarButtonItem]()
 
@@ -219,6 +224,7 @@ extension FolioReaderCenter {
         guard let position = self.navigateWebViewScrollPositions.popLast() else { return }
         self.navigationItem.rightBarButtonItems?.last?.isEnabled = !self.navigateWebViewScrollPositions.isEmpty
         if position.0 == currentPageNumber {
+            self.currentPage?.pinnedPosition = nil
             self.currentPage?.setScrollViewContentOffset(position.1, animated: true)
         } else {
             self.changePageWith(page: position.0) {     //depends on `currentWebViewScrollPositions` to in page reposition

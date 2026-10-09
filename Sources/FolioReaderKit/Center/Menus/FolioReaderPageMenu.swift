@@ -438,7 +438,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
                 }
                 currentPage.byWritingMode(
                     horizontal: { currentPage.updateViewerLayout(delay: 0.2) },
-                    vertical: { currentPage.updateRuntimStyle(delay: 0.4) }
+                    vertical: { currentPage.updateRuntimeStyle(delay: 0.4) }
                 )
             }
         } else if segmentView.tag == 5 {
@@ -484,7 +484,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
                     break;
                 }
                 currentPage.byWritingMode(
-                    horizontal: { currentPage.updateRuntimStyle(delay: 0.4) },
+                    horizontal: { currentPage.updateRuntimeStyle(delay: 0.4) },
                     vertical: { currentPage.updateViewerLayout(delay: 0.2) }
                 )
             }

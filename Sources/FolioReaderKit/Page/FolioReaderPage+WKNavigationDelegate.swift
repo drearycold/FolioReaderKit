@@ -19,7 +19,41 @@ extension FolioReaderPage {
     }
     
     public func webView(_ webView: WKWebView, didFail: WKNavigation!, withError: Error) {
+        endLoadInterval(ifLoading: didFail)
         self.readerContainer?.alert(message: "LOAD FAIL WITH ERROR \(withError.localizedDescription)")
+    }
+
+    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        endLoadInterval(ifLoading: navigation)
+    }
+
+    /// iOS reclaims web content processes, mostly while the app is in the background. WebKit only
+    /// reloads the page itself when this method isn't implemented, and then from the old URL: if the
+    /// server had moved to another port, `handlePolicy` didn't recognise it and sent it to Safari.
+    /// Reload from the server's port at the recorded position instead, now if the app is active, else
+    /// when it becomes active (`FolioReaderContainer`); the server is suspended in the background.
+    public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        loadInterval?.end("terminated")
+        loadInterval = nil
+        needsReload = true
+        // Nothing may record or save a position from the dead page meanwhile.
+        layoutAdapting = .initializing
+        guard UIApplication.shared.applicationState == .active else { return }
+        readerContainer?.restartResourceServer()
+        folioReader.readerCenter?.reloadPages(all: false)
+    }
+
+    /// The reader's own resource server, on any port: pages, styles, fonts.
+    static func isReaderServerURL(_ url: URL) -> Bool {
+        url.scheme == "http" && ["localhost", "127.0.0.1", "::1"].contains(url.host ?? "")
+    }
+
+    /// Ends `loadInterval` if `navigation` is the load it measures. Starting another load cancels
+    /// the previous one, and that cancellation must not end the new load's interval.
+    private func endLoadInterval(ifLoading navigation: WKNavigation?) {
+        guard let navigation = navigation, navigation === loadNavigation else { return }
+        loadInterval?.end("failed")
+        loadInterval = nil
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -39,41 +73,51 @@ extension FolioReaderPage {
         
         preprocessor.append("document.body.style.minHeight = null;")
         
-        self.layoutAdapting = "Preparing Document Structure..."
+        // Still the load this chain started for: the same chapter (reloadChapter, after the web
+        // content process died or the server moved) restarts the chain with a new generation.
+        let loadGeneration = self.loadGeneration
+        let isCurrentLoad = { self.pageNumber == pageNumber && self.loadGeneration == loadGeneration }
+
+        self.layoutAdapting = .structure
+        let preprocessInterval = FolioSignpost.begin("PreprocessJS", "page \(pageNumber)")
         self.webView?.js(preprocessor) {_ in
-            guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch \(pageNumber) vs \(self.pageNumber)"); return }
+            preprocessInterval.end()
+            guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch \(pageNumber) vs \(self.pageNumber)"); return }
 
             FolioLogger.log("bridgeFinished pageNumber=\(String(describing: self.pageNumber)) size=\(String(describing: self.book.spine.spineReferences[self.pageNumber-1].resource.size))")
             
             self.updateOverflowStyle(delay: 0.2) {
-                guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateOverflowStyle \(pageNumber) vs \(self.pageNumber)"); return }
+                guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateOverflowStyle \(pageNumber) vs \(self.pageNumber)"); return }
                 FolioLogger.log("bridgeFinished updateOverflowStyle pageNumber=\(pageNumber)")
 
                 if self.writingMode == "vertical-rl" {
                     self.setNeedsLayout()       //resize webViewFrame
                 }
                 
-                self.updateRuntimStyle(delay: 0.2) {
-                    guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateRuntimStyle \(pageNumber) vs \(self.pageNumber)"); return }
+                self.updateRuntimeStyle(delay: 0.2) {
+                    guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch updateRuntimeStyle \(pageNumber) vs \(self.pageNumber)"); return }
 
-                    FolioLogger.log("bridgeFinished updateRuntimStyle pageNumber=\(pageNumber)")
+                    FolioLogger.log("bridgeFinished updateRuntimeStyle pageNumber=\(pageNumber)")
                     
                     self.injectHighlights() {
-                        guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch injectHighlights \(pageNumber) vs \(self.pageNumber)"); return }
+                        guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch injectHighlights \(pageNumber) vs \(self.pageNumber)"); return }
                         FolioLogger.log("bridgeFinished injectHighlights pageNumber=\(pageNumber)")
 
                         self.updatePageInfo() {
-                            guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch updatePageInfo \(pageNumber) vs \(self.pageNumber)"); return }
+                            guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch updatePageInfo \(pageNumber) vs \(self.pageNumber)"); return }
                             FolioLogger.log("bridgeFinished updatePageInfo pageNumber=\(pageNumber)")
 
                             self.updateStyleBackgroundPadding(delay: 0.2, tryShrinking: false) {
                                 FolioLogger.log("bridgeFinished updateStyleBackgroundPadding pageNumber=\(pageNumber)")
                                 
-                                guard self.pageNumber == pageNumber else { FolioLogger.log("bridgeFinished pageNumberMisMatch beforeShow \(pageNumber) vs \(self.pageNumber)"); return }
+                                guard isCurrentLoad() else { FolioLogger.log("bridgeFinished pageNumberMisMatch beforeShow \(pageNumber) vs \(self.pageNumber)"); return }
                                 
                                 self.layoutAdapting = nil
                                 webView.isHidden = false
                                 
+                                self.loadInterval?.end("page \(pageNumber)")
+                                self.loadInterval = nil
+                                self.loadNavigation = nil
                                 self.delegate?.pageDidLoad?(self)
                             }
                         }
@@ -146,17 +190,18 @@ extension FolioReaderPage {
         } else if let referer = request.value(forHTTPHeaderField: "Referer"),
                   let refererURL = URL(string: referer),
                   refererURL.host == "localhost",
-                  refererURL.port == Int(readerContainer?.webServer.port ?? 0),
+                  refererURL.port == Int(readerContainer?.pagePort ?? 0),
                   url.scheme == "http",
                   url.host == "localhost",
-                  url.port == Int(readerContainer?.webServer.port ?? 0),
+                  url.port == Int(readerContainer?.pagePort ?? 0),
                   let anchorFromURL = url.fragment {
             self.webView?.js("getClickAnchorOffset('\(anchorFromURL)')") { offset in
+                // The preview covers the window, so place it in the window's coordinates.
                 let snippetVC = FolioReaderAnchorPreview(
                     self.folioReader,
                     url,
                     CGFloat(truncating: NumberFormatter().number(from: offset ?? "0") ?? 0),
-                    self.anchorBoundsFrame()
+                    self.convert(self.anchorBoundsFrame(), to: nil)
                 )
 
                 snippetVC.anchorLabel.text = url.absoluteString
@@ -167,7 +212,7 @@ extension FolioReaderPage {
                 self.folioReader.readerCenter?.present(snippetVC, animated: true, completion: nil)
             }
             return false
-        } else if scheme == "file" || (url.scheme == "http" && url.host == "localhost" && (url.port ?? 0) == Int(readerContainer?.webServer.port ?? 0)) {
+        } else if scheme == "file" || (url.scheme == "http" && url.host == "localhost" && (url.port ?? 0) == Int(readerContainer?.pagePort ?? 0)) {
             
             if navigationAction.navigationType == .linkActivated {
                 self.pushNavigateWebViewScrollPositions()
@@ -220,11 +265,7 @@ extension FolioReaderPage {
                                 guard self.folioReader.readerCenter?.currentPageNumber == hrefPage else { return }
                                 guard let currentPage = self.folioReader.readerCenter?.currentPage else { return }
                                 currentPage.waitForLayoutFinish {
-                                    if self.folioReader.needsRTLChange {
-                                        currentPage.scrollPageToBottom()
-                                    } else {
-                                        currentPage.scrollPageToOffset(.zero, animated: false, retry: 0)
-                                    }
+                                    currentPage.scrollPageToChapterStart()
                                 }
                             }
                         }
@@ -245,6 +286,14 @@ extension FolioReaderPage {
             } else {
                 return true
             }
+        } else if Self.isReaderServerURL(url) {
+            // The reader's server on a port it no longer uses. Never hand it to Safari, which can't
+            // reach it: load the chapter again from the current port.
+            needsReload = true
+            DispatchQueue.main.async {
+                self.folioReader.readerCenter?.reloadPages(all: false)
+            }
+            return false
         } else if scheme == "mailto" {
             print("Email")
             return true

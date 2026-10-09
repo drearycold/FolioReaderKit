@@ -1,0 +1,107 @@
+name: Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Package tests and example builds
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      SPM_DIR: ${{ github.workspace }}/.spm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      # Use the newest iOS runtime the SDK supports, and on it prefer "iPhone 17" (the name used in
+      # CLAUDE.md), else its first iPhone. Picking by UDID keeps the name and the runtime together.
+      - name: Pick simulator
+        run: |
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-version)
+          PICK=$(xcrun simctl list devices available -j | jq -r --arg sdk "$SDK" '
+            def ver: split(".") | map(tonumber);
+            [.devices | to_entries[]
+              | select(.key | test("SimRuntime\\.iOS-"))
+              | (.key | capture("iOS-(?<v>[0-9-]+)$").v | gsub("-"; ".")) as $os
+              | select(($os | ver) <= ($sdk | ver))
+              | .value[] | select(.name | startswith("iPhone"))
+              | {udid, os: $os, name}]
+            | (map(.os | ver) | max) as $newest
+            | map(select((.os | ver) == $newest))
+            | ((map(select(.name == "iPhone 17")) + .)[0] // empty)
+            | "\(.udid) \(.os) \(.name)"')
+          if [ -z "$PICK" ]; then echo "No iPhone simulator available for the iOS $SDK SDK" >&2; exit 1; fi
+          read -r UDID OS NAME <<< "$PICK"
+          echo "Using simulator: $NAME (iOS $OS, $UDID)"
+          echo "DESTINATION=platform=iOS Simulator,id=$UDID" >> "$GITHUB_ENV"
+          echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+
+      # Boot now, so the simulator settles while the packages build. (WebKit's own wait on a
+      # runner, its first page in the test process, is taken once by the tests: warmUpWebKit.)
+      - name: Boot simulator
+        run: xcrun simctl boot "$SIMULATOR_UDID" || true
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: .spm
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Example/Example.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Build FolioReaderKit tests
+        run: |
+          xcodebuild build-for-testing \
+            -scheme FolioReaderKit \
+            -destination "$DESTINATION" \
+            -clonedSourcePackagesDirPath "$SPM_DIR"
+
+      # bootstatus -b waits until the boot, data migration included, has finished.
+      - name: Wait for the simulator
+        run: xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+
+      # Includes the CSS snapshot test and the WKWebView-backed injector tests.
+      - name: Test FolioReaderKit
+        run: |
+          xcodebuild test-without-building \
+            -scheme FolioReaderKit \
+            -destination "$DESTINATION" \
+            -clonedSourcePackagesDirPath "$SPM_DIR" \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Build Example
+        run: |
+          xcodebuild build \
+            -project Example/Example.xcodeproj \
+            -scheme Example \
+            -destination "$DESTINATION" \
+            -clonedSourcePackagesDirPath "$SPM_DIR" \
+            CODE_SIGNING_ALLOWED=NO
+
+      # iPad-only (two readers side by side), so it can't use the iPhone destination. It is the
+      # only sample that creates FolioReaderContainer from a storyboard.
+      - name: Build MultipleInstance-Example
+        run: |
+          xcodebuild build \
+            -project Example/Example.xcodeproj \
+            -scheme MultipleInstance-Example \
+            -destination "generic/platform=iOS Simulator" \
+            -clonedSourcePackagesDirPath "$SPM_DIR" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          if-no-files-found: ignore

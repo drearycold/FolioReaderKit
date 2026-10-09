@@ -37,7 +37,7 @@ Key features include:
   - `Models/`, `Providers/`, `Resources/`, `Vendor/`: Various supporting components and resources.
 - `Example/`: Contains a sample iOS application demonstrating how to integrate and use FolioReaderKit, including multiple instances and storyboard setups.
 - `Tests/`: Unit tests for the framework.
-- `docs/`: Generated documentation (likely via Jazzy).
+- `docs/`: Jazzy output (git-ignored), published to GitHub Pages by `.github/workflows/docs.yml`.
 - Configuration Files: `Package.swift` (SPM), `FolioReaderKit.podspec` (CocoaPods).
 
 ## Building and Running

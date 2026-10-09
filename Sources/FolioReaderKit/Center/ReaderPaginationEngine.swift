@@ -180,6 +180,7 @@ open class ReaderPaginationEngine {
         if contentOffsetX >= contentOffsetXLimit {
             changePageToNext(completion)
         } else {
+            cell.pinnedPosition = nil
             cell.scrollPageToOffset(contentOffsetX, animated: true)
         }
         
@@ -218,6 +219,7 @@ open class ReaderPaginationEngine {
         if contentOffsetX < 0 {
             changePageToPrevious(completion)
         } else {
+            cell.pinnedPosition = nil
             cell.scrollPageToOffset(contentOffsetX, animated: true)
         }
         
@@ -245,6 +247,7 @@ open class ReaderPaginationEngine {
             contentOffsetX = 0
         }
         
+        cell.pinnedPosition = nil
         cell.scrollPageToOffset(contentOffsetX, animated: animated)
         
         completion?()
@@ -276,7 +279,8 @@ open class ReaderPaginationEngine {
         }
         
         UIView.animate(withDuration: animated ? 0.3 : 0, delay: 0, options: UIView.AnimationOptions(), animations: { () -> Void in
-            cell.scrollPageToOffset(contentOffsetX, animated: animated)
+            cell.pinnedPosition = nil
+        cell.scrollPageToOffset(contentOffsetX, animated: animated)
         }) { (finished: Bool) -> Void in
             cell.updatePageInfo {
                 self.center?.delegate?.pageItemChanged?(cell.currentPage)

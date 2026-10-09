@@ -138,7 +138,10 @@ function getTextAndImgNodesIn(node, includeWhitespaceNodes) {
     var textNodes = [], whitespace = /^\s*$/;
 
     function getTextAndImgNodes(node) {
-        if (node.nodeType == 3 || (node.nodeType == 1 && node.nodeName == "IMG")) {
+        // An <svg> stands for its content, like an <img>: calibre wraps covers and plates in
+        // <svg><image>. XHTML chapters report lowercase names.
+        const name = node.nodeType == 1 ? node.nodeName.toUpperCase() : ""
+        if (node.nodeType == 3 || name == "IMG" || name == "SVG") {
             if (includeWhitespaceNodes || !whitespace.test(node.nodeValue)) {
                 textNodes.push(node);
             }
@@ -909,13 +912,35 @@ var getAnchorOffset = function(target, horizontal) {
 //                const textInfo = window.EPUBcfi.getTextTerminusInfoWithPartialCFI(encodeURI(partialCFI), document, [], [], [])
 //                window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI textInfo ${textInfo.textNode.textContent.trim()} ${textInfo.textOffset}`);
 //            }
-            const textInfo = window.EPUBcfi.getTextTerminusInfoWithPartialCFI(encodeURI(partialCFI), document, [], [], [])
+            // Positions are recorded with <highlight> blacklisted (getVisibleCFI, getVisibleMiddleCFI), so
+            // they are resolved the same way. Resolved without it, a position after a highlight in the
+            // same element landed in the text before the highlight.
+            const textInfo = window.EPUBcfi.getTextTerminusInfoWithPartialCFI(encodeURI(partialCFI), document, [], ["highlight"], [])
             window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI textInfo ${textInfo.textNode.textContent.trim()} ${textInfo.textOffset}`);
             
-            if (textInfo && textInfo.textNode) {
+            // An element CFI (an image, an SVG) resolves here too, to the element with a NaN offset;
+            // measuring that collapsed range gives the current scroll position. Locate it as an element below.
+            if (textInfo && textInfo.textNode && textInfo.textNode.nodeType == 3 && textInfo.textNode.length > 0 && Number.isFinite(textInfo.textOffset)) {
+                // With highlights blacklisted the offset counts the text around them as one node,
+                // without the highlighted text: find the text node that holds it.
+                let textNode = textInfo.textNode
+                let nodeOffset = textInfo.textOffset
+                while (nodeOffset >= textNode.length) {
+                    let next = textNode.nextSibling
+                    while (next && next.nodeType == 1 && next.nodeName.toUpperCase() == "HIGHLIGHT") {
+                        next = next.nextSibling
+                    }
+                    if (!next || next.nodeType != 3) break
+                    nodeOffset -= textNode.length
+                    textNode = next
+                }
+                // A position at the end of the text: getVisibleCFI records one when the edge of the
+                // view cuts the last line or column. Measuring past the end throws, which sent the
+                // restore to the whole element; measure the last character instead.
+                const textOffset = Math.min(nodeOffset, textNode.length - 1)
                 let range = document.createRange()
-                range.setStart(textInfo.textNode, textInfo.textOffset)
-                range.setEnd(textInfo.textNode, textInfo.textOffset+1)
+                range.setStart(textNode, textOffset)
+                range.setEnd(textNode, textOffset + 1)
                 
                 let rangeClientBounds = range.getBoundingClientRect()
                 window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI rangeClientBounds ${rangeClientBounds.left}:${rangeClientBounds.right}:${rangeClientBounds.top}:${rangeClientBounds.bottom} scrollX=${window.scrollX} scrollY=${window.scrollY} rangeText=${range.toString().trim()}`);
@@ -936,7 +961,7 @@ var getAnchorOffset = function(target, horizontal) {
         }
         
         try {
-            elem = window.EPUBcfi.getTargetElementWithPartialCFI(encodeURI(partialCFI), document, [], [], []).get(0)
+            elem = window.EPUBcfi.getTargetElementWithPartialCFI(encodeURI(partialCFI), document, [], ["highlight"], []).get(0)
             while (elem && elem.nodeType == 3) {
                 elem = elem.parentNode
             }
@@ -947,7 +972,7 @@ var getAnchorOffset = function(target, horizontal) {
         if (!elem) {
             partialCFI = partialCFI.replace(reg2, ")")
             try {
-                elem = window.EPUBcfi.getTargetElementWithPartialCFI(encodeURI(partialCFI), document, [], [], []).get(0)
+                elem = window.EPUBcfi.getTargetElementWithPartialCFI(encodeURI(partialCFI), document, [], ["highlight"], []).get(0)
             } catch(e) {
                 window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI error prefix ${e}`);
             }
@@ -963,15 +988,21 @@ var getAnchorOffset = function(target, horizontal) {
         return 0
     }
     
+    // Measured like the text above, from the element's first box: where it starts if it is broken
+    // across pages, and independent of its offsetParent. In paged mode the center keeps a box that
+    // reaches a page edge on its own page; scrolling shows the start of the box, its top or, in
+    // vertical writing, its right edge.
+    const rect = elem.getClientRects()[0] || elem.getBoundingClientRect()
+    
     if (writingMode == "vertical-rl") {
-        return elem.offsetLeft + elem.offsetWidth;
+        return -((horizontal ? rect.left + rect.width / 2 : rect.right) + window.scrollX);
     }
     
     if (horizontal) {
-        return document.body.clientWidth * Math.floor(elem.offsetTop / window.innerHeight);
+        return rect.left + rect.width / 2 + window.scrollX;
     }
     
-    return elem.offsetTop;
+    return rect.top + window.scrollY;
 }
 
 var getClickAnchorOffset = function(target) {
@@ -1445,7 +1476,9 @@ function wrappingSentencesWithinPTags(){
 
 function visible(elem) {
     if (elem.nodeType === 3) return true;
-    return !(elem.clientHeight === 0 || elem.clientWidth === 0);
+    // The layout box, which an outer <svg> has even where client sizes don't apply.
+    const rect = elem.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
 }
 
 function getVisibleCFI(horizontal) {
@@ -1461,7 +1494,7 @@ function getVisibleCFI(horizontal) {
         if (!elem || elem == first) {
             continue
         }
-        if (elem.tagName == "HIGHLIGHT") {
+        if (elem.nodeName.toUpperCase() == "HIGHLIGHT") {
             continue
         }
         //Calculate the offset to the document
@@ -1504,19 +1537,26 @@ function getVisibleCFI(horizontal) {
             firstHorizontalTop = horizontal ? offY : 0;
             window.webkit.messageHandlers.FolioReaderPage.postMessage("getVisibleCFI first " + horizontal + " " + first.outerHTML);
             
-            for (var i = 0; i < first.childNodes.length; i++) {
-                if (first.childNodes[i].nodeType == 1) {    //element
-                    
+            // All of its text, not only its own text nodes: the visible part of a paragraph can be
+            // inside a child element (<p>text<span>more text</span></p>), and measuring only the
+            // paragraph's own text recorded the whole paragraph, whose top is lines back. Text inside a
+            // highlight is left out, as before; the CFI library skips <highlight> elements.
+            const textNodes = getTextNodesIn(first, false).filter(function (node) {
+                for (let parent = node.parentNode; parent && parent != first; parent = parent.parentNode) {
+                    if (parent.nodeName.toUpperCase() == "HIGHLIGHT") { return false }
                 }
-                if (first.childNodes[i].nodeType == 3) {    //text
-                    if (!first.childNodes[i].textContent) {
+                return true
+            })
+            for (var i = 0; i < textNodes.length; i++) {
+                if (textNodes[i].nodeType == 3) {    //text
+                    if (!textNodes[i].textContent) {
                         continue
                     }
                     
                     let range = document.createRange();
                     
-                    range.setStart(first.childNodes[i], 0);
-                    range.setEnd(first.childNodes[i], first.childNodes[i].textContent.length);
+                    range.setStart(textNodes[i], 0);
+                    range.setEnd(textNodes[i], textNodes[i].textContent.length);
                     
                     const clientRect = range.getBoundingClientRect();
                     if (clientRect.width == 0 || clientRect.height == 0) {
@@ -1527,7 +1567,7 @@ function getVisibleCFI(horizontal) {
                                         (clientRect.left > window.innerWidth || clientRect.right < 0) :
                                         (clientRect.top > window.innerHeight || clientRect.bottom < 0)
                                         )
-                    window.webkit.messageHandlers.FolioReaderPage.postMessage(`getVisibleCFI range ${isVisible} ${clientRect.left}:${clientRect.right}:${clientRect.top}:${clientRect.bottom} w:h=${clientRect.width}:${clientRect.height} window=${window.innerWidth}:${window.innerHeight} ${first.childNodes[i].textContent.trim()}`);
+                    window.webkit.messageHandlers.FolioReaderPage.postMessage(`getVisibleCFI range ${isVisible} ${clientRect.left}:${clientRect.right}:${clientRect.top}:${clientRect.bottom} w:h=${clientRect.width}:${clientRect.height} window=${window.innerWidth}:${window.innerHeight} ${textNodes[i].textContent.trim()}`);
                     
                     if (isVisible) {
                         firstRange = range;
@@ -1621,7 +1661,9 @@ function getVisibleCFI(horizontal) {
     var message = ""
     if (first) {
         cfiStart = window.EPUBcfi.generateElementCFIComponent(first,[],["highlight"],[])
-        snippet = first.innerText
+        // An <svg> has no innerText, and a missing snippet drops it from the JSON. (No `??`: WebKit
+        // before iOS 13.4 can't parse it, and the whole script would fail.)
+        snippet = first.innerText != null ? first.innerText : (first.textContent != null ? first.textContent : "")
         message = `first ${cfiStart} ${snippet} ${first.outerHTML}`
         
         if (firstRange) {
@@ -1648,6 +1690,108 @@ function getVisibleCFI(horizontal) {
         offsetSnippet: offsetSnippet,
         message: message
     })
+}
+
+/**
+ Paged mode: the CFI of the middle character of the text on the current page, in the same JSON as
+ `getVisibleCFI`, which it falls back to.
+
+ Restoring a position shows the page that holds it. A page's first character usually comes before
+ the text that brought the reader to that page, so recording it moves the position back a little on
+ every relayout (rotation, font size, window size). The middle of a page stays inside that page in
+ either layout.
+ */
+function getVisibleMiddleCFI(horizontal) {
+    try {
+        // Pages run right to left in vertical-rl.
+        const pagesRightToLeft = writingMode == "vertical-rl"
+
+        // -1 on an earlier page, 0 on this one, 1 on a later one.
+        function sideOf(rect) {
+            const x = rect.left + rect.width / 2
+            const side = x < 0 ? -1 : (x >= window.innerWidth ? 1 : 0)
+            return pagesRightToLeft ? -side : side
+        }
+        function charRect(node, index) {
+            const range = document.createRange()
+            range.setStart(node, index)
+            range.setEnd(node, index + 1)
+            const rects = range.getClientRects()
+            return rects.length && rects[0].width > 0 ? rects[0] : null
+        }
+        // Collapsed whitespace has no box; use the nearest character that has one.
+        function nearestBoxedIndex(node, index) {
+            for (let delta = 0; delta < node.length; delta++) {
+                if (index + delta < node.length && charRect(node, index + delta)) return index + delta
+                if (index - delta >= 0 && charRect(node, index - delta)) return index - delta
+            }
+            return -1
+        }
+        function charSide(node, index) {
+            const boxed = nearestBoxedIndex(node, index)
+            return boxed < 0 ? 0 : sideOf(charRect(node, boxed))
+        }
+        // First index in [lo, hi) for which `test` holds, assuming it holds for a suffix.
+        function firstWhere(lo, hi, test) {
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1
+                if (test(mid)) hi = mid; else lo = mid + 1
+            }
+            return lo
+        }
+
+        const nodes = getTextAndImgNodesIn(document.body, false).filter(function (node) {
+            if (node.nodeType != 3 || !node.parentNode || node.parentNode.nodeName.toUpperCase() == "HIGHLIGHT") return false
+            const range = document.createRange()
+            range.selectNodeContents(node)
+            return range.getClientRects().length > 0
+        })
+
+        // Text runs in reading order, so the nodes on this page are a contiguous run.
+        const firstNode = firstWhere(0, nodes.length, function (i) { return charSide(nodes[i], nodes[i].length - 1) >= 0 })
+        const endNode = firstWhere(firstNode, nodes.length, function (i) { return charSide(nodes[i], 0) > 0 })
+
+        const spans = []
+        let total = 0
+        for (let i = firstNode; i < endNode; i++) {
+            const node = nodes[i]
+            const start = firstWhere(0, node.length, function (k) { return charSide(node, k) >= 0 })
+            const end = firstWhere(start, node.length, function (k) { return charSide(node, k) > 0 })
+            if (end > start) {
+                spans.push([node, start, end])
+                total += end - start
+            }
+        }
+        if (total == 0) {
+            return getVisibleCFI(horizontal)
+        }
+
+        let target = total >> 1
+        for (const [node, start, end] of spans) {
+            if (target >= end - start) {
+                target -= end - start
+                continue
+            }
+            const offset = nearestBoxedIndex(node, start + target)
+            if (offset < 0) break
+            const offsetComponent = window.EPUBcfi.generateCharacterOffsetCFIComponent(node, offset, [], ["highlight"], [])
+            // The snippet titles bookmarks, so it still starts where the page does. Without half of a
+            // surrogate pair at either end, which JSON.stringify escapes alone and JSONSerialization rejects.
+            const snippet = spans[0][0].textContent.substr(spans[0][1], 64).replace(/^[\uDC00-\uDFFF]|[\uD800-\uDBFF]$/g, "")
+            return JSON.stringify({
+                cfi: window.EPUBcfi.generateElementCFIComponent(node.parentNode, [], ["highlight"], []),
+                snippet: snippet,
+                rangeComponent: "",
+                rangeSnippet: "",
+                offsetComponent: offsetComponent,
+                offsetSnippet: snippet,
+                message: `middle ${offsetComponent} of ${total} visible characters`
+            })
+        }
+    } catch (e) {
+        window.webkit.messageHandlers.FolioReaderPage.postMessage(`getVisibleMiddleCFI error ${e}`)
+    }
+    return getVisibleCFI(horizontal)
 }
 
 // Class based onClick listener
@@ -1683,28 +1827,6 @@ var onClassBasedListenerClick = function(schemeName, attributeContent) {
 	var positionParameterString = "/clientX=" + event.clientX + "&clientY=" + event.clientY;
 	// Set the custom link URL to the event
 	window.location = schemeName + "://" + attributeContent + positionParameterString;
-}
-
-function setFolioStyle(styleTextEncoded) {
-    var styleText = window.atob(styleTextEncoded)
-    var head = document.head
-    var style = document.getElementById("folio_style_runtime")
-    if (style == null) {
-        style = document.createElement('style')
-        style.type = "text/css"
-        style.id = "folio_style_runtime"
-        head.appendChild(style)
-    }
-    while (style.firstChild) {
-        style.removeChild(style.firstChild)
-    }
-    style.appendChild(document.createTextNode(styleText))
-    
-//    window.webkit.messageHandlers.FolioReaderPage.postMessage("setFolioStyle " + style.outerHTML)
-
-    var para = document.querySelector('p')
-    var compStyles = window.getComputedStyle(para)
-//    window.webkit.messageHandlers.FolioReaderPage.postMessage("setFolioStyle compStyles p " + compStyles.cssText)
 }
 
 function getOffsetsOfElementsWithID(horizontal) {

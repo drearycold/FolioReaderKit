@@ -7,7 +7,7 @@ import UIKit
 
 extension FolioReaderPage {
     func injectHighlights(completion: (() -> Void)? = nil) {
-        self.layoutAdapting = "Preparing Document Annotations..."
+        self.layoutAdapting = .annotations
         
         guard let bookId = (self.book.name as NSString?)?.deletingPathExtension else {
             completion?()
@@ -41,7 +41,15 @@ extension FolioReaderPage {
             let encodedData = ((try? JSONEncoder().encode(highlights)) ?? .init()).base64EncodedString()
             
             await MainActor.run {
-                self.webView?.js("injectHighlights('\(encodedData)')") { results in
+                // The page may have been reused or released while the provider answered; the page-load
+                // chain must still continue.
+                guard let webView = self.webView else {
+                    completion?()
+                    return
+                }
+                let highlightsInterval = FolioSignpost.begin("HighlightsJS", "\(highlights.count) highlights")
+                webView.js("injectHighlights('\(encodedData)')") { results in
+                    highlightsInterval.end()
                     defer {
                         completion?()
                     }

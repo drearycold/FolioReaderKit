@@ -137,7 +137,7 @@ public class ReaderPreferences {
         }
         set (fontFamilyName) {
             pref(setString: fontFamilyName, for: .currentFont)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -148,7 +148,7 @@ public class ReaderPreferences {
         }
         set (fontSize) {
             pref(setString: fontSize, for: .currentFontSize)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -162,7 +162,7 @@ public class ReaderPreferences {
         }
         set (fontWeight) {
             pref(setString: fontWeight, for: .currentFontWeight)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -197,19 +197,53 @@ public class ReaderPreferences {
         }
     }
 
+    /// The direction the user chose in the menu, or `nil` if they haven't chosen one.
+    ///
+    /// The menu only saves `.vertical`, `.horizontalWithPagedContent` and `.horizontalWithScrollContent`.
+    /// A stored `.defaultVertical` counts as no choice, as do missing and unknown values: providers
+    /// that seed a default should seed that. Any other stored direction counts as the user's choice,
+    /// so a seeded concrete direction overrides the configured direction and the right-to-left default.
+    public var savedScrollDirection: FolioReaderScrollDirection? {
+        guard let direction = FolioReaderScrollDirection(rawValue: pref(intFor: .currentScrollDirection, default: -1)),
+              direction != .defaultVertical else { return nil }
+        return direction
+    }
+
+    /// Whether the user has chosen a scroll direction for this reader.
+    public var hasSavedScrollDirection: Bool {
+        savedScrollDirection != nil
+    }
+
+    /// The one rule for which direction a reader uses: the user's choice, else the direction the app
+    /// configured, else paged for right-to-left books and scrolling otherwise.
+    static func resolveScrollDirection(saved: FolioReaderScrollDirection?, configured: FolioReaderScrollDirection?, isRtl: Bool) -> FolioReaderScrollDirection {
+        saved ?? configured ?? (isRtl ? .horizontalWithPagedContent : .horizontalWithScrollContent)
+    }
+
     public var defaultScrollDirection: FolioReaderScrollDirection {
         folioReader?.readerContainer?.book.spine.isRtl == true ? .horizontalWithPagedContent : .horizontalWithScrollContent
     }
-    /// Check the current scroll direction. Default .defaultVertical
+
+    /// The scroll direction in effect. Once a container is attached it keeps the resolved direction
+    /// in its reader config; before that, the saved choice or `defaultScrollDirection`.
+    /// Setting it saves the user's choice and applies it.
     public var currentScrollDirection: Int {
         get {
-            pref(intFor: .currentScrollDirection, default: defaultScrollDirection.rawValue)
+            if let config = folioReader?.readerConfig {
+                return config.scrollDirection.rawValue
+            }
+            return (savedScrollDirection ?? defaultScrollDirection).rawValue
         }
         set (value) {
             pref(setInt: value, for: .currentScrollDirection)
 
             let direction = FolioReaderScrollDirection(rawValue: value) ?? defaultScrollDirection
-            folioReader?.readerCenter?.currentPage?.setScrollDirection(direction)
+            if let page = folioReader?.readerCenter?.currentPage {
+                // It records where the reader is in the current layout, then applies the direction.
+                page.setScrollDirection(direction)
+            } else {
+                folioReader?.readerConfig?.applyEffectiveScrollDirection(direction)
+            }
         }
     }
 
@@ -272,7 +306,7 @@ public class ReaderPreferences {
             guard currentVMarginLinked == false else { return }
             folioReader?.readerCenter?.currentPage?.byWritingMode(
                 horizontal: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) },
-                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4) }
+                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) }
             )
         }
     }
@@ -291,7 +325,7 @@ public class ReaderPreferences {
             guard currentVMarginLinked == false else { return }
             folioReader?.readerCenter?.currentPage?.byWritingMode(
                 horizontal: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) },
-                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4) }
+                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) }
             )
         }
     }
@@ -318,7 +352,7 @@ public class ReaderPreferences {
             pref(setInt: newValue, for: .currentMarginLeft)
             guard currentHMarginLinked == false else { return }
             folioReader?.readerCenter?.currentPage?.byWritingMode(
-                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4) },
+                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) },
                 vertical: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) }
             )
         }
@@ -337,7 +371,7 @@ public class ReaderPreferences {
             pref(setInt: newValue, for: .currentMarginRight)
             guard currentHMarginLinked == false else { return }
             folioReader?.readerCenter?.currentPage?.byWritingMode(
-                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4) },
+                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) },
                 vertical: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) }
             )
         }
@@ -349,7 +383,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentLetterSpacing)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -359,7 +393,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentLineHeight)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
 
@@ -370,7 +404,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentTextIndent)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.4)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
         }
     }
     
@@ -399,7 +433,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value.rawValue, for: .styleOverride)
-            folioReader?.readerCenter?.currentPage?.updateRuntimStyle(delay: 0.2)
+            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.2)
         }
     }
     

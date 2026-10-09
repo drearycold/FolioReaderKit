@@ -179,6 +179,23 @@ open class FolioReaderConfig: NSObject {
     
     // MARK: User Fonts
     open var userFontDescriptors = [String: CTFontDescriptor]()
+
+    // MARK: Custom CSS
+
+    /// Extra style sheets injected after the reader's own CSS.
+    ///
+    /// The reader's setting rules are `!important` and use selectors such as
+    /// `html body.folioStyleScopeP p`. To override one, a custom rule needs `!important` and a
+    /// selector at least as specific; at equal specificity it wins because it comes later.
+    /// `p { font-size: 20px !important; }` loses, `html:root body p { font-size: 20px !important; }` wins.
+    ///
+    /// The current settings are also available to custom rules as `--folio-*` custom properties
+    /// on `<body>`, for example `var(--folio-font-size)`.
+    ///
+    /// `.documentBase` sheets are read when a page's web view is created; `.runtime` sheets are
+    /// re-read on every style refresh. Sheets with the same `id` in the same stage replace each
+    /// other, the last one winning.
+    open var customStyleSheets = [FolioReaderStyleSheet]()
     
     // MARK: Custom actions
     
@@ -186,7 +203,28 @@ open class FolioReaderConfig: NSObject {
     open var hideBars = false
 
     /// If `canChangeScrollDirection` is `true` it will be overrided by user's option.
-    open var scrollDirection: FolioReaderScrollDirection = .horizontalWithScrollContent
+    open var scrollDirection: FolioReaderScrollDirection = .horizontalWithScrollContent {
+        didSet {
+            if !isApplyingEffectiveScrollDirection { configuredScrollDirection = scrollDirection }
+        }
+    }
+
+    /// `true` once the app has assigned `scrollDirection`. If it has, that direction is used unless
+    /// the user saved another; if not, right-to-left books open in `.horizontalWithPagedContent`.
+    /// The reader writes the direction in effect back to `scrollDirection` without changing this,
+    /// so a config reused for another book still carries only the app's choice.
+    public var hasExplicitScrollDirection: Bool { configuredScrollDirection != nil }
+
+    /// The direction the app last assigned to `scrollDirection`, if any.
+    private(set) var configuredScrollDirection: FolioReaderScrollDirection?
+    private var isApplyingEffectiveScrollDirection = false
+
+    /// Sets `scrollDirection` to the direction the reader is using, without taking it as the app's choice.
+    func applyEffectiveScrollDirection(_ direction: FolioReaderScrollDirection) {
+        isApplyingEffectiveScrollDirection = true
+        defer { isApplyingEffectiveScrollDirection = false }
+        scrollDirection = direction
+    }
 
     /// Enable or disable hability to user change scroll direction on menu.
     open var canChangeScrollDirection = true
@@ -208,8 +246,30 @@ open class FolioReaderConfig: NSObject {
     /// Display book title in navbar
     open var displayTitle = false
 
+    /// Show the reader-level close button in the navigation bar.
+    ///
+    /// Hiding it removes the reader's only built-in exit: `presentReader` presents full screen, so there is
+    /// no swipe to dismiss. The host app must provide its own way out, such as a back button in its own
+    /// navigation. That exit should call `FolioReader.close()` to save the reading state and notify the
+    /// delegate, and then dismiss or pop the reader container itself, because `close()` does not.
+    open var showCloseButton = true
+
+    /// Force the reader settings menu tabs to use a bottom tab bar on iPadOS.
+    ///
+    /// On iPadOS 18 and later the menu always uses tab bar mode, never a sidebar. Without this option,
+    /// that tab bar floats at the top, the system's iPad style. With it, the menu gets a compact
+    /// horizontal size class, which puts the tab bar at the bottom as on iPhone.
+    open var forceBottomMenuTabBar = false
+
     /// Hide the page indicator
     open var hidePageIndicator = false
+
+    /// Keep pages clear of the safe area: the status bar height inside each page frame, and in
+    /// landscape the left and right insets (Dynamic Island, notch) as body padding in horizontal writing.
+    open var reserveSafeAreaInsidePageFrame = true
+
+    /// Reserve page-indicator height inside each page frame.
+    open var reservePageIndicatorInsidePageFrame = true
 
     /// Go to saved position when open a book
     open var loadSavedPositionForCurrentBook = true
@@ -291,6 +351,18 @@ open class FolioReaderConfig: NSObject {
     open var localizedShareTextQuote = NSLocalizedString("Share text quote", comment: "")
     open var localizedSave = NSLocalizedString("Save", comment: "")
     open var localizedHighlightNote = NSLocalizedString("Note", comment: "")
+    // Accessibility labels for the icon-only items of the highlight menu.
+    open var localizedHighlightColors = NSLocalizedString("Highlight Color", comment: "")
+    open var localizedRemoveHighlight = NSLocalizedString("Remove Highlight", comment: "")
+    open var localizedHighlightYellow = NSLocalizedString("Yellow", comment: "")
+    open var localizedHighlightGreen = NSLocalizedString("Green", comment: "")
+    open var localizedHighlightBlue = NSLocalizedString("Blue", comment: "")
+    open var localizedHighlightPink = NSLocalizedString("Pink", comment: "")
+    open var localizedHighlightUnderline = NSLocalizedString("Underline", comment: "")
+    /// Shown over a chapter while it loads.
+    open var localizedPageLoading = NSLocalizedString("Loading…", comment: "")
+    /// Shown over a page while it is laid out again, after a setting change or a rotation.
+    open var localizedPageRelayout = NSLocalizedString("Updating layout…", comment: "")
 
     public var debug = FolioReaderDebugOptions()
     

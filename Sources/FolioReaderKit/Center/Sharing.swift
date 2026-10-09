@@ -134,7 +134,8 @@ extension FolioReaderCenter {
 
         // Pop style on iPad
         if let actv = activityViewController.popoverPresentationController {
-            actv.sourceView = currentPage
+            // `rect` is in the web view's coordinates (the selection or the share menu).
+            actv.sourceView = currentPage?.webView ?? currentPage
             actv.sourceRect = rect
         }
 

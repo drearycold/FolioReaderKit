@@ -1,0 +1,64 @@
+name: Docs
+
+# Builds the API reference with jazzy (.jazzy.yaml) and publishes it to GitHub Pages:
+# https://drearycold.github.io/FolioReaderKit/
+on:
+  push:
+    branches: [master]
+    paths:
+      - "Sources/**"
+      - "README.md"
+      - ".jazzy.yaml"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deployment finish; queue the next one behind it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build API reference
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+
+      # 0.15 or later is needed for the `modules:` list in .jazzy.yaml.
+      - name: Install jazzy
+        run: gem install jazzy -v 0.15.5 --no-document
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          jazzy --version
+
+      - name: Run jazzy
+        run: jazzy
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

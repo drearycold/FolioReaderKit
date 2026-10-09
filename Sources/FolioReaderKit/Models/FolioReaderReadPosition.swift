@@ -6,7 +6,7 @@
 //  Copyright © 2022 FolioReader. All rights reserved.
 //
 
-import Foundation
+import UIKit
 
 @objc open class FolioReaderReadPosition: NSObject {
     
@@ -40,6 +40,20 @@ import Foundation
         self.structuralRootPageNumber = structuralRootPageNumber
         self.pageNumber = pageNumber
         self.cfi = cfi
+    }
+
+    /// The same place, as this device records it now: its own id, the current date and no precedence.
+    func recordedAgain() -> FolioReaderReadPosition {
+        let position = FolioReaderReadPosition(deviceId: UIDevice.current.name, structuralStyle: structuralStyle, positionTrackingStyle: positionTrackingStyle, structuralRootPageNumber: structuralRootPageNumber, pageNumber: pageNumber, cfi: cfi)
+        position.snippet = snippet
+        position.maxPage = maxPage
+        position.pageOffset = pageOffset
+        position.chapterProgress = chapterProgress
+        position.chapterName = chapterName
+        position.bookProgress = bookProgress
+        position.bookName = bookName
+        position.bundleProgress = bundleProgress
+        return position
     }
 }
 

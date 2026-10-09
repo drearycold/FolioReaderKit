@@ -81,13 +81,34 @@ class WebViewMenuManager: NSObject {
 
     func share(_ sender: Any?) {
         guard let webView = webView else { return }
+        // Read now: on iOS 16 and later, dismissing the edit menu clears the flag before the user
+        // picks a share option, which then shared the (empty) selection instead of the highlight.
+        let sharingHighlight = webView.folioReader.readerCenter?.currentPage?.webView?.isSharingHighlight ?? false
 
-        let presentationRect: CGRect
         if let menuController = sender as? UIMenuController {
-            presentationRect = menuController.menuFrame
-        } else {
-            presentationRect = lastMenuRect
+            presentShareChooser(webView: webView, presentationRect: menuController.menuFrame, sharingHighlight: sharingHighlight)
+            return
         }
+        // With UIEditMenuInteraction there is no menu frame to anchor to, and lastMenuRect is only
+        // set when the reader opens its own menu. Anchor at the current selection instead.
+        webView.js("getRectForSelectedText()") { [weak self, weak webView] rectString in
+            guard let self = self, let webView = webView else { return }
+            let selectionRect = rectString.map { NSCoder.cgRect(for: $0) } ?? .zero
+            let presentationRect = Self.sharePresentationRect(selectionRect: selectionRect, fallback: self.lastMenuRect, in: webView.bounds)
+            self.presentShareChooser(webView: webView, presentationRect: presentationRect, sharingHighlight: sharingHighlight)
+        }
+    }
+
+    /// Where the share chooser points: the selection, else the last menu rect, else the view's
+    /// centre. Never the zero rect, which anchors the popover under the status bar.
+    static func sharePresentationRect(selectionRect: CGRect, fallback: CGRect, in bounds: CGRect) -> CGRect {
+        for candidate in [selectionRect, fallback] where !candidate.isEmpty && bounds.intersects(candidate) {
+            return candidate
+        }
+        return CGRect(x: bounds.midX, y: bounds.midY, width: 1, height: 1)
+    }
+
+    private func presentShareChooser(webView: FolioReaderWebView, presentationRect: CGRect, sharingHighlight: Bool) {
         
         guard let currentPage = webView.folioReader.readerCenter?.currentPage,
               let currentPageWebView = currentPage.webView
@@ -98,7 +119,7 @@ class WebViewMenuManager: NSObject {
         let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
         let shareImage = UIAlertAction(title: webView.readerConfig.localizedShareImageQuote, style: .default, handler: { (action) -> Void in
-            if currentPageWebView.isSharingHighlight {
+            if sharingHighlight {
                 currentPageWebView.js("getHighlightContent()") { textToShare in
                     guard let textToShare = textToShare else { return }
                     webView.folioReader.readerCenter?.presentQuoteShare(textToShare)
@@ -115,7 +136,7 @@ class WebViewMenuManager: NSObject {
         })
 
         let shareText = UIAlertAction(title: webView.readerConfig.localizedShareTextQuote, style: .default) { (action) -> Void in
-            if currentPageWebView.isSharingHighlight {
+            if sharingHighlight {
                 currentPageWebView.js("getHighlightContent()") { textToShare in
                     guard let textToShare = textToShare else { return }
                     webView.folioReader.readerCenter?.shareHighlight(textToShare, rect: presentationRect)
@@ -136,7 +157,7 @@ class WebViewMenuManager: NSObject {
         alertController.addAction(cancel)
 
         if let alert = alertController.popoverPresentationController {
-            alert.sourceView = webView.folioReader.readerCenter?.currentPage
+            alert.sourceView = webView
             alert.sourceRect = presentationRect
         }
 
@@ -224,8 +245,10 @@ class WebViewMenuManager: NSObject {
             webView.clearTextSelection()
             webView.setMenuVisible(false)
             
+            // Found by its action: the close button before it is optional (`showCloseButton`).
+            let presentBookmarkList = #selector(FolioReaderCenter.presentBookmarkList(_:))
             guard let readerCenter = webView.readerContainer?.centerViewController,
-                  let bookmarkBarButtonItem = readerCenter.navigationItem.leftBarButtonItems?[safe: 2],
+                  let bookmarkBarButtonItem = readerCenter.navigationItem.leftBarButtonItems?.first(where: { $0.action == presentBookmarkList }),
                   let selector = bookmarkBarButtonItem.action else { return }
             
             readerCenter.tempRefText = selectedText
@@ -391,23 +414,26 @@ class WebViewMenuManager: NSObject {
         }
     }
 
+    /// An action the edit menu shows as its icon only. `UIEditMenuInteraction` shows the title of
+    /// an action that has one and drops its image, so the title is empty and `label` goes to
+    /// VoiceOver instead. Template images (SF Symbols) take the menu's foreground color; the
+    /// reader's color swatches keep their own colors.
+    static func iconAction(_ label: String, image: UIImage?, handler: @escaping UIActionHandler) -> UIAction {
+        // `withRenderingMode` returns a new image, so the label isn't set on a shared cached one.
+        let image = image.map { $0.withRenderingMode($0.isSymbolImage ? .alwaysTemplate : .alwaysOriginal) }
+        image?.accessibilityLabel = label
+        let action = UIAction(title: "", image: image, handler: handler)
+        action.accessibilityLabel = label
+        return action
+    }
+
     func menuElementsForCurrentState() -> [UIMenuElement] {
         guard let webView = webView else { return [] }
 
-        let colors = UIImage(readerImageNamed: "colors-marker")
-        var share = UIImage(readerImageNamed: "share-marker")
-        let remove = UIImage(readerImageNamed: "no-marker")
-        let yellow = UIImage(readerImageNamed: "yellow-marker")
-        let green = UIImage(readerImageNamed: "green-marker")
-        let blue = UIImage(readerImageNamed: "blue-marker")
-        let pink = UIImage(readerImageNamed: "pink-marker")
-        let underline = UIImage(readerImageNamed: "underline-marker")
         var mdictImage = UIImage(readerImageNamed: "icon-dictionary")
         if UIDevice.current.userInterfaceIdiom == .pad {
-            share = share?.withTintColor(UITraitCollection.current.userInterfaceStyle == .dark ? .white : .black)
             mdictImage = mdictImage?.withTintColor(UITraitCollection.current.userInterfaceStyle == .dark ? .white : .black)
         } else {
-            share = share?.withTintColor(.white)
             mdictImage = mdictImage?.withTintColor(.white)
         }
 
@@ -432,28 +458,28 @@ class WebViewMenuManager: NSObject {
         let mDictAction = UIAction(title: webView.readerConfig.localizedMDictMenu, image: mdictImage) { [weak self] _ in
             self?.webView?.lookup(nil)
         }
-        let colorsAction = UIAction(title: "C", image: colors) { [weak self] _ in
+        let colorsAction = Self.iconAction(webView.readerConfig.localizedHighlightColors, image: UIImage(readerImageNamed: "colors-marker")) { [weak self] _ in
             self?.webView?.colors(nil)
         }
-        let shareAction = UIAction(title: "S", image: share) { [weak self] _ in
+        let shareAction = Self.iconAction(webView.readerConfig.localizedShare, image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in
             self?.webView?.share(nil)
         }
-        let removeAction = UIAction(title: "R", image: remove) { [weak self] _ in
+        let removeAction = Self.iconAction(webView.readerConfig.localizedRemoveHighlight, image: UIImage(systemName: "trash")) { [weak self] _ in
             self?.webView?.remove(nil)
         }
-        let yellowAction = UIAction(title: "Y", image: yellow) { [weak self] _ in
+        let yellowAction = Self.iconAction(webView.readerConfig.localizedHighlightYellow, image: UIImage(readerImageNamed: "yellow-marker")) { [weak self] _ in
             self?.webView?.setYellow(nil)
         }
-        let greenAction = UIAction(title: "G", image: green) { [weak self] _ in
+        let greenAction = Self.iconAction(webView.readerConfig.localizedHighlightGreen, image: UIImage(readerImageNamed: "green-marker")) { [weak self] _ in
             self?.webView?.setGreen(nil)
         }
-        let blueAction = UIAction(title: "B", image: blue) { [weak self] _ in
+        let blueAction = Self.iconAction(webView.readerConfig.localizedHighlightBlue, image: UIImage(readerImageNamed: "blue-marker")) { [weak self] _ in
             self?.webView?.setBlue(nil)
         }
-        let pinkAction = UIAction(title: "P", image: pink) { [weak self] _ in
+        let pinkAction = Self.iconAction(webView.readerConfig.localizedHighlightPink, image: UIImage(readerImageNamed: "pink-marker")) { [weak self] _ in
             self?.webView?.setPink(nil)
         }
-        let underlineAction = UIAction(title: "U", image: underline) { [weak self] _ in
+        let underlineAction = Self.iconAction(webView.readerConfig.localizedHighlightUnderline, image: UIImage(readerImageNamed: "underline-marker")) { [weak self] _ in
             self?.webView?.setUnderline(nil)
         }
 

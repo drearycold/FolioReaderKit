@@ -14,6 +14,7 @@ extension FolioReaderPage {
 
         switch command {
         case .bridgeFinished:
+            guard self.readerConfig.debug.contains(.htmlStyling) else { break }
             let tempDir = FileManager.default.temporaryDirectory
             let tempFile = tempDir.appendingPathComponent(self.book.spine.spineReferences[self.pageNumber-1].resource.href.lastPathComponent)
             print("\(#function) tempDir=\(tempDir.absoluteString) tempFile=\(tempFile.absoluteString)")

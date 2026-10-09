@@ -118,7 +118,9 @@ public class FolioReader: NSObject {
     public override init() { }
 
     public lazy var preferences = ReaderPreferences(folioReader: self)
-    lazy var cssGenerator = ReaderCSSGenerator(folioReader: self)
+
+    /// Read-position saves run here one at a time, in order, off the main thread.
+    let readPositionSaveQueue = DispatchQueue(label: "FolioReaderKit.readPositionSave", qos: .utility)
 
     deinit {
         removeObservers()
@@ -154,8 +156,15 @@ public class FolioReader: NSObject {
     // Add necessary observers
     fileprivate func addObservers() {
         removeObservers()
-        NotificationCenter.default.addObserver(self, selector: #selector(saveReaderState), name: UIApplication.willResignActiveNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(saveReaderState), name: UIApplication.willTerminateNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationWillLeaveForeground(_:)), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationWillLeaveForeground(_:)), name: UIApplication.willTerminateNotification, object: nil)
+    }
+
+    /// Saves the reader state when the app leaves the foreground. A handler of its own: with
+    /// `saveReaderState(completion:)` as the selector, the notification arrived where the closure
+    /// goes and was called and released as one, which crashed the app.
+    @objc private func applicationWillLeaveForeground(_ notification: Notification) {
+        saveReaderState()
     }
 
     /// Remove necessary observers
@@ -400,10 +409,13 @@ extension FolioReader {
 extension FolioReader {
 
     /// Centralizes the persistence logic of read positions safely.
+    ///
+    /// Saves are serialized: each clears the other positions' `takePrecedence` and then stores its
+    /// own, so with saves in flight at once the last one called wins and only it keeps precedence.
     public func save(readPosition position: FolioReaderReadPosition, for bookId: String) {
         guard let provider = self.delegate?.folioReaderReadPositionProvider?(self) else { return }
         
-        DispatchQueue.global().async { [weak self, provider, position] in
+        readPositionSaveQueue.async { [weak self, provider, position] in
             guard let self = self else { return }
             let positions = provider.folioReaderReadPosition(self, allByBookId: bookId)
             for pos in positions where pos.takePrecedence {
@@ -428,9 +440,30 @@ extension FolioReader {
             return
         }
 
+        // Measuring now would record the start of the restored line or page, before the position.
+        if let pinned = currentPage.pinnedPosition {
+            if let bookId = readerCenter.book.name?.deletingPathExtension {
+                // Saved as this device's position now, as a measured one is: the pin can be the
+                // provider's own opening record, with its precedence, date and device.
+                let position = pinned.recordedAgain()
+                position.pageOffset = webView.scrollView.contentOffset
+                save(readPosition: position, for: bookId)
+            }
+            completion?()
+            return
+        }
+
         print("saveReaderState before getVisibleCFI \(Date())")
         
-        currentPage.getWebViewScrollPosition() { position in
+        currentPage.getWebViewScrollPosition(onFailure: {
+            // A page that couldn't be measured keeps the position it last recorded.
+            if let position = readerCenter.currentWebViewScrollPositions[currentPage.pageNumber - 1],
+               FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: currentPage.pageNumber),
+               let bookId = readerCenter.book.name?.deletingPathExtension {
+                self.save(readPosition: position, for: bookId)
+            }
+            completion?()
+        }) { position in
             print("saveReaderState after getVisibleCFI \(Date())")
 
             print("saveReaderState position cfi=\(position.cfi)")
@@ -454,35 +487,9 @@ extension FolioReader {
     }
 }
 
-// MARK: - CSS Style
-
+// MARK: - Providers
 
 extension FolioReader {
-    
-    @available(*, deprecated, message: "Use cssGenerator instead")
-    func generateRuntimeStyle() -> String {
-        return cssGenerator.generateRuntimeStyle()
-    }
-    
-    @available(*, deprecated, message: "Use cssGenerator instead")
-    func cssFontFamilies() -> String {
-        return cssGenerator.cssFontFamilies()
-    }
-    
-    @available(*, deprecated, message: "Use cssGenerator instead")
-    func cssUserFontFaces() -> String {
-        return cssGenerator.cssUserFontFaces()
-    }
-    
-    @available(*, deprecated, message: "Use ReaderCSSGenerator.CssLevels instead")
-    public static func CssLevels(type: String, def: String) -> [String] {
-        return ReaderCSSGenerator.CssLevels(type: type, def: def)
-    }
-
-    @available(*, deprecated, message: "Use ReaderCSSGenerator.CssImgLevels instead")
-    public static func CssImgLevels(type: String, def: String) -> [String] {
-        return ReaderCSSGenerator.CssImgLevels(type: type, def: def)
-    }
 
     public var highlightProvider: FolioReaderHighlightProviding? {
         guard let provider = self.delegate?.folioReaderHighlightProvider?(self) else { return nil }

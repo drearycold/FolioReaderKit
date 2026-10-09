@@ -17,6 +17,11 @@ open class EpubResourceServer {
     private let dateFormatter = DateFormatter()
     private weak var container: FolioReaderContainer?
     private let preferredPort: UInt = 46436
+    private var handlersInstalled = false
+
+    /// The port the pages load from. Kept across stops and restarts, because loaded pages keep
+    /// their URLs; it only changes when it can't be bound again.
+    public private(set) var port: UInt = 0
 
     public init(webServer: ReadiumGCDWebServer, container: FolioReaderContainer) {
         self.webServer = webServer
@@ -27,39 +32,78 @@ open class EpubResourceServer {
         self.dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
     }
 
-    /// Registers default and font handlers, and starts the server.
-    public func start() {
-        setupHandlers()
-        
-        try? webServer.start(options: [
-            ReadiumGCDWebServerOption_Port: preferredPort,
-            ReadiumGCDWebServerOption_BindToLocalhost: true
-        ])
-        
-        // Fallback
-        if webServer.isRunning == false {
-            try? webServer.start(options: [
-                ReadiumGCDWebServerOption_BindToLocalhost: true
-            ])
-            
-            if webServer.isRunning == false {
-                try? webServer.start(options: [
-                    ReadiumGCDWebServerOption_BindToLocalhost: true
-                ])
-            }
-        }
+    /// Whether the server is listening. `ReadiumGCDWebServer.isRunning` stays true after a failed
+    /// restart, so check the port as well.
+    public var isListening: Bool {
+        webServer.isRunning && webServer.port != 0
     }
 
-    /// Stops the server if running.
+    /// Registers the handlers once and starts the server on `port` if it was started before, else
+    /// on 46436, else on any free port.
+    ///
+    /// The server is always started with an explicit port. ReadiumGCDWebServer suspends itself in
+    /// the background and binds again with its start options when the app returns; started without a
+    /// port (the old fallback), it came back on a different one, and every loaded page pointed at a
+    /// dead port. Returns whether the port changed, in which case loaded pages must be reloaded.
+    @discardableResult
+    public func start() -> Bool {
+        installHandlersIfNeeded()
+        guard !isListening else { return false }
+        // Running but not listening: a restart after the background failed to bind.
+        if webServer.isRunning {
+            webServer.stop()
+        }
+
+        let previousPort = port
+        let candidates = [previousPort, preferredPort].filter { $0 != 0 }
+        if !candidates.contains(where: start(on:)), start(on: 0) {
+            // Any free port, then that port explicitly, so a restart binds it again.
+            let freePort = webServer.port
+            webServer.stop()
+            if !start(on: freePort) {
+                _ = start(on: 0)
+            }
+        }
+        // Nothing bound: keep the pages' port to try again later.
+        guard webServer.port != 0 else { return false }
+        port = webServer.port
+        return previousPort != 0 && port != previousPort
+    }
+
+    private func start(on port: UInt) -> Bool {
+        var options: [String: Any] = [ReadiumGCDWebServerOption_BindToLocalhost: true]
+        if port != 0 {
+            options[ReadiumGCDWebServerOption_Port] = port
+        }
+        guard (try? webServer.start(options: options)) != nil else { return false }
+        if webServer.port == 0 {
+            webServer.stop()
+            return false
+        }
+        return true
+    }
+
+    /// Stops the server if running. `start()` binds the same port again.
     public func stop() {
         if webServer.isRunning {
             webServer.stop()
         }
     }
 
+    private func installHandlersIfNeeded() {
+        guard !handlersInstalled else { return }
+        handlersInstalled = true
+        setupHandlers()
+    }
+
     private func setupHandlers() {
         // Default GET handler to serve zipped EPUB resources
-        webServer.addDefaultHandler(forMethod: "GET", request: ReadiumGCDWebServerRequest.self, asyncProcessBlock: { [weak self] request, completion in
+        webServer.addDefaultHandler(forMethod: "GET", request: ReadiumGCDWebServerRequest.self, asyncProcessBlock: { [weak self] request, uninstrumentedCompletion in
+            let resourceInterval = FolioSignpost.begin("Resource", request.path)
+            let completion: ReadiumGCDWebServerCompletionBlock = { response in
+                resourceInterval.end()
+                uninstrumentedCompletion(response)
+            }
             guard let self = self, let container = self.container else {
                 completion(ReadiumGCDWebServerErrorResponse())
                 return

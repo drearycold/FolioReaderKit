@@ -39,6 +39,8 @@ extension FolioReaderPage {
     }
     
     public func scrollWebViewByPosition(pageOffset: CGFloat, pageProgress: Double, animated: Bool = true, completion: (() -> Void)? = nil) {
+        // A new place: the position it ends at is recorded, not one restored earlier.
+        pinnedPosition = nil
         var pageOffset = pageOffset
         let pageProgress = pageProgress
         
@@ -119,6 +121,15 @@ extension FolioReaderPage {
      - parameter offset:   The offset to scroll
      - parameter animated: Enable or not scrolling animation
      */
+    /// Restores `position` with `handleAnchor`, then keeps it as the recorded position (`pinnedPosition`).
+    func restorePinned(_ position: FolioReaderReadPosition, completion: (() -> Void)? = nil) {
+        handleAnchor(position.cfi, offsetInWindow: 0, avoidBeginningAnchors: false, animated: false, flashTarget: false) {
+            self.pinnedPosition = position
+            self.folioReader.readerCenter?.currentWebViewScrollPositions[self.pageNumber - 1] = position
+            completion?()
+        }
+    }
+
     public func scrollPageToOffset(_ offset: CGFloat, animated: Bool, retry: Int = 5, completion: (() -> Void)? = nil) {
         guard let webView = webView else {
             return
@@ -143,6 +154,23 @@ extension FolioReaderPage {
         }
     }
 
+    /// Shows the start of the chapter. Vertical writing reads right to left whatever the scroll
+    /// direction, so its start is the right end of the content; a content offset of 0, which a
+    /// `.vertical` direction gave it, is the end of the chapter.
+    func scrollPageToChapterStart() {
+        guard let webView = webView else { return }
+        // A new place, as for scrollWebViewByPosition: a pin restored earlier would block recording it.
+        pinnedPosition = nil
+        if writingMode == "vertical-rl" {
+            let start = Self.verticalWritingContentOffset(fromStart: 0, contentWidth: webView.scrollView.contentSize.width, viewWidth: webView.frame.width)
+            setScrollViewContentOffset(CGPoint(x: start, y: 0), animated: false)
+        } else if folioReader.needsRTLChange {
+            scrollPageToBottom()
+        } else {
+            scrollPageToOffset(.zero, animated: false, retry: 0)
+        }
+    }
+
     /**
      Scrolls the page to bottom
      */
@@ -162,9 +190,10 @@ extension FolioReaderPage {
     }
 
     func getAndRecordScrollPosition() {
+        guard pinnedPosition == nil else { return }
         getWebViewScrollPosition { position in
             //prevent overwriting last known good cfi
-            if self.layoutAdapting != nil {
+            if self.layoutAdapting != nil || self.pinnedPosition != nil {
                 return
             }
             
@@ -186,35 +215,45 @@ extension FolioReaderPage {
         }
     }
     
-    func getWebViewScrollPosition(completion: ((_ position: FolioReaderReadPosition) -> Void)? = nil) {
-        guard let webView = webView else {
+    /// Reads the JSON of `getVisibleCFI` / `getVisibleMiddleCFI`: the partial CFI of the character
+    /// offset if there is one, else of the element, with its snippet.
+    static func recordedPosition(fromVisibleCFIJSON json: String?) -> (cfi: String, snippet: String, message: String) {
+        guard let json = json,
+              let object = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else {
+            return ("", "", "json fail")
+        }
+        let message = object["message"] as? String ?? "Missing message in json"
+        if let offsetComponent = object["offsetComponent"] as? String,
+           let offsetSnippet = object["offsetSnippet"] as? String,
+           offsetComponent.isEmpty == false {
+            return (offsetComponent, offsetSnippet, message)
+        }
+        // The snippet only labels the position; without one the element CFI still counts.
+        return (object["cfi"] as? String ?? "", object["snippet"] as? String ?? "", message)
+    }
+
+    /// - Parameter firstVisibleText: record the first visible text in paged mode too, as the start of a
+    ///   different layout (a scroll-direction switch); otherwise paged mode records the middle of the page.
+    /// - Parameter onFailure: called instead of `completion` when the page couldn't be measured: its
+    ///   web content process died, so the script returned nothing. Its position used to come out as the
+    ///   start of the chapter, which was then saved.
+    func getWebViewScrollPosition(firstVisibleText: Bool = false, onFailure: (() -> Void)? = nil, completion: ((_ position: FolioReaderReadPosition) -> Void)? = nil) {
+        guard let webView = webView, !needsReload else {
+            onFailure?()
             return
         }
 
         let isHorizontal: Bool = self.byWritingMode(
             self.folioReader.readerConfig?.isDirection(false, true, false),
             true) ?? false
-        webView.js("getVisibleCFI(\(isHorizontal))") { jsonString in
-            var cfi = ""
-            var snippet = ""
-            var message = ""
-            if let jsonString = jsonString,
-               let jsonData = jsonString.data(using: .utf8),
-               let jsonDict = try? JSONSerialization.jsonObject(with: jsonData) as? [String:Any] {
-                message = (jsonDict["message"] as? String) ?? "Missing message in json"
-                if let offsetComponent = jsonDict["offsetComponent"] as? String,
-                   let offsetSnippet = jsonDict["offsetSnippet"] as? String,
-                   offsetComponent.isEmpty == false {
-                    cfi = offsetComponent
-                    snippet = offsetSnippet
-                } else if let jsonCFI = jsonDict["cfi"] as? String,
-                   let jsonSnippet = jsonDict["snippet"] as? String {
-                    cfi = jsonCFI
-                    snippet = jsonSnippet
-                }
-            } else {
-                message = "json fail"
+        // Paged mode records the middle of the page, which survives a relayout; see getVisibleMiddleCFI.
+        let locate = readerConfig.scrollDirection == .horizontalWithPagedContent && !firstVisibleText ? "getVisibleMiddleCFI" : "getVisibleCFI"
+        webView.js("\(locate)(\(isHorizontal))") { jsonString in
+            guard let jsonString = jsonString, (try? JSONSerialization.jsonObject(with: Data(jsonString.utf8))) != nil else {
+                onFailure?()
+                return
             }
+            let (cfi, snippet, message) = Self.recordedPosition(fromVisibleCFIJSON: jsonString)
             #if DEBUG
             if cfi.isEmpty, self.pageNumber > 1 {
                 let alertController = UIAlertController(title: "Empty CFI pageNumber=\(self.pageNumber ?? 0)", message: message, preferredStyle: .alert)

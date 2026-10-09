@@ -14,6 +14,9 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
     public func pageDidLoad(_ page: FolioReaderPage) {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
+        readerContainer?.firstPageInterval?.end("page \(page.pageNumber)")
+        readerContainer?.firstPageInterval = nil
+
         invalidatePendingBarReveal()
 
 //        let indexPath = getCurrentIndexPath(navigating: to)
@@ -55,11 +58,7 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
         updateSubviewFrames()
         
         if self.isScrolling == false {
-            if self.folioReader.needsRTLChange {
-                page.scrollPageToBottom()
-            } else {
-                page.scrollPageToOffset(.zero, animated: false, retry: 0)
-            }
+            page.scrollPageToChapterStart()
         }
         
         // Go to fragment if needed
@@ -77,17 +76,14 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
                 }
             }
         } else if let position = self.folioReader.readerCenter?.currentWebViewScrollPositions[page.pageNumber - 1],
-                  position.cfi.starts(with: "epubcfi("),
-                  (page.pageNumber > 1 ? position.cfi != "epubcfi(/2/2)" : true),
-                  position.cfi != "epubcfi(/\(page.pageNumber * 2)/2)" {
+                  FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: page.pageNumber) {
             self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text = position.cfi
             DispatchQueue.main.asyncAfter(delay: 0.2) {
                 page.handleAnchor(position.cfi, offsetInWindow: 0, avoidBeginningAnchors: true, animated: true) {
-                    DispatchQueue.main.asyncAfter(delay: 0.5) {
-                        page.getWebViewScrollPosition { position in
-                            self.currentWebViewScrollPositions[page.pageNumber - 1] = position
-                        }
-                    }
+                    // Keep the position restored to until the reader moves, as a rotation does: measuring
+                    // again recorded the start of its line, a little earlier on every reopen.
+                    page.pinnedPosition = position
+                    self.currentWebViewScrollPositions[page.pageNumber - 1] = position
                 }
             }
         } else if let position = self.folioReader.readerCenter?.currentWebViewScrollPositions[page.pageNumber - 1] {

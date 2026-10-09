@@ -140,8 +140,8 @@ class FolioReaderReferenceList: UITableViewController {
     }
     
     func loadSections() {
-        guard let bookId = self.folioReader.readerConfig?.identifier,
-              let readerCenter = self.folioReader.readerCenter,
+        guard let readerCenter = self.folioReader.readerCenter,
+              let bookId = (readerCenter.book.name as NSString?)?.deletingPathExtension,
               let refText = readerCenter.tempRefText
         else { return }
         
@@ -516,12 +516,13 @@ class FolioReaderReferenceList: UITableViewController {
         
         let reader = self.folioReader
         
-        currentPage.getWebViewScrollPosition { position in
+        currentPage.getWebViewScrollPosition(onFailure: { completion?() }) { position in
             let bookmark = FolioReaderBookmark()
             bookmark.pos_type = "epubcfi"
             bookmark.page = currentPage.pageNumber
             bookmark.pos = position.cfi
-            bookmark.bookId = self.readerConfig.identifier ?? ""
+            // The id bookmark lists query with, as for highlights and positions: not the config identifier.
+            bookmark.bookId = (currentPage.book.name as NSString?)?.deletingPathExtension ?? ""
             bookmark.title = "[\(position.chapterName)] \(position.snippet.prefix(32))..."
             bookmark.date = Date()
             

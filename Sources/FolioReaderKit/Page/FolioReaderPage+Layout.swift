@@ -10,16 +10,38 @@ extension FolioReaderPage {
     func setScrollDirection(_ direction: FolioReaderScrollDirection) {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
-        guard let readerCenter = self.folioReader.readerCenter, let webView = webView else { return }
-        let currentPageNumber = readerCenter.currentPageNumber
-        
-        self.layoutAdapting = "Changing Document Layout..."
+        guard self.folioReader.readerCenter != nil, let webView = webView else {
+            readerConfig.applyEffectiveScrollDirection(direction)
+            return
+        }
 
-        // Get internal page offset before layout change
+        self.layoutAdapting = .scrollDirection
+
+        // Both are measured in the current layout, so the reader config must still have the current
+        // direction. The settings applied the new one first, which measured a scrolled page along
+        // the paged axis: the position became the chapter heading, and the offset ratio 0.
         self.updatePageOffsetRate()
-        
+
+        // The first text on screen, for the new layout to start from. The offset ratio, the fallback,
+        // doesn't carry over between paged and scroll layouts, whose content sizes differ: switching
+        // went back about a screen, or to the start of the chapter.
+        getWebViewScrollPosition(firstVisibleText: true, onFailure: {
+            self.applyScrollDirection(direction, restoring: nil)
+        }) { position in
+            let restorable = FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: self.pageNumber)
+            self.applyScrollDirection(direction, restoring: restorable ? position : nil)
+        }
+    }
+
+    private func applyScrollDirection(_ direction: FolioReaderScrollDirection, restoring anchorPosition: FolioReaderReadPosition?) {
+        guard let readerCenter = self.folioReader.readerCenter, let webView = webView else {
+            self.layoutAdapting = nil
+            return
+        }
+        let currentPageNumber = readerCenter.currentPageNumber
+
         // Change layout
-        self.readerConfig.scrollDirection = direction
+        self.readerConfig.applyEffectiveScrollDirection(direction)
         readerCenter.collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
         self.setNeedsLayout()
         readerCenter.collectionView.collectionViewLayout.invalidateLayout()
@@ -38,13 +60,26 @@ extension FolioReaderPage {
         DispatchQueue.main.asyncAfter(delay: delaySec()) {
             webView.setupScrollDirection()
             self.updateOverflowStyle(delay: self.delaySec()) {
-                self.scrollWebViewByPageOffsetRate(animated: false)
-                
+                if anchorPosition == nil {
+                    self.scrollWebViewByPageOffsetRate(animated: false)
+                }
+
                 DispatchQueue.main.asyncAfter(delay: self.delaySec() + 0.2) {
                     self.updatePageInfo() {
-                        self.updateScrollPosition(delay: self.delaySec()) {
-                            self.updateStyleBackgroundPadding(delay: self.delaySec()) {
-                                self.layoutAdapting = nil
+                        guard let anchorPosition = anchorPosition else {
+                            self.updateScrollPosition(delay: self.delaySec()) {
+                                self.updateStyleBackgroundPadding(delay: self.delaySec()) {
+                                    self.layoutAdapting = nil
+                                }
+                            }
+                            return
+                        }
+                        self.updateStyleBackgroundPadding(delay: self.delaySec()) {
+                            // handleAnchor waits while the page is adapting.
+                            self.layoutAdapting = nil
+                            self.restorePinned(anchorPosition) {
+                                self.updatePageOffsetRate()
+                                self.updatePageInfo()
                             }
                         }
                     }
@@ -56,8 +91,9 @@ extension FolioReaderPage {
     func updateOverflowStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
         guard let webView = webView else { return }
         
-        self.layoutAdapting = "Preparing Document Layout..."
+        self.layoutAdapting = .layout
         
+        let overflowInterval = FolioSignpost.begin("OverflowJS", "page \(pageNumber)")
         webView.js(
 """
 writingMode = window.getComputedStyle(document.body).getPropertyValue("writing-mode")
@@ -66,119 +102,86 @@ writingMode = window.getComputedStyle(document.body).getPropertyValue("writing-m
     var viewport = document.querySelector("meta[name=viewport]");
     if (viewport) {
         if (writingMode == "vertical-rl") {
-            viewport.setAttribute('content', 'height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0');
+            viewport.setAttribute('content', 'height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover');
         } else {
-            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0');
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover');
         }
     } else {
         var metaTag=document.createElement('meta');
         metaTag.name = "viewport"
         if (writingMode == "vertical-rl") {
-            metaTag.content = "height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+            metaTag.content = "height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover"
         } else {
-            metaTag.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+            metaTag.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover"
         }
         document.head.appendChild(metaTag);
     }
 }
 
-{
-    var overflow = "\(webView.cssOverflowProperty)"
-    var head = document.head
-    var style = document.getElementById("folio_style_overflow")
-    if (style == null) {
-        style = document.createElement('style')
-        style.type = "text/css"
-        style.id = "folio_style_overflow"
-        head.appendChild(style)
-    }
-    while (style.firstChild) {
-        style.removeChild(style.firstChild)
-    }
-    
-    var cssText = "html { overflow: " + overflow + " !important; display: block !important; text-align: justify !important;}"
-    if (overflow == "-webkit-paged-x") {
-        if (writingMode == "vertical-rl") {
-            cssText += " body { min-width: 100vw; margin: 0 0 !important; }"
-        } else {
-            cssText += " body { min-height: 100vh; margin: 0 0 !important; }"
-        }
-    }
-    style.appendChild( document.createTextNode(cssText) )
-
-    document.body.style.minHeight = null;
-    document.body.style.minWidth = null;
-}
-/*window.webkit.messageHandlers.FolioReaderPage.postMessage("bridgeFinished " + getHTML())*/
+document.body.style.minHeight = null;
+document.body.style.minWidth = null;
 
 writingMode
 """
         ) { writingMode in
+            overflowInterval.end()
             if let writingMode = writingMode {
                 self.writingMode = writingMode
             }
-            DispatchQueue.main.asyncAfter(delay: bySecond) {
-                completion?()
+            // The overflow CSS depends on the writing mode, which is only known after the script above.
+            let overflowCSSInterval = FolioSignpost.begin("OverflowCSS", "page \(self.pageNumber)")
+            FolioReaderCSSInjector.apply(
+                id: FolioReaderCSSInjector.StyleID.overflow,
+                css: FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: self.writingMode == "vertical-rl"),
+                to: webView
+            ) {
+                overflowCSSInterval.end()
+                self.waitForLayout(timeout: bySecond, label: "overflow") {
+                    completion?()
+                }
             }
         }
     }
     
-    func updateRuntimStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
+    /// Continues once the web view's native content size reflects the current layout, or after
+    /// `timeout` at the latest (the fixed delay this replaces). See `WebViewLayoutWaiter`.
+    func waitForLayout(timeout: Double, label: String, _ completion: @escaping () -> Void) {
+        guard let webView = webView else {
+            DispatchQueue.main.asyncAfter(delay: timeout, execute: completion)
+            return
+        }
+        let paged = webView.cssOverflowProperty == "-webkit-paged-x"
+        WebViewLayoutWaiter.wait(for: webView, timeout: timeout, paged: paged, label: "\(label) page \(pageNumber)") { _ in
+            completion()
+        }
+    }
+
+    func updateRuntimeStyle(delay bySecond: Double, completion: (() -> Void)? = nil) {
         guard let webView = webView else { return }
 
-        self.layoutAdapting = "Preparing Document Style..."
+        self.layoutAdapting = .style
         self.updatePageOffsetRate()
-        webView.js(
-"""
-{
-    themeMode(\(folioReader.themeMode))
 
-    var styleOverride = \(folioReader.styleOverride.rawValue)
+        let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame, userFontDescriptors: readerConfig.userFontDescriptors)
+        let script = FolioReaderCSSInjector.runtimeStyleSource(
+            themeMode: folioReader.themeMode,
+            styleState: styleState,
+            runtimeSheets: FolioReaderCSSInjector.customSheets(readerConfig.customStyleSheets, stage: .runtime),
+            includeDebugDump: readerConfig.debug.contains(.htmlStyling)
+        )
 
-    removeClasses(document.body, 'folioStyle\\\\w+')
-    if (writingMode == 'vertical-rl') {
-        addClass(document.body, 'folioStyleBodyPaddingTop\(folioReader.currentMarginTop/5)')
-        addClass(document.body, 'folioStyleBodyPaddingBottom\(folioReader.currentMarginBottom/5)')
-        document.body.style.minWidth = "100vw";
-    } else {
-        addClass(document.body, 'folioStyleBodyPaddingLeft\(folioReader.currentMarginLeft/5)')
-        addClass(document.body, 'folioStyleBodyPaddingRight\(folioReader.currentMarginRight/5)')
-        document.body.style.minHeight = "100vh";
-    }
-    while (styleOverride > 0) {
-        var folioStyleLevel = 'folioStyleL' + styleOverride
-        addClass(document.body, folioStyleLevel + 'FontFamily\(folioReader.currentFont.replacingOccurrences(of: " ", with: "_"))')
-        addClass(document.body, folioStyleLevel + 'FontSize\(folioReader.currentFontSize.replacingOccurrences(of: ".", with: ""))')
-        addClass(document.body, folioStyleLevel + 'FontWeight\(folioReader.currentFontWeight)')
-        addClass(document.body, folioStyleLevel + 'LetterSpacing\(folioReader.currentLetterSpacing)')
-        addClass(document.body, folioStyleLevel + 'LineHeight\(folioReader.currentLineHeight)')
-        if (writingMode == 'vertical-rl') {
-            addClass(document.body, folioStyleLevel + 'MarginV\(folioReader.currentLineHeight)')
-        } else {
-            addClass(document.body, folioStyleLevel + 'MarginH\(folioReader.currentLineHeight)')
-        }
-        addClass(document.body, folioStyleLevel + 'TextIndent\(folioReader.currentTextIndent+4)')
-        styleOverride -= 1
-    }
-}
-
-window.webkit.messageHandlers.FolioReaderPage.postMessage("bridgeFinished " + getHTML())
-
-window.webkit.messageHandlers.FolioReaderPage.postMessage("getComputedStyle document.documentElement " + window.getComputedStyle(document.documentElement).cssText)
-window.webkit.messageHandlers.FolioReaderPage.postMessage("getComputedStyle document.body" + window.getComputedStyle(document.body).cssText)
-
-window.webkit.messageHandlers.FolioReaderPage.postMessage("writingMode " + writingMode)
-
-writingMode
-"""
-        ) { _ in
+        let runtimeStyleInterval = FolioSignpost.begin("RuntimeStyleJS", "page \(pageNumber)")
+        webView.js(script) { _ in
+            runtimeStyleInterval.end()
             let delaySec = self.delaySec() + bySecond
-            DispatchQueue.main.asyncAfter(delay: delaySec) {
-                self.layoutAdapting = "Almost Ready..."
+            self.waitForLayout(timeout: delaySec, label: "runtimeStyle") {
+                self.layoutAdapting = .almostReady
                 self.updatePageInfo {
-                    DispatchQueue.main.asyncAfter(delay: delaySec) {
+                    self.waitForLayout(timeout: delaySec, label: "pageInfo") {
                         self.updateStyleBackgroundPadding(delay: delaySec, completion: completion != nil ? completion : {
                             self.updatePageInfo() {
+                                // Restored by ratio, not to the pinned position: record what it shows.
+                                self.pinnedPosition = nil
                                 self.scrollWebViewByPageOffsetRate()
                                 DispatchQueue.main.asyncAfter(delay: delaySec) {
                                     self.updatePageOffsetRate()
@@ -194,7 +197,7 @@ writingMode
     }
     
     func updateStyleBackgroundPadding(delay bySecond: Double, tryShrinking: Bool = true, completion: (() -> Void)? = nil) {
-        self.layoutAdapting = "Finalizing..."
+        self.layoutAdapting = .finalizing
         
         var minScreenCount = 1
         if self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true) {
@@ -207,6 +210,7 @@ writingMode
         // must set width instead of minWidth, otherwise there will be an extra blank page after calling scrollView.setContentOffset
         // could be a bug?
         // and shrinking by 100vw has no effect on totalPages
+        let paddingInterval = FolioSignpost.begin("PaddingJS", "page \(pageNumber)")
         self.webView?.js(
             """
             if (writingMode == 'vertical-rl') {
@@ -216,7 +220,8 @@ writingMode
             }
             """
         ) { _ in
-            DispatchQueue.main.asyncAfter(delay: bySecond) {
+            paddingInterval.end()
+            self.waitForLayout(timeout: bySecond, label: "padding") {
                 self.updatePageInfo {
                     FolioLogger.log("updateStyleBackgroundPadding pageNumber=\(self.pageNumber) minScreenCount=\(minScreenCount) totalPages=\(self.totalPages ?? 0) tryShrinking=\(tryShrinking)")
                     if self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true) {
@@ -246,7 +251,7 @@ writingMode
     func updateViewerLayout(delay bySecond: Double) {
         guard let webView = webView else { return }
         
-        self.layoutAdapting = "Updating Document Layout..."
+        self.layoutAdapting = .viewerLayout
         self.updatePageOffsetRate()
         
         webView.js(
@@ -259,6 +264,8 @@ writingMode
             DispatchQueue.main.asyncAfter(delay: self.delaySec() + bySecond) {
                 self.updatePageInfo {
                     self.updateStyleBackgroundPadding(delay: self.delaySec()) {
+                        // Restored by ratio, not to the pinned position: record what it shows.
+                        self.pinnedPosition = nil
                         self.scrollWebViewByPageOffsetRate()
                         DispatchQueue.main.asyncAfter(delay: 0.2) {
                             self.updatePageOffsetRate()

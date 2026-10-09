@@ -28,9 +28,20 @@ open class FolioReaderContainer: UIViewController {
     public var folioReader: FolioReader
 
     fileprivate var errorOnLoad = false
+    /// The book that has been (or is being) loaded, so reappearing doesn't parse it again.
+    private var loadedEpubPath: String?
     
     var webServer: ReadiumGCDWebServer
     private var resourceServer: EpubResourceServer?
+    private var didBecomeActiveObserver: NSObjectProtocol?
+
+    /// The port pages load from. Stable while the server is suspended in the background, when
+    /// `webServer.port` reads 0.
+    var pagePort: UInt {
+        resourceServer?.port ?? webServer.port
+    }
+    /// Open until the first page is shown; ended by `FolioReaderCenter.pageDidLoad`.
+    var firstPageInterval: FolioSignpost.Interval?
 
     // MARK: - Init
 
@@ -51,6 +62,33 @@ open class FolioReaderContainer: UIViewController {
 
         super.init(nibName: nil, bundle: Bundle.frameworkBundle())
 
+        finishInit()
+    }
+
+    /// Init a Folio Reader Container from a storyboard, with an injected web server.
+    ///
+    /// A storyboard can only call `init?(coder:)`, so create the container from an
+    /// `@IBSegueAction` or `UIStoryboard.instantiateViewController(identifier:creator:)` and call this
+    /// initializer there. The storyboard scene's class must be `FolioReaderContainer` (or this subclass).
+    ///
+    ///     @IBSegueAction func makeReader(_ coder: NSCoder) -> FolioReaderContainer? {
+    ///         FolioReaderContainer(coder: coder, config: config, folioReader: FolioReader(),
+    ///                              epubPath: path, webServer: ReadiumGCDWebServer())
+    ///     }
+    public init?(coder: NSCoder, config: FolioReaderConfig, folioReader: FolioReader, epubPath path: String, webServer: ReadiumGCDWebServer) {
+        self.readerConfig = config
+        self.folioReader = folioReader
+        self.epubPath = path
+        self.book = FRBook()
+        self.webServer = webServer
+
+        super.init(coder: coder)
+
+        finishInit()
+    }
+
+    /// Shared by the designated initializers that receive the configuration up front.
+    private func finishInit() {
         self.resourceServer = EpubResourceServer(webServer: webServer, container: self)
 
         // Configure the folio reader.
@@ -62,11 +100,12 @@ open class FolioReaderContainer: UIViewController {
         }
     }
 
+    /// Called when a storyboard creates the container without an `@IBSegueAction` or creator.
+    ///
+    /// The container then creates its own `ReadiumGCDWebServer`, and `setupConfig(_:epubPath:)`
+    /// must be called afterwards. Prefer `init?(coder:config:folioReader:epubPath:webServer:)`,
+    /// which lets the app inject the web server like the other initializers.
     required public init?(coder aDecoder: NSCoder) {
-        // When a FolioReaderContainer object is instantiated from the storyboard this function is called before.
-        // At this moment, we need to initialize all non-optional objects with default values.
-        // The function `setupConfig(config:epubPath:removeEpub:)` MUST be called afterward.
-        // See the ExampleFolioReaderContainer.swift for more information?
         self.readerConfig = FolioReaderConfig()
         self.folioReader = FolioReader()
         self.epubPath = ""
@@ -79,6 +118,28 @@ open class FolioReaderContainer: UIViewController {
 
         // Configure the folio reader.
         self.folioReader.readerContainer = self
+    }
+
+    deinit {
+        // Closed before any page was shown.
+        firstPageInterval?.end("closed")
+        if let didBecomeActiveObserver = didBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(didBecomeActiveObserver)
+        }
+    }
+
+    /// Applies `ReaderPreferences.resolveScrollDirection` to `readerConfig`; returns whether the
+    /// direction changed. The user's saved choice only counts while they may change the direction.
+    @discardableResult
+    func applyResolvedScrollDirection(isRtl: Bool) -> Bool {
+        let direction = ReaderPreferences.resolveScrollDirection(
+            saved: readerConfig.canChangeScrollDirection ? folioReader.preferences.savedScrollDirection : nil,
+            configured: readerConfig.configuredScrollDirection,
+            isRtl: isRtl
+        )
+        guard direction != readerConfig.scrollDirection else { return false }
+        readerConfig.applyEffectiveScrollDirection(direction)
+        return true
     }
 
     /// Common Initialization
@@ -106,19 +167,13 @@ open class FolioReaderContainer: UIViewController {
 
     override open func viewDidLoad() {
         super.viewDidLoad()
+        observeApplicationDidBecomeActive()
 
         //let canChangeScrollDirection = self.readerConfig.canChangeScrollDirection
         //self.readerConfig.canChangeScrollDirection = self.readerConfig.isDirection(canChangeScrollDirection, canChangeScrollDirection, false)
 
-        // If user can change scroll direction use the last saved
-        if self.readerConfig.canChangeScrollDirection == true {
-            var scrollDirection = FolioReaderScrollDirection(rawValue: self.folioReader.currentScrollDirection) ?? .horizontalWithScrollContent
-            if (scrollDirection == .defaultVertical && self.readerConfig.scrollDirection != .defaultVertical) {
-                scrollDirection = self.readerConfig.scrollDirection
-            }
-
-            self.readerConfig.scrollDirection = scrollDirection
-        }
+        // The book isn't parsed yet; this is re-resolved with the real `isRtl` once it is.
+        applyResolvedScrollDirection(isRtl: false)
 
         let hideBars = readerConfig.hideBars
         self.readerConfig.shouldHideNavigationOnTap = ((hideBars == true) ? true : self.readerConfig.shouldHideNavigationOnTap)
@@ -168,8 +223,22 @@ open class FolioReaderContainer: UIViewController {
         defer {
             super.viewWillAppear(animated)
         }
-        
+
+        // Hosts can show the reader again without recreating it (tab switches, full-screen sheets).
+        // Loading again would re-parse the book and re-apply the position it was opened at; the
+        // server, stopped when the reader disappeared, starts again. A page whose web content process
+        // died while the reader was hidden reloads now: becoming active skipped it, off screen.
+        guard loadedEpubPath != epubPath else {
+            restartResourceServer()
+            centerViewController?.reloadPages(all: false)
+            return
+        }
+        loadedEpubPath = epubPath
+
         Task {
+            let bookName = (self.epubPath as NSString).lastPathComponent
+            let openInterval = FolioSignpost.begin("BookOpen", bookName, log: FolioSignpost.milestones)
+            self.firstPageInterval = FolioSignpost.begin("OpenToFirstPage", bookName, log: FolioSignpost.milestones)
             do {
                 let archive: Archive
                 do {
@@ -179,7 +248,9 @@ open class FolioReaderContainer: UIViewController {
                 }
                 
                 FolioLogger.log("BEFORE readEpub")
+                let parseInterval = FolioSignpost.begin("ParseEpub", bookName, log: FolioSignpost.milestones)
                 let parsedBook = try await FREpubParserArchive(book: self.book, archive: archive).readEpub(epubPath: self.epubPath)
+                parseInterval.end()
                 FolioLogger.log("AFTER readEpub")
 
                 self.book = parsedBook
@@ -199,6 +270,11 @@ open class FolioReaderContainer: UIViewController {
                         }
                     }
 
+                    if self.applyResolvedScrollDirection(isRtl: self.book.spine.isRtl) {
+                        self.centerViewController?.collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
+                        self.centerViewController?.collectionViewLayout.invalidateLayout()
+                    }
+
                     let structuralTrackingTocLevel = self.folioReader.structuralTrackingTocLevel
                     self.book.updateBundleInfo(rootTocLevel: structuralTrackingTocLevel.rawValue)
                     
@@ -216,8 +292,12 @@ open class FolioReaderContainer: UIViewController {
 
                     self.centerViewController?.reloadData()
                     self.folioReader.isReaderReady = true
+                    openInterval.end()
                 }
             } catch {
+                openInterval.end("error")
+                self.firstPageInterval?.end("error")
+                self.firstPageInterval = nil
                 await MainActor.run {
                     self.errorOnLoad = true
                     self.alert(message: error.localizedDescription)
@@ -235,6 +315,26 @@ open class FolioReaderContainer: UIViewController {
     override open func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         resourceServer?.stop()
+    }
+
+    /// Starts the resource server again if it doesn't listen, on the pages' port if it can, and
+    /// reloads the pages if it had to move.
+    func restartResourceServer() {
+        guard folioReader.isReaderReady, let resourceServer = resourceServer, !resourceServer.isListening else { return }
+        if resourceServer.start() {
+            centerViewController?.reloadPages(all: true)
+        }
+    }
+
+    /// Returning from the background: the server's own restart may have failed to bind (it is
+    /// ignored), and a page whose web content process was reclaimed waits to be reloaded.
+    private func observeApplicationDidBecomeActive() {
+        guard didBecomeActiveObserver == nil else { return }
+        didBecomeActiveObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self, self.viewIfLoaded?.window != nil else { return }
+            self.restartResourceServer()
+            self.centerViewController?.reloadPages(all: false)
+        }
     }
 
     override open func viewDidAppear(_ animated: Bool) {

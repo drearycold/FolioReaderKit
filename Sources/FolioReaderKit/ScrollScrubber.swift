@@ -118,7 +118,8 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
 
     @objc func sliderChange(_ slider:UISlider) {
         guard let currentPage = delegate?.currentPage, let scrollView = currentPage.webView?.scrollView else { return }
-        
+        currentPage.pinnedPosition = nil
+
         let maxRange = height()
         let maxValue = CGFloat(slider.maximumValue)
         let ratio = maxValue > 0 ? CGFloat(slider.value) / maxValue : 0
