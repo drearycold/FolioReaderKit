@@ -134,6 +134,11 @@ class ReaderScrollDelegateHandler: NSObject, UIScrollViewDelegate, UICollectionV
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
         center.scrollScrubber?.scrollViewDidEndScrollingAnimation(scrollView)
+        // An animated programmatic scroll (a page-item turn, the back button) recorded where it
+        // started; a rotation then restored the page just left.
+        if !(scrollView is UICollectionView) {
+            recordPosition(afterScrolling: scrollView)
+        }
     }
 }
 

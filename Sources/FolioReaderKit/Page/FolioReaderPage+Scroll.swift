@@ -39,6 +39,8 @@ extension FolioReaderPage {
     }
     
     public func scrollWebViewByPosition(pageOffset: CGFloat, pageProgress: Double, animated: Bool = true, completion: (() -> Void)? = nil) {
+        // A new place: the position it ends at is recorded, not one restored earlier.
+        pinnedPosition = nil
         var pageOffset = pageOffset
         let pageProgress = pageProgress
         
@@ -157,6 +159,8 @@ extension FolioReaderPage {
     /// `.vertical` direction gave it, is the end of the chapter.
     func scrollPageToChapterStart() {
         guard let webView = webView else { return }
+        // A new place, as for scrollWebViewByPosition: a pin restored earlier would block recording it.
+        pinnedPosition = nil
         if writingMode == "vertical-rl" {
             let start = Self.verticalWritingContentOffset(fromStart: 0, contentWidth: webView.scrollView.contentSize.width, viewWidth: webView.frame.width)
             setScrollViewContentOffset(CGPoint(x: start, y: 0), animated: false)

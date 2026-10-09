@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import FolioReaderKit
 
@@ -78,5 +79,29 @@ class ReadPositionTests: XCTestCase {
         XCTAssertFalse(FolioReaderCenter.isRestorableCFI("epubcfi(/2/2)", pageNumber: 3), "Book start on a later page")
         XCTAssertTrue(FolioReaderCenter.isRestorableCFI("epubcfi(/2/4/1:0)", pageNumber: 1))
         XCTAssertFalse(FolioReaderCenter.isRestorableCFI("", pageNumber: 1))
+    }
+
+    /// A pinned position can be the provider's own opening record; saving it again kept that record's
+    /// precedence, date and device. It is saved as this device's position now.
+    func testRecordedAgainIsThisDevicesPositionNow() {
+        let opened = FolioReaderReadPosition(deviceId: "another device", structuralStyle: .bundle, positionTrackingStyle: .level1, structuralRootPageNumber: 2, pageNumber: 3, cfi: "epubcfi(/6/6/4/2/1:5)")
+        opened.takePrecedence = true
+        opened.epoch = Date(timeIntervalSince1970: 0)
+        opened.snippet = "snippet"
+        opened.chapterProgress = 0.4
+
+        let saved = opened.recordedAgain()
+        XCTAssertFalse(saved === opened)
+        XCTAssertEqual(saved.deviceId, UIDevice.current.name)
+        XCTAssertFalse(saved.takePrecedence)
+        XCTAssertGreaterThan(saved.epoch, Date(timeIntervalSinceNow: -60))
+        XCTAssertEqual(saved.cfi, opened.cfi)
+        XCTAssertEqual(saved.pageNumber, opened.pageNumber)
+        XCTAssertEqual(saved.structuralStyle, opened.structuralStyle)
+        XCTAssertEqual(saved.positionTrackingStyle, opened.positionTrackingStyle)
+        XCTAssertEqual(saved.structuralRootPageNumber, opened.structuralRootPageNumber)
+        XCTAssertEqual(saved.snippet, opened.snippet)
+        XCTAssertEqual(saved.chapterProgress, opened.chapterProgress)
+        XCTAssertTrue(opened.takePrecedence, "The provider's record is left alone")
     }
 }

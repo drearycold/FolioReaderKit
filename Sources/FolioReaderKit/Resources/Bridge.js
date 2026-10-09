@@ -912,19 +912,35 @@ var getAnchorOffset = function(target, horizontal) {
 //                const textInfo = window.EPUBcfi.getTextTerminusInfoWithPartialCFI(encodeURI(partialCFI), document, [], [], [])
 //                window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI textInfo ${textInfo.textNode.textContent.trim()} ${textInfo.textOffset}`);
 //            }
-            const textInfo = window.EPUBcfi.getTextTerminusInfoWithPartialCFI(encodeURI(partialCFI), document, [], [], [])
+            // Positions are recorded with <highlight> blacklisted (getVisibleCFI, getVisibleMiddleCFI), so
+            // they are resolved the same way. Resolved without it, a position after a highlight in the
+            // same element landed in the text before the highlight.
+            const textInfo = window.EPUBcfi.getTextTerminusInfoWithPartialCFI(encodeURI(partialCFI), document, [], ["highlight"], [])
             window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI textInfo ${textInfo.textNode.textContent.trim()} ${textInfo.textOffset}`);
             
             // An element CFI (an image, an SVG) resolves here too, to the element with a NaN offset;
             // measuring that collapsed range gives the current scroll position. Locate it as an element below.
             if (textInfo && textInfo.textNode && textInfo.textNode.nodeType == 3 && textInfo.textNode.length > 0 && Number.isFinite(textInfo.textOffset)) {
+                // With highlights blacklisted the offset counts the text around them as one node,
+                // without the highlighted text: find the text node that holds it.
+                let textNode = textInfo.textNode
+                let nodeOffset = textInfo.textOffset
+                while (nodeOffset >= textNode.length) {
+                    let next = textNode.nextSibling
+                    while (next && next.nodeType == 1 && next.nodeName.toUpperCase() == "HIGHLIGHT") {
+                        next = next.nextSibling
+                    }
+                    if (!next || next.nodeType != 3) break
+                    nodeOffset -= textNode.length
+                    textNode = next
+                }
                 // A position at the end of the text: getVisibleCFI records one when the edge of the
                 // view cuts the last line or column. Measuring past the end throws, which sent the
                 // restore to the whole element; measure the last character instead.
-                const textOffset = Math.min(textInfo.textOffset, textInfo.textNode.length - 1)
+                const textOffset = Math.min(nodeOffset, textNode.length - 1)
                 let range = document.createRange()
-                range.setStart(textInfo.textNode, textOffset)
-                range.setEnd(textInfo.textNode, textOffset + 1)
+                range.setStart(textNode, textOffset)
+                range.setEnd(textNode, textOffset + 1)
                 
                 let rangeClientBounds = range.getBoundingClientRect()
                 window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI rangeClientBounds ${rangeClientBounds.left}:${rangeClientBounds.right}:${rangeClientBounds.top}:${rangeClientBounds.bottom} scrollX=${window.scrollX} scrollY=${window.scrollY} rangeText=${range.toString().trim()}`);
@@ -945,7 +961,7 @@ var getAnchorOffset = function(target, horizontal) {
         }
         
         try {
-            elem = window.EPUBcfi.getTargetElementWithPartialCFI(encodeURI(partialCFI), document, [], [], []).get(0)
+            elem = window.EPUBcfi.getTargetElementWithPartialCFI(encodeURI(partialCFI), document, [], ["highlight"], []).get(0)
             while (elem && elem.nodeType == 3) {
                 elem = elem.parentNode
             }
@@ -956,7 +972,7 @@ var getAnchorOffset = function(target, horizontal) {
         if (!elem) {
             partialCFI = partialCFI.replace(reg2, ")")
             try {
-                elem = window.EPUBcfi.getTargetElementWithPartialCFI(encodeURI(partialCFI), document, [], [], []).get(0)
+                elem = window.EPUBcfi.getTargetElementWithPartialCFI(encodeURI(partialCFI), document, [], ["highlight"], []).get(0)
             } catch(e) {
                 window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI error prefix ${e}`);
             }
@@ -1645,8 +1661,9 @@ function getVisibleCFI(horizontal) {
     var message = ""
     if (first) {
         cfiStart = window.EPUBcfi.generateElementCFIComponent(first,[],["highlight"],[])
-        // An <svg> has no innerText, and a missing snippet drops it from the JSON.
-        snippet = first.innerText ?? first.textContent ?? ""
+        // An <svg> has no innerText, and a missing snippet drops it from the JSON. (No `??`: WebKit
+        // before iOS 13.4 can't parse it, and the whole script would fail.)
+        snippet = first.innerText != null ? first.innerText : (first.textContent != null ? first.textContent : "")
         message = `first ${cfiStart} ${snippet} ${first.outerHTML}`
         
         if (firstRange) {
@@ -1758,8 +1775,9 @@ function getVisibleMiddleCFI(horizontal) {
             const offset = nearestBoxedIndex(node, start + target)
             if (offset < 0) break
             const offsetComponent = window.EPUBcfi.generateCharacterOffsetCFIComponent(node, offset, [], ["highlight"], [])
-            // The snippet titles bookmarks, so it still starts where the page does.
-            const snippet = spans[0][0].textContent.substr(spans[0][1], 64)
+            // The snippet titles bookmarks, so it still starts where the page does. Without half of a
+            // surrogate pair at either end, which JSON.stringify escapes alone and JSONSerialization rejects.
+            const snippet = spans[0][0].textContent.substr(spans[0][1], 64).replace(/^[\uDC00-\uDFFF]|[\uD800-\uDBFF]$/g, "")
             return JSON.stringify({
                 cfi: window.EPUBcfi.generateElementCFIComponent(node.parentNode, [], ["highlight"], []),
                 snippet: snippet,

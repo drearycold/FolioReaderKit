@@ -112,4 +112,14 @@ class BridgePositionTests: XCTestCase {
         }
         XCTAssertEqual(middles.count, 3, "Each page records its own middle")
     }
+
+    /// The snippet is cut at 64 UTF-16 code units. Cutting an emoji in half left a lone surrogate,
+    /// which JSON.stringify escapes alone and JSONSerialization rejects: the page recorded nothing.
+    func testSnippetNeverEndsInHalfAnEmoji() throws {
+        let paragraphs = (1...40).map { "<p>Paragraph \($0): the quick brown fox jumps over the lazy dog.</p>" }.joined()
+        let webView = readerChapter("<p>" + String(repeating: "a", count: 63) + "😀 and more text.</p>" + paragraphs, paged: true, size: Self.portrait)
+        let json = try XCTUnwrap(evaluate("getVisibleMiddleCFI(true)", in: webView) as? String)
+        XCTAssertNotNil(try? JSONSerialization.jsonObject(with: Data(json.utf8)), json)
+        XCTAssertFalse(FolioReaderPage.recordedPosition(fromVisibleCFIJSON: json).cfi.isEmpty, json)
+    }
 }

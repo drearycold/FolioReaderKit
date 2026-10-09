@@ -178,4 +178,29 @@ class BridgeScrollPositionTests: XCTestCase {
             }
         }
     }
+
+    /// Positions are recorded with `<highlight>` blacklisted, which counts the text around a highlight
+    /// as one node without the highlighted text. `getAnchorOffset` resolved them without it, so a
+    /// position after a highlight landed at the end of the text before it, lines earlier here.
+    func testPositionAfterAHighlightRestoresToItsLine() {
+        let before = String(repeating: "敏捷的棕色狐狸跳过了懒狗，", count: 4)
+        let highlighted = String(repeating: "这一段被标记了。", count: 30)
+        let body = Self.paragraphs(1...5) + "<p id=\"hl\">\(before)<highlight id=\"h1\">\(highlighted)</highlight>\(before)</p>" + Self.paragraphs(6...20)
+        let webView = readerChapter(body, paged: false)
+        let values = evaluate("""
+            (function () {
+                const text = document.getElementById('hl').lastChild;
+                const cfi = window.EPUBcfi.generateCharacterOffsetCFIComponent(text, 5, [], ["highlight"], []);
+                const range = document.createRange();
+                range.setStart(text, 5);
+                range.setEnd(text, 6);
+                return [cfi, range.getBoundingClientRect().top + scrollY];
+            })()
+            """, in: webView) as? [Any] ?? []
+        let cfi = values.first as? String ?? ""
+        let top = values.last as? Double ?? .nan
+        XCTAssertFalse(cfi.isEmpty)
+        let restored = evaluate("getAnchorOffset(\"epubcfi(/6/2\(cfi))\", false)", in: webView) as? Double ?? .nan
+        XCTAssertEqual(restored, top, accuracy: 1, "The character after the highlight: \(cfi)")
+    }
 }

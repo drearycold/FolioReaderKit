@@ -41,10 +41,11 @@ extension FolioReaderPage {
                     var voffset = offset > offsetInWindow ?
                     offset - offsetInWindow : offset
                     
-                    if let contentHeight = self.webView?.scrollView.contentSize.height,
-                       voffset + (self.folioReader.readerCenter?.pageHeight ?? 0) - (self.readerContainer?.navigationController?.navigationBar.frame.height ?? 0) > contentHeight {
-                        voffset = contentHeight - (self.folioReader.readerCenter?.pageHeight ?? 0) + (self.readerContainer?.navigationController?.navigationBar.frame.height ?? 0)
-                    }
+                    // No further than the last screen. The web view is shorter than the page (the
+                    // status bar and page indicator are reserved), so the page height gave offsets
+                    // short of the last screen, and below zero in a chapter of one screen.
+                    let scrollView = webView.scrollView
+                    voffset = max(min(voffset, scrollView.contentSize.height - scrollView.bounds.height), 0)
                     
                     if !avoidBeginningAnchors {
                         self.scrollPageToOffset(voffset, animated: animated)
@@ -87,12 +88,15 @@ extension FolioReaderPage {
     /// Vertical writing: scrolls to `anchor`, whose `getAnchorOffset` is `offset`, by its distance from
     /// the start of the chapter, then measures again and corrects, retrying like `scrollPageToOffset`.
     ///
-    /// Content offsets count from the left while the chapter starts at the right, and the page keeps
-    /// changing after a load or a layout change: the body's `min-width`, rounded up to whole screens,
-    /// and its padding animate over 0.6 s. WebKit keeps the text in place when the width grows by
-    /// moving the offset, so retrying the offset computed before (as `scrollPageToOffset` does) moved
-    /// the text back by the growth, two columns on an iPhone; and reflowing columns move the anchor
-    /// itself. Each retry measures the anchor and works the offset out from the current width.
+    /// Content offsets count from the left while the chapter starts at the right, and the page can
+    /// still change after a load or a layout change (the body's `min-width` is rounded up to whole
+    /// screens). WebKit keeps the text in place when the width grows by moving the offset, so retrying
+    /// the offset computed before (as `scrollPageToOffset` does) moved the text back by the growth, two
+    /// columns on an iPhone; and reflowing columns move the anchor itself. Each retry measures the
+    /// anchor and works the offset out from the current width.
+    ///
+    /// Retries stop once the anchor is in place, and when anything else moved the page or the cell
+    /// shows another chapter: they used to pull a page the reader had just turned back to the anchor.
     func scrollVerticalWriting(toAnchor anchor: String, measured offset: CGFloat, animated: Bool, retry: Int = 5) {
         guard let webView = webView else { return }
         let width = webView.frame.width
@@ -102,11 +106,18 @@ extension FolioReaderPage {
         let target = CGPoint(x: Self.verticalWritingContentOffset(
             fromStart: distance, contentWidth: webView.scrollView.contentSize.width, viewWidth: width
         ), y: 0)
-        if target != webView.scrollView.contentOffset {
+        let inPlace = abs(target.x - webView.scrollView.contentOffset.x) < 1
+        if !inPlace {
             setScrollViewContentOffset(target, animated: animated)
         }
-        guard retry > 0 else { return }
+        guard retry > 0, !(inPlace && retry < 5) else { return }
+        let pageNumber = self.pageNumber
         DispatchQueue.main.asyncAfter(delay: 0.1 * Double(retry)) {
+            // A moved offset means the reader (or a page turn) moved the page, or WebKit kept the text
+            // in place as the content grew: either way there is nothing left to correct.
+            guard self.pageNumber == pageNumber,
+                  !webView.scrollView.isTracking, !webView.scrollView.isDecelerating,
+                  abs(webView.scrollView.contentOffset.x - target.x) < 1 else { return }
             self.getAnchorOffset(anchor) { offset in
                 self.scrollVerticalWriting(toAnchor: anchor, measured: offset, animated: animated, retry: retry - 1)
             }

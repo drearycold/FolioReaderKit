@@ -443,7 +443,11 @@ extension FolioReader {
         // Measuring now would record the start of the restored line or page, before the position.
         if let pinned = currentPage.pinnedPosition {
             if let bookId = readerCenter.book.name?.deletingPathExtension {
-                save(readPosition: pinned, for: bookId)
+                // Saved as this device's position now, as a measured one is: the pin can be the
+                // provider's own opening record, with its precedence, date and device.
+                let position = pinned.recordedAgain()
+                position.pageOffset = webView.scrollView.contentOffset
+                save(readPosition: position, for: bookId)
             }
             completion?()
             return

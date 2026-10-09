@@ -180,6 +180,8 @@ writingMode
                     self.waitForLayout(timeout: delaySec, label: "pageInfo") {
                         self.updateStyleBackgroundPadding(delay: delaySec, completion: completion != nil ? completion : {
                             self.updatePageInfo() {
+                                // Restored by ratio, not to the pinned position: record what it shows.
+                                self.pinnedPosition = nil
                                 self.scrollWebViewByPageOffsetRate()
                                 DispatchQueue.main.asyncAfter(delay: delaySec) {
                                     self.updatePageOffsetRate()
@@ -262,6 +264,8 @@ writingMode
             DispatchQueue.main.asyncAfter(delay: self.delaySec() + bySecond) {
                 self.updatePageInfo {
                     self.updateStyleBackgroundPadding(delay: self.delaySec()) {
+                        // Restored by ratio, not to the pinned position: record what it shows.
+                        self.pinnedPosition = nil
                         self.scrollWebViewByPageOffsetRate()
                         DispatchQueue.main.asyncAfter(delay: 0.2) {
                             self.updatePageOffsetRate()
