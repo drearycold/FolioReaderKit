@@ -84,7 +84,7 @@ class FolioReaderCSSInjectorTests: XCTestCase {
 
             XCTAssertEqual(result as? String, "horizontal-tb")
             let bodyClasses = (evaluate("document.body.className", in: webView) as? String ?? "").split(separator: " ").map(String.init)
-            XCTAssertEqual(Set(bodyClasses), Set(["chapter", "folioStyleHorizontal", "folioStyleScopeP"]))
+            XCTAssertEqual(Set(bodyClasses), Set(["chapter", "folioStyleHorizontal", "folioStyleScopeP", "folioStyleFontScopeP"]))
             XCTAssertEqual(evaluate("document.body.style.getPropertyValue('--folio-font-family')", in: webView) as? String, "\"Gill Sans\"")
             XCTAssertEqual(evaluate("document.body.style.getPropertyValue('--folio-padding-left')", in: webView) as? String, "2.5vw")
             XCTAssertEqual(evaluate("document.documentElement.classList.contains('serpiaMode')", in: webView) as? Bool, true)

@@ -162,7 +162,7 @@ writingMode
         self.layoutAdapting = .style
         self.updatePageOffsetRate()
 
-        let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame)
+        let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame, userFontDescriptors: readerConfig.userFontDescriptors)
         let script = FolioReaderCSSInjector.runtimeStyleSource(
             themeMode: folioReader.themeMode,
             styleState: styleState,

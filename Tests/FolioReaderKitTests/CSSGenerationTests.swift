@@ -6,6 +6,7 @@
 //  Copyright © 2026 FolioReader. All rights reserved.
 //
 
+import CoreText
 import XCTest
 @testable import FolioReaderKit
 
@@ -43,15 +44,29 @@ class CSSGenerationTests: XCTestCase {
     func testBodyClassesHorizontalPlusTD() {
         XCTAssertEqual(
             FolioReaderCSSBuilder.bodyClasses(for: state(.PlusTD)),
-            ["folioStyleHorizontal", "folioStyleScopeP", "folioStyleScopeTD"]
+            ["folioStyleHorizontal", "folioStyleScopeP", "folioStyleScopeTD", "folioStyleFontScopeP", "folioStyleFontScopeTD"]
         )
     }
 
     func testBodyClassesVerticalAllText() {
         XCTAssertEqual(
             FolioReaderCSSBuilder.bodyClasses(for: state(.AllText, vertical: true)),
-            ["folioStyleVertical", "folioStyleScopeP", "folioStyleScopeTD", "folioStyleScopeSPAN", "folioStyleScopeAll"]
+            ["folioStyleVertical", "folioStyleScopeP", "folioStyleScopeTD", "folioStyleScopeSPAN", "folioStyleScopeAll",
+             "folioStyleFontScopeP", "folioStyleFontScopeTD", "folioStyleFontScopeSPAN", "folioStyleFontScopeAll"]
         )
+    }
+
+    /// An unknown family (YetAnotherEBookReader's "Original", meaning the publisher's font, or a removed
+    /// user font) gets no font classes, so the book keeps its fonts; the other settings still apply.
+    func testUnavailableFontLeavesTheBookFonts() {
+        var unavailable = state(.PlusTD)
+        unavailable.isFontAvailable = false
+        XCTAssertEqual(FolioReaderCSSBuilder.bodyClasses(for: unavailable), ["folioStyleHorizontal", "folioStyleScopeP", "folioStyleScopeTD"])
+        XCTAssertFalse(FolioReaderStyleState.isAvailableFont("Original", userFontDescriptors: [:]))
+        XCTAssertTrue(FolioReaderStyleState.isAvailableFont("Helvetica Neue", userFontDescriptors: [:]))
+        XCTAssertTrue(FolioReaderStyleState.isAvailableFont("Reader Test Font", userFontDescriptors: [
+            "reader-test-font": CTFontDescriptorCreateWithAttributes([kCTFontFamilyNameAttribute: "Reader Test Font"] as CFDictionary),
+        ]))
     }
 
     func testBodyClassesNoneHasOnlyWritingMode() {

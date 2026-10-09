@@ -23,10 +23,13 @@ struct FolioReaderStyleState: Equatable {
     var isVerticalWritingMode: Bool
     /// Keep text clear of the left and right safe area (`FolioReaderConfig.reserveSafeAreaInsidePageFrame`).
     var reserveSafeArea = true
+    /// Whether `font` can be drawn. An unknown family (a removed user font, or a host's placeholder
+    /// such as YetAnotherEBookReader's "Original") must leave the book's fonts alone.
+    var isFontAvailable = true
 }
 
 extension FolioReaderStyleState {
-    init(preferences: ReaderPreferences, isVerticalWritingMode: Bool, reserveSafeArea: Bool) {
+    init(preferences: ReaderPreferences, isVerticalWritingMode: Bool, reserveSafeArea: Bool, userFontDescriptors: [String: CTFontDescriptor] = [:]) {
         self.init(
             styleOverride: preferences.styleOverride,
             font: preferences.currentFont,
@@ -40,8 +43,16 @@ extension FolioReaderStyleState {
             marginLeft: preferences.currentMarginLeft,
             marginRight: preferences.currentMarginRight,
             isVerticalWritingMode: isVerticalWritingMode,
-            reserveSafeArea: reserveSafeArea
+            reserveSafeArea: reserveSafeArea,
+            isFontAvailable: Self.isAvailableFont(preferences.currentFont, userFontDescriptors: userFontDescriptors)
         )
+    }
+
+    /// An installed or registered family, or one of the user fonts the reader serves.
+    static func isAvailableFont(_ family: String, userFontDescriptors: [String: CTFontDescriptor]) -> Bool {
+        UIFont.familyNames.contains(family) || userFontDescriptors.values.contains {
+            CTFontDescriptorCopyAttribute($0, kCTFontFamilyNameAttribute) as? String == family
+        }
     }
 }
 
@@ -62,6 +73,11 @@ enum FolioReaderCSSBuilder {
         /// Applies the text settings to the elements of `level`; levels are cumulative.
         static func scope(_ level: StyleOverrideTypes) -> String {
             "folioStyleScope\(scopeNames[level] ?? "")"
+        }
+
+        /// Applies the font family to the elements of `level`, only while the family is available.
+        static func fontScope(_ level: StyleOverrideTypes) -> String {
+            "folioStyleFontScope\(scopeNames[level] ?? "")"
         }
 
         private static let scopeNames: [StyleOverrideTypes: String] = [.PNode: "P", .PlusTD: "TD", .PlusSPAN: "SPAN", .AllText: "All"]
@@ -93,6 +109,7 @@ enum FolioReaderCSSBuilder {
     static func bodyClasses(for state: FolioReaderStyleState) -> [String] {
         let levels = StyleOverrideTypes.allCases.filter { $0 != .None && $0.rawValue <= state.styleOverride.rawValue }
         return [state.isVerticalWritingMode ? BodyClass.vertical : BodyClass.horizontal] + levels.map(BodyClass.scope)
+            + (state.isFontAvailable ? levels.map(BodyClass.fontScope) : [])
     }
 
     /// Values for every `CustomProperty`, in declaration order, so the rules never see an unset one.
@@ -152,7 +169,6 @@ enum FolioReaderCSSBuilder {
         let vertical = ".\(BodyClass.vertical)"
         return """
             \(scopedSelectors()) {
-                font-family: \(P.fontFamily.reference) !important;
                 font-size: \(P.fontSize.reference) !important;
                 font-weight: \(P.fontWeight.reference) !important;
                 letter-spacing: \(P.letterSpacing.reference) !important;
@@ -160,6 +176,10 @@ enum FolioReaderCSSBuilder {
                 text-indent: \(P.textIndent.reference) !important;
                 text-align: justify !important;
                 -webkit-hyphens: auto !important;
+            }
+            /* Same specificity as the rule above, on classes added only while the family is available. */
+            \(scopedSelectors(scope: BodyClass.fontScope)) {
+                font-family: \(P.fontFamily.reference) !important;
             }
             /* Paragraph spacing. AllText leaves the margins of <body> itself alone. */
             \(scopedSelectors(levels: [.PNode, .PlusTD, .PlusSPAN])) {
@@ -277,10 +297,11 @@ enum FolioReaderCSSBuilder {
 
     private static let levelTags: [(StyleOverrideTypes, String)] = [(.PNode, "p"), (.PlusTD, "td"), (.PlusSPAN, "span"), (.AllText, "")]
 
-    /// One selector per override level in `levels`, matching `BodyClass.scope`; `AllText` selects `<body>` itself.
-    private static func scopedSelectors(levels: Set<StyleOverrideTypes> = Set(StyleOverrideTypes.allCases), descendant: String? = nil) -> String {
+    /// One selector per override level in `levels`, matching `scope` (`BodyClass.scope` by default);
+    /// `AllText` selects `<body>` itself.
+    private static func scopedSelectors(levels: Set<StyleOverrideTypes> = Set(StyleOverrideTypes.allCases), descendant: String? = nil, scope: (StyleOverrideTypes) -> String = BodyClass.scope) -> String {
         levelTags.filter { levels.contains($0.0) }.map { level, tag in
-            (["html body.\(BodyClass.scope(level))"] + [tag, descendant ?? ""].filter { !$0.isEmpty }).joined(separator: " ")
+            (["html body.\(scope(level))"] + [tag, descendant ?? ""].filter { !$0.isEmpty }).joined(separator: " ")
         }.joined(separator: ",\n")
     }
 }
