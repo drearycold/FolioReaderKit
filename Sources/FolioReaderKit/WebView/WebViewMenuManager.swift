@@ -81,9 +81,12 @@ class WebViewMenuManager: NSObject {
 
     func share(_ sender: Any?) {
         guard let webView = webView else { return }
+        // Read now: on iOS 16 and later, dismissing the edit menu clears the flag before the user
+        // picks a share option, which then shared the (empty) selection instead of the highlight.
+        let sharingHighlight = webView.folioReader.readerCenter?.currentPage?.webView?.isSharingHighlight ?? false
 
         if let menuController = sender as? UIMenuController {
-            presentShareChooser(webView: webView, presentationRect: menuController.menuFrame)
+            presentShareChooser(webView: webView, presentationRect: menuController.menuFrame, sharingHighlight: sharingHighlight)
             return
         }
         // With UIEditMenuInteraction there is no menu frame to anchor to, and lastMenuRect is only
@@ -92,7 +95,7 @@ class WebViewMenuManager: NSObject {
             guard let self = self, let webView = webView else { return }
             let selectionRect = rectString.map { NSCoder.cgRect(for: $0) } ?? .zero
             let presentationRect = Self.sharePresentationRect(selectionRect: selectionRect, fallback: self.lastMenuRect, in: webView.bounds)
-            self.presentShareChooser(webView: webView, presentationRect: presentationRect)
+            self.presentShareChooser(webView: webView, presentationRect: presentationRect, sharingHighlight: sharingHighlight)
         }
     }
 
@@ -105,7 +108,7 @@ class WebViewMenuManager: NSObject {
         return CGRect(x: bounds.midX, y: bounds.midY, width: 1, height: 1)
     }
 
-    private func presentShareChooser(webView: FolioReaderWebView, presentationRect: CGRect) {
+    private func presentShareChooser(webView: FolioReaderWebView, presentationRect: CGRect, sharingHighlight: Bool) {
         
         guard let currentPage = webView.folioReader.readerCenter?.currentPage,
               let currentPageWebView = currentPage.webView
@@ -116,7 +119,7 @@ class WebViewMenuManager: NSObject {
         let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
         let shareImage = UIAlertAction(title: webView.readerConfig.localizedShareImageQuote, style: .default, handler: { (action) -> Void in
-            if currentPageWebView.isSharingHighlight {
+            if sharingHighlight {
                 currentPageWebView.js("getHighlightContent()") { textToShare in
                     guard let textToShare = textToShare else { return }
                     webView.folioReader.readerCenter?.presentQuoteShare(textToShare)
@@ -133,7 +136,7 @@ class WebViewMenuManager: NSObject {
         })
 
         let shareText = UIAlertAction(title: webView.readerConfig.localizedShareTextQuote, style: .default) { (action) -> Void in
-            if currentPageWebView.isSharingHighlight {
+            if sharingHighlight {
                 currentPageWebView.js("getHighlightContent()") { textToShare in
                     guard let textToShare = textToShare else { return }
                     webView.folioReader.readerCenter?.shareHighlight(textToShare, rect: presentationRect)
@@ -242,8 +245,10 @@ class WebViewMenuManager: NSObject {
             webView.clearTextSelection()
             webView.setMenuVisible(false)
             
+            // Found by its action: the close button before it is optional (`showCloseButton`).
+            let presentBookmarkList = #selector(FolioReaderCenter.presentBookmarkList(_:))
             guard let readerCenter = webView.readerContainer?.centerViewController,
-                  let bookmarkBarButtonItem = readerCenter.navigationItem.leftBarButtonItems?[safe: 2],
+                  let bookmarkBarButtonItem = readerCenter.navigationItem.leftBarButtonItems?.first(where: { $0.action == presentBookmarkList }),
                   let selector = bookmarkBarButtonItem.action else { return }
             
             readerCenter.tempRefText = selectedText
