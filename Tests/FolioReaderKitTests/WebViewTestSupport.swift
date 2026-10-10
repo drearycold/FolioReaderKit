@@ -13,6 +13,11 @@ import XCTest
 /// take milliseconds.
 let webKitTimeout: TimeInterval = 30
 
+/// How long WebKit's first page and script may take on a CI runner (`warmUpWebKit`). On 2026-10-09
+/// the first WebKit test took 224 s in one run; in the next, WebPrivacy gave up only after 470 s and
+/// a 300 s wait failed. The job's 45-minute limit leaves room for this.
+let webKitWarmUpTimeout: TimeInterval = 900
+
 /// Whether a test in this process has waited for WebKit's first page and script.
 @MainActor private var webKitIsWarm = false
 
@@ -98,8 +103,8 @@ extension XCTestCase {
     /// Waits, once per test process, for WebKit's first page and script. On a CI runner the first web
     /// content process asks the WebPrivacy service for its lists ("Failed to request query parameters
     /// from WebPrivacy") and runs no script until it gives up ("Unable to hide query parameters from
-    /// script (missing data)"), 50 to 100 s later; pages after that don't wait. The first WebKit
-    /// test waits for it here, instead of every early test timing out.
+    /// script (missing data)"), 50 to 470 s later so far; pages after that don't wait. The first
+    /// WebKit test waits for it here, instead of every early test timing out.
     func warmUpWebKit() {
         guard !webKitIsWarm else { return }
         webKitIsWarm = true
@@ -107,10 +112,10 @@ extension XCTestCase {
         let loader = NavigationWaiter(expectation(description: "WebKit warm-up page loaded"))
         webView.navigationDelegate = loader
         webView.loadHTMLString("<p>warm-up</p>", baseURL: nil)
-        wait(for: [loader.loaded], timeout: 300)
+        wait(for: [loader.loaded], timeout: webKitWarmUpTimeout)
         let evaluated = expectation(description: "WebKit warm-up script")
         webView.evaluateJavaScript("document.body.textContent") { _, _ in evaluated.fulfill() }
-        wait(for: [evaluated], timeout: 300)
+        wait(for: [evaluated], timeout: webKitWarmUpTimeout)
     }
 
     /// A 320×480 web view that has finished loading `html`, parsed as `mimeType` if given.
