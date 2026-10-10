@@ -406,6 +406,11 @@ struct FolioReaderPageFrameInput {
 }
 
 enum FolioReaderPageFrameCalculator {
+    /// The web view's frame, in whole points: WebKit's viewport is whole CSS pixels. In vertical
+    /// writing the viewport is set by the view's height (`height=device-height`) and its width
+    /// follows the aspect ratio, so a 780 × 751.5 view (a host's toolbar of 54.5 pt) laid out 781 px
+    /// wide pages. They outgrew the 780 pt screens a pixel a page, the page count never matched the
+    /// screens, and `updateStyleBackgroundPadding` never finished.
     static func webViewFrame(input: FolioReaderPageFrameInput) -> CGRect {
         let metrics = FrameMetrics(input: input)
         let paged = metrics.pagedPadding
@@ -417,6 +422,7 @@ enum FolioReaderPageFrameCalculator {
                 vertical: UIEdgeInsets(top: 0, left: paged.left, bottom: 0, right: paged.right)
             ))
             .clampedToNonNegativeSize
+            .flooredSize
     }
 
     /// The text area in the page's coordinates, where `FolioReaderAnchorPreview` places itself. In
@@ -477,5 +483,10 @@ private extension CGRect {
     /// Reads `size` directly, because `width` and `height` return standardized (absolute) values.
     var clampedToNonNegativeSize: CGRect {
         CGRect(origin: origin, size: CGSize(width: max(size.width, 0), height: max(size.height, 0)))
+    }
+
+    /// The size rounded down to whole points, so it stays inside the page.
+    var flooredSize: CGRect {
+        CGRect(origin: origin, size: CGSize(width: floor(size.width), height: floor(size.height)))
     }
 }

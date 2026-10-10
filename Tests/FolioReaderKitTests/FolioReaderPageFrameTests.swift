@@ -162,6 +162,36 @@ final class FolioReaderPageFrameTests: XCTestCase {
         )
     }
 
+    /// WebKit's viewport is whole CSS pixels. YAEBR's reader toolbar left an iPad Pro 10.5" page
+    /// 751.5 pt tall in landscape; in vertical writing the viewport follows the height, so the pages
+    /// were laid out 781 px wide on 780 pt screens and the chapter never finished loading.
+    func testWebViewFrameIsInWholePoints() {
+        let landscape = makeInput(
+            bounds: CGRect(x: 0, y: 0, width: 1112, height: 751.5),
+            writingMode: "vertical-rl",
+            scrollDirection: .horizontalWithPagedContent,
+            currentMarginLeft: 30,
+            currentMarginRight: 30,
+            pageWidth: 1112,
+            pageHeight: 751.5,
+            reserveSafeAreaInsidePageFrame: false,
+            reservePageIndicatorInsidePageFrame: false
+        )
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.webViewFrame(input: landscape),
+            CGRect(x: 166, y: 0, width: 780, height: 751)
+        )
+
+        let halfPointStatusBar = makeInput(
+            bounds: CGRect(x: 0, y: 0, width: 400.5, height: 800),
+            statusbarHeight: 20.5
+        )
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.webViewFrame(input: halfPointStatusBar),
+            CGRect(x: 0, y: 20.5, width: 400, height: 779)
+        )
+    }
+
     func testOversizedPagedMarginsCollapseHeightWithoutMovingOrigin() {
         let input = makeInput(
             scrollDirection: .horizontalWithPagedContent,
