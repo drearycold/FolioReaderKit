@@ -8,15 +8,19 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 
 ## Branches and working rules
 
+**`master` is the stable branch.** YAEBR takes FolioReaderKit from it.
+
 | Branch | Role |
 |---|---|
-| `styling-optimization` | Integration branch for this umbrella. It merges into `master` once Phases 0–2 are done. |
+| `master` | Stable. Every change reaches it through a pull request whose CI passed. YAEBR follows it as a remote Swift package (drearycold/YetAnotherEBookReader#104). |
+| Topic branches | Branched from `master`, one topic each, merged back by pull request. |
 | `codex/dsreader` | D.S.Reader RAG line: reference resolver and keyword search, after `9493f33`. It pairs with YAEBR's `codex/dsreader-advanced-qa-integration`. |
-| `master` | Untouched until the umbrella PR. |
+| `styling-optimization` | Retired. The umbrella's integration branch until it was merged into `master` (#9; #10, merged into it afterwards, reached `master` through #11). Don't base work or pull requests on it. |
 
-- YAEBR links this repository as a **local package**, so it builds against whatever branch is checked out. Keep the checkout on `styling-optimization` while the umbrella is in progress, and use worktrees for side work.
-- After every merge or series of commits, run the FolioReaderKit tests **and** build YAEBR `main` against the checkout (commands below).
-- When RAG work resumes, merge `styling-optimization` into `codex/dsreader`, not the other way round.
+- **Keep `master` working.** Branch from it and open pull requests against it; don't push to it directly. CI runs the package tests and the Example builds on every pull request, and they must pass before a merge.
+- **YAEBR takes `master` explicitly.** Its `Package.resolved` records the `master` commit it builds, so a merge here reaches the app only when YAEBR updates that record in a pull request of its own. A fix is in the library once it's on `master`, and in the app once YAEBR has updated.
+- **Check a change in YAEBR before merging it** when the app depends on it: YAEBR's AGENTS.md ("Swift Packages") describes a workspace, kept outside its repository, in which a local checkout or worktree of this repository overrides the remote package. Build YAEBR that way from the topic branch's worktree (command below).
+- When RAG work resumes, merge `master` into `codex/dsreader`, not the other way round.
 - **Never close YetAnotherEBookReader issues** from FolioReaderKit work. A FolioReaderKit fix can leave related problems in the app, so those issues stay open; rows below record the FolioReaderKit part only.
 
 ## Phases
@@ -130,8 +134,9 @@ xcodebuild test -scheme FolioReaderKit -destination 'platform=iOS Simulator,name
 # Example apps
 xcodebuild -project Example/Example.xcodeproj -scheme Example -destination 'platform=iOS Simulator,name=iPhone 17' build
 xcodebuild -project Example/Example.xcodeproj -scheme MultipleInstance-Example -destination 'generic/platform=iOS Simulator' build
-# YAEBR main against this checkout (run from a sibling YetAnotherEBookReader checkout)
-xcodebuild -project YetAnotherEBookReader.xcodeproj -scheme YetAnotherEBookReader -destination 'platform=iOS Simulator,name=iPhone 17' build
+# YAEBR against this checkout or worktree, through a YabrDev.xcworkspace that lists both
+# (YAEBR's AGENTS.md, "Swift Packages")
+xcodebuild -workspace YabrDev.xcworkspace -scheme YetAnotherEBookReader -destination 'platform=iOS Simulator,name=iPhone 17' build
 ```
 
 ## Issue replies
