@@ -22,6 +22,7 @@ class ReaderPreferenceKeysTests: XCTestCase {
             .currentHighlightStyle: "currentHighlightStyle",
             .currentMediaOverlayStyle: "currentMediaOverlayStyle",
             .currentScrollDirection: "currentScrollDirection",
+            .currentLandscapeSpread: "currentLandscapeSpread",
             .currentNavigationMenuIndex: "currentNavigationMenuIndex",
             .currentAnnotationMenuIndex: "currentAnnotationMenuIndex",
             .currentNavigationMenuBookListStyle: "currentNavigationMenuBookListStyle",
@@ -50,6 +51,7 @@ class ReaderPreferenceKeysTests: XCTestCase {
         let allKeys: [ReaderPreferenceKey] = [
             .nightMode, .themeMode, .currentFont, .currentFontSize, .currentFontWeight,
             .currentAudioRate, .currentHighlightStyle, .currentMediaOverlayStyle, .currentScrollDirection,
+            .currentLandscapeSpread,
             .currentNavigationMenuIndex, .currentAnnotationMenuIndex, .currentNavigationMenuBookListStyle,
             .currentVMarginLinked, .currentMarginTop, .currentMarginBottom, .currentHMarginLinked,
             .currentMarginLeft, .currentMarginRight, .currentLetterSpacing, .currentLineHeight,

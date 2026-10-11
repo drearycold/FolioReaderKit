@@ -23,6 +23,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 - `FolioReaderConfig.localizedHighlightColors`, `localizedRemoveHighlight`, `localizedHighlightYellow`, `localizedHighlightGreen`, `localizedHighlightBlue`, `localizedHighlightPink` and `localizedHighlightUnderline`: VoiceOver labels for the icon-only highlight menu items.
 - `FolioReaderConfig.localizedPageLoading` ("Loading…") and `localizedPageRelayout` ("Updating layout…"): the text of the overlay that covers a page while it loads or is laid out again.
 - `FolioReaderConfig.reserveSafeAreaInsidePageFrame` and `reservePageIndicatorInsidePageFrame` (both default `true`, the old behavior). Set them to `false` for edge-to-edge pages.
+- Two-page spreads (YetAnotherEBookReader #18): in paged mode, horizontal-writing pages show two pages side by side while the page is landscape and at least `FolioReaderConfig.spreadMinimumWidth` wide (default 1000 pt: every iPad, no iPhone). On by default (`FolioReaderConfig.landscapeSpread`); the user's choice is `ReaderPreferences.currentLandscapeSpread`, with a "One Page / Two Pages" row in the page menu on iPad, labelled by `localizedLayoutSinglePage` and `localizedLayoutTwoPages`. A spread counts as one page in page numbers and progress, and rotating keeps the reading position.
 
 **Changed:**
 

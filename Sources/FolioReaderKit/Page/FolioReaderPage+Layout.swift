@@ -8,9 +8,24 @@ import UIKit
 extension FolioReaderPage {
     // MARK: Change layout orientation
     func setScrollDirection(_ direction: FolioReaderScrollDirection) {
+        // The first text on screen, for the new layout to start from. The offset ratio, the fallback,
+        // doesn't carry over between paged and scroll layouts, whose content sizes differ: switching
+        // went back about a screen, or to the start of the chapter.
+        relayout(direction: direction, keepingFirstVisibleText: true)
+    }
+
+    /// Lays the page out again after the two-page spread setting changed (`spreadMinimumWidth`).
+    /// Both layouts are paged, so it keeps what a rotation keeps: the pinned position, else the middle
+    /// of the page. Keeping the first visible text went back a spread on every round trip, as the
+    /// single page that holds a spread's first line starts before the spread.
+    func applySpreadSetting() {
+        relayout(direction: readerConfig.scrollDirection, keepingFirstVisibleText: false)
+    }
+
+    private func relayout(direction: FolioReaderScrollDirection, keepingFirstVisibleText: Bool) {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
-        guard self.folioReader.readerCenter != nil, let webView = webView else {
+        guard self.folioReader.readerCenter != nil, webView != nil else {
             readerConfig.applyEffectiveScrollDirection(direction)
             return
         }
@@ -22,14 +37,13 @@ extension FolioReaderPage {
         // the paged axis: the position became the chapter heading, and the offset ratio 0.
         self.updatePageOffsetRate()
 
-        // The first text on screen, for the new layout to start from. The offset ratio, the fallback,
-        // doesn't carry over between paged and scroll layouts, whose content sizes differ: switching
-        // went back about a screen, or to the start of the chapter.
-        getWebViewScrollPosition(firstVisibleText: true, onFailure: {
-            self.applyScrollDirection(direction, restoring: nil)
+        let pinned = keepingFirstVisibleText ? nil : pinnedPosition
+        getWebViewScrollPosition(firstVisibleText: keepingFirstVisibleText, onFailure: {
+            self.applyScrollDirection(direction, restoring: pinned)
         }) { position in
-            let restorable = FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: self.pageNumber)
-            self.applyScrollDirection(direction, restoring: restorable ? position : nil)
+            let anchor = pinned ?? position
+            let restorable = FolioReaderCenter.isRestorableCFI(anchor.cfi, pageNumber: self.pageNumber)
+            self.applyScrollDirection(direction, restoring: restorable ? anchor : nil)
         }
     }
 
@@ -132,7 +146,7 @@ writingMode
             let overflowCSSInterval = FolioSignpost.begin("OverflowCSS", "page \(self.pageNumber)")
             FolioReaderCSSInjector.apply(
                 id: FolioReaderCSSInjector.StyleID.overflow,
-                css: FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: self.writingMode == "vertical-rl"),
+                css: FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: self.writingMode == "vertical-rl", spreadMinimumWidth: self.spreadMinimumWidth),
                 to: webView
             ) {
                 overflowCSSInterval.end()
@@ -209,15 +223,7 @@ writingMode
         // could be a bug?
         // and shrinking by 100vw has no effect on totalPages
         let paddingInterval = FolioSignpost.begin("PaddingJS", "page \(pageNumber)")
-        self.webView?.js(
-            """
-            if (writingMode == 'vertical-rl') {
-                document.body.style.width     = "\(step.screens * 100 - (step.shrinking ? 200 : 0))vw"
-            } else {
-                document.body.style.minHeight = "\(step.screens * 100 - (step.shrinking ? 100 : 0))vh"
-            }
-            """
-        ) { _ in
+        self.webView?.js(BackgroundPaddingSearch.script(for: step)) { _ in
             paddingInterval.end()
             self.waitForLayout(timeout: bySecond, label: "padding") {
                 self.updatePageInfo {
@@ -281,6 +287,19 @@ struct BackgroundPaddingSearch {
     }
 
     private var taken = Set<Step>()
+
+    /// Sizes `<body>` for `step`. In horizontal writing its height counts the pages it fills, each one
+    /// viewport high: the pages of `-webkit-paged-x`, or the columns of a two-page spread, two to a
+    /// screen (`folioColumnsPerScreen` in `Bridge.js`).
+    static func script(for step: Step) -> String {
+        """
+        if (writingMode == 'vertical-rl') {
+            document.body.style.width     = "\(step.screens * 100 - (step.shrinking ? 200 : 0))vw"
+        } else {
+            document.body.style.minHeight = (\(step.screens - (step.shrinking ? 1 : 0)) * folioColumnsPerScreen() * 100) + "vh"
+        }
+        """
+    }
 
     /// The step after `step`, from the page count measured with it, or nil when the search is over:
     /// the body fills `step.screens` pages, or the next step was taken before. A page count that

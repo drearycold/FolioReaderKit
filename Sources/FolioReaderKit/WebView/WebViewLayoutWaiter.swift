@@ -20,13 +20,17 @@ import WebKit
 /// JavaScript while WebKit paginates the view, so in paged mode the expected size is the paginated
 /// one (whole viewport pages laid side by side). The document size counts only when it already has
 /// the page height: a taller document size is also what the scroll view held before pagination took
-/// effect, so accepting it would end the wait too early.
+/// effect, so accepting it would end the wait too early. A two-page spread lays the root out in
+/// columns instead (`FolioReaderCSSBuilder.spreadRules`), whose document size is the scrolled size,
+/// so there only the document size counts: one screen of it is also the size before the columns.
 enum WebViewLayoutWaiter {
     static let pollInterval: TimeInterval = 1.0 / 60.0
 
     struct Measurement: Equatable {
         let document: CGSize
         let viewport: CGSize
+        /// The root's column count: 2 in a spread, else 1.
+        var columns = 1
     }
 
     /// Reading `scrollWidth`/`scrollHeight` forces a synchronous layout, so the size is current.
@@ -35,7 +39,8 @@ enum WebViewLayoutWaiter {
             var e = document.scrollingElement || document.documentElement;
             var fontsLoaded = !document.fonts || document.fonts.status === 'loaded';
             // window.inner* is the viewport; documentElement.client* is the whole document in quirks mode.
-            return JSON.stringify([e.scrollWidth, e.scrollHeight, window.innerWidth, window.innerHeight, fontsLoaded]);
+            var columns = parseInt(getComputedStyle(document.documentElement).columnCount) || 1;
+            return JSON.stringify([e.scrollWidth, e.scrollHeight, window.innerWidth, window.innerHeight, fontsLoaded, columns]);
         })()
         """
 
@@ -44,7 +49,7 @@ enum WebViewLayoutWaiter {
     static func expectedContentSizes(for measurement: Measurement, paged: Bool, tolerance: CGFloat = 2) -> [CGSize] {
         let document = measurement.document
         let viewport = measurement.viewport
-        guard paged, viewport.width > 0, viewport.height > 0 else { return [document] }
+        guard paged, measurement.columns == 1, viewport.width > 0, viewport.height > 0 else { return [document] }
 
         var sizes = [CGSize]()
         if document.height <= viewport.height + tolerance {
@@ -67,14 +72,16 @@ enum WebViewLayoutWaiter {
         guard let json = result as? String,
               let data = json.data(using: .utf8),
               let values = (try? JSONSerialization.jsonObject(with: data)) as? [Any],
-              values.count == 5,
-              (values[4] as? Bool) == true else {
+              values.count == 6,
+              (values[4] as? Bool) == true,
+              let columns = (values[5] as? NSNumber)?.intValue else {
             return nil
         }
         let numbers = values[0..<4].compactMap { ($0 as? NSNumber)?.doubleValue }
         guard numbers.count == 4 else { return nil }
         return Measurement(document: CGSize(width: numbers[0], height: numbers[1]),
-                           viewport: CGSize(width: numbers[2], height: numbers[3]))
+                           viewport: CGSize(width: numbers[2], height: numbers[3]),
+                           columns: columns)
     }
 
     /// Calls `completion(true)` once the layout has settled, or `completion(false)` after `timeout`

@@ -15,6 +15,14 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
     let layoutDirectionHorizontalSegment = FolioSegmentedControl()
     let layoutDirectionVerticalSegment = FolioSegmentedControl()
     let layoutDirectionSegmentHeight = CGFloat(55)
+
+    /// One page or two side by side in landscape (`ReaderPreferences.currentLandscapeSpread`).
+    let layoutSpreadSegment = FolioSegmentedControl()
+    let lineB4Spread = UIView()
+    /// Only iPads are wide enough by default, and only horizontal writing has spreads.
+    private(set) lazy var showsSpreadSegment = readerConfig.canChangeScrollDirection
+        && traitCollection.userInterfaceIdiom == .pad
+        && folioReader.readerCenter?.currentPage?.writingMode != "vertical-rl"
     
     let marginMenuVSegment = FolioSegmentedControl()
     let marginMenuVSegmentHeight = CGFloat(55)
@@ -46,7 +54,8 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
         tapGesture.delegate = self
         view.addGestureRecognizer(tapGesture)
 
-        let menuHeight: CGFloat = self.readerConfig.canChangeScrollDirection ? 220 : 170 + 8
+        let menuHeight: CGFloat = (self.readerConfig.canChangeScrollDirection ? 220 : 170 + 8)
+            + (showsSpreadSegment ? layoutDirectionSegmentHeight + 1 : 0)
         let tabBarHeight: CGFloat = self.folioReader.readerCenter?.menuBarController.tabBar.frame.height ?? 0
         let safeAreaInsetBottom: CGFloat = UIApplication.shared.windows.first?.safeAreaInsets.bottom ?? 0
         let visibleHeight = menuHeight + tabBarHeight + safeAreaInsetBottom
@@ -169,6 +178,30 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
         }
         menuView.addSubview(layoutDirectionHorizontalSegment)
         menuView.addSubview(layoutDirectionVerticalSegment)
+
+        if showsSpreadSegment {
+            let onePage = UIImage(systemName: "doc")
+            let twoPages = UIImage(systemName: "book")
+
+            layoutSpreadSegment.segmentTitleFont = segmentFont
+            layoutSpreadSegment.separatorColour = self.readerConfig.nightModeSeparatorColor
+            layoutSpreadSegment.separatorWidth = 1
+            layoutSpreadSegment.segmentOnSelectionColour = UIColor.clear
+            layoutSpreadSegment.segmentOffSelectionColour = UIColor.clear
+            layoutSpreadSegment.segmentOnSelectionTextColour = selectedColor
+            layoutSpreadSegment.segmentOffSelectionTextColour = normalColor
+            layoutSpreadSegment.segmentVerticalMargin = 17
+            layoutSpreadSegment.delegate = self
+            layoutSpreadSegment.tag = 6
+
+            layoutSpreadSegment.addSegmentWithTitle(self.readerConfig.localizedLayoutSinglePage, onSelectionImage: onePage?.withTintColor(selectedColor, renderingMode: .alwaysOriginal), offSelectionImage: onePage?.withTintColor(normalColor, renderingMode: .alwaysOriginal))
+            layoutSpreadSegment.addSegmentWithTitle(self.readerConfig.localizedLayoutTwoPages, onSelectionImage: twoPages?.withTintColor(selectedColor, renderingMode: .alwaysOriginal), offSelectionImage: twoPages?.withTintColor(normalColor, renderingMode: .alwaysOriginal))
+            layoutSpreadSegment.selectSegmentAtIndex(self.folioReader.preferences.currentLandscapeSpread ? 1 : 0)
+
+            lineB4Spread.backgroundColor = self.readerConfig.nightModeSeparatorColor
+            menuView.addSubview(lineB4Spread)
+            menuView.addSubview(layoutSpreadSegment)
+        }
         
         lineB4MarginV.backgroundColor = self.readerConfig.nightModeSeparatorColor
         menuView.addSubview(lineB4MarginV)
@@ -298,8 +331,20 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
         self.folioReader.readerCenter?.currentPage?.byWritingMode(horizontal: {
             layoutDirectionHorizontalSegment.isHidden = false
             layoutDirectionVerticalSegment.isHidden = true
-            
-            lineB4MarginV.frame = CGRect(x: 0, y: layoutDirectionHorizontalSegment.frame.maxY, width: frame.width, height: 1)
+
+            var rowsMaxY = layoutDirectionHorizontalSegment.frame.maxY
+            if showsSpreadSegment {
+                lineB4Spread.frame = CGRect(x: 0, y: rowsMaxY, width: frame.width, height: 1)
+                layoutSpreadSegment.frame = CGRect(x: 0, y: lineB4Spread.frame.maxY, width: frame.width, height: layoutDirectionSegmentHeight)
+                layoutSpreadSegment.segmentTitleFont = segmentFont  //to trigger segment width re-calculation
+                // Spreads are pages: the choice only applies in paged mode.
+                let paged = readerConfig.scrollDirection == .horizontalWithPagedContent
+                layoutSpreadSegment.isUserInteractionEnabled = paged
+                layoutSpreadSegment.alpha = paged ? 1 : 0.4
+                rowsMaxY = layoutSpreadSegment.frame.maxY
+            }
+
+            lineB4MarginV.frame = CGRect(x: 0, y: rowsMaxY, width: frame.width, height: 1)
         }, vertical: {
             layoutDirectionHorizontalSegment.isHidden = true
             layoutDirectionVerticalSegment.isHidden = false
@@ -387,6 +432,15 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
             }
 
             self.folioReader.currentScrollDirection = index
+            layoutSubviews(frame: view.frame)
+        }  else if segmentView.tag == 6 {
+
+            let twoPages = index == 1
+            guard self.folioReader.preferences.currentLandscapeSpread != twoPages else {
+                return
+            }
+
+            self.folioReader.preferences.currentLandscapeSpread = twoPages
         }  else if segmentView.tag == 33 {
 
             guard self.folioReader.currentScrollDirection != index + 1 else {

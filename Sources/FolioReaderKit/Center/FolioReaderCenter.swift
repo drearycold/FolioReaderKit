@@ -127,6 +127,12 @@ open class FolioReaderCenter: UIViewController {
         return readerContainer.folioReader
     }
 
+    /// The width from which pages show two pages side by side in landscape
+    /// (`FolioReaderCSSBuilder.spreadRules`), or nil while the user keeps one page.
+    var spreadMinimumWidth: CGFloat? {
+        folioReader.preferences.currentLandscapeSpread ? readerConfig.spreadMinimumWidth : nil
+    }
+
     // MARK: - Init
 
     init(withContainer readerContainer: FolioReaderContainer) {
