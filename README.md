@@ -1,8 +1,10 @@
-![FolioReader logo](https://raw.githubusercontent.com/FolioReader/FolioReaderKit/assets/folioreader.png)
+# FolioReaderKit
+
 FolioReaderKit is an ePub reader and parser framework for iOS written in Swift.
 
-![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)
-![License](https://img.shields.io/badge/license-BSD-green.svg)
+This is a modernized fork of [FolioReader/FolioReaderKit](https://github.com/FolioReader/FolioReaderKit), which is archived. It is maintained for [D.S.Reader](https://github.com/drearycold/YetAnotherEBookReader) and is not affiliated with or endorsed by the original authors. The original code is © 2015–2018 Heberti Almeida, under the BSD 3-Clause license.
+
+![License](https://img.shields.io/badge/license-BSD--3--Clause-green.svg)
 
 ## Features
 
@@ -40,7 +42,7 @@ In Xcode, go to **File > Add Packages...** and enter the repository URL:
 https://github.com/drearycold/FolioReaderKit.git
 ```
 
-Choose the dependency rule that suits your needs (e.g., Up to Next Major Version) and click **Add Package**.
+This fork has no tagged releases: choose the **Branch** rule with `master`, its stable branch, and click **Add Package**.
 
 ## Requirements
 
@@ -129,11 +131,9 @@ This fork features a modernized architecture:
 - **Concurrency**: Adopts Swift `async/await` for EPUB parsing and extraction using `ZIPFoundation`.
 - **Persistence**: Removed the hard dependency on `Realm`. Integrators must now provide their own persistence via the `FolioReaderPreferenceProvider`, `FolioReaderHighlightProvider`, and `FolioReaderBookmarkProvider` protocols.
 
-## Author
-[**Heberti Almeida**](https://github.com/hebertialmeida)
+## Authors
 
-- Follow me on **Twitter**: [**@hebertialmeida**](https://twitter.com/hebertialmeida)
-- Contact me on **LinkedIn**: [**hebertialmeida**](http://linkedin.com/in/hebertialmeida)
+FolioReaderKit was created by [Heberti Almeida](https://github.com/hebertialmeida) and the [FolioReader contributors](https://github.com/FolioReader/FolioReaderKit/graphs/contributors). This fork is maintained by [drearycold](https://github.com/drearycold); report its issues [here](https://github.com/drearycold/FolioReaderKit/issues), not upstream.
 
 ## License
-FolioReaderKit is available under the BSD license. See the [LICENSE](/LICENSE) file.
+FolioReaderKit is available under the BSD 3-Clause license, which keeps the original copyright notice. See the [LICENSE](/LICENSE) file.
