@@ -8,7 +8,7 @@ The essentials, in case you read only this file:
   ```bash
   xcodebuild test -scheme FolioReaderKit -destination 'platform=iOS Simulator,name=iPhone 17'
   ```
-- YetAnotherEBookReader builds against this checkout as a local package. Don't switch branches mid-task, and build it after merges (see ROADMAP.md).
+- `master` is the stable branch. Branch from it and open pull requests against it; YetAnotherEBookReader follows it as a remote Swift package (see ROADMAP.md, "Branches and working rules").
 - If you change a provider protocol in `Sources/FolioReaderKit/Providers/`, update the Example implementations and `Tests/FolioReaderKitTests/MockHelpers.swift`.
 - After an intended styling change, re-record the CSS snapshot in `Tests/FolioReaderKitTests/__Snapshots__/` on purpose (see CLAUDE.md), and review the diff.
 - `.gemini/` is git-ignored local tool state; don't commit new files there.

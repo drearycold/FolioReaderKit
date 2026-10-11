@@ -1,6 +1,6 @@
 # Change Log
 
-## Unreleased (drearycold fork, `styling-optimization`)
+## Unreleased (drearycold fork, `master`)
 
 See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-FolioReaderKit is an ePub reader/parser framework for iOS written in Swift. This repository is a modernized fork. It is distributed through SPM, parses books with async/await, takes persistence through dependency injection, and serves EPUB contents to `WKWebView` from a local `ReadiumGCDWebServer`. `AGENTS.md` is a short pointer to this file for other agents, and `ROADMAP.md` tracks the umbrella plan and its working rules. YetAnotherEBookReader builds against this checkout as a local package, so don't switch branches casually.
+FolioReaderKit is an ePub reader/parser framework for iOS written in Swift. This repository is a modernized fork. It is distributed through SPM, parses books with async/await, takes persistence through dependency injection, and serves EPUB contents to `WKWebView` from a local `ReadiumGCDWebServer`. `AGENTS.md` is a short pointer to this file for other agents, and `ROADMAP.md` tracks the umbrella plan and its working rules. `master` is the stable branch: changes reach it through pull requests, and YetAnotherEBookReader takes FolioReaderKit from it as a remote Swift package (ROADMAP.md, "Branches and working rules").
 
 ## Build & test
 
