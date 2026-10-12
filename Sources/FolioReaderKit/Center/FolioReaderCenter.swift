@@ -150,6 +150,22 @@ open class FolioReaderCenter: UIViewController {
             || page.layoutSize != page.webViewFrame().size
     }
 
+    /// Whether `page` was styled with settings other than those it would get now (font, size,
+    /// spacing, margins: `FolioReaderStyleState`). Only the current page follows a setting change; a
+    /// chapter kept next to it kept its old style, and the background padding and content offset of
+    /// its old page count. Margins the style sheet doesn't read are left out: in paged mode they inset
+    /// the web view, which `hasOtherLayout` checks.
+    func hasOtherStyle(_ page: FolioReaderPage) -> Bool {
+        guard let styleState = page.styleState else { return false }
+        return styleState.styleSheetSettings != page.currentStyleState().styleSheetSettings
+    }
+
+    /// Whether `page` shows another theme than the current one.
+    func hasOtherTheme(_ page: FolioReaderPage) -> Bool {
+        guard let themeMode = page.styledThemeMode else { return false }
+        return themeMode != folioReader.themeMode
+    }
+
     /// Whether `page`, which still shows its chapter, must load it again: its web content process
     /// died, it was loaded from a port the server left, or it was laid out for another spread
     /// setting, scroll direction or size.

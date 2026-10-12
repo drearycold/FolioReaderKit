@@ -89,6 +89,10 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     /// The web view size (`webViewFrame()`) the chapter is laid out for, which its background
     /// padding and content offset fit (`recordLayout`, `updateStyleBackgroundPadding`).
     var layoutSize = CGSize.zero
+    /// The style settings the chapter was last styled with (`recordStyle`), or nil while it loads.
+    var styleState: FolioReaderStyleState?
+    /// The theme the chapter was last given (`recordStyle`, `applyTheme`), or nil while it loads.
+    var styledThemeMode: Int?
     /// Counts the chapter loads started in this page. A reload of the same chapter keeps the page
     /// number, so the load chain checks this too before acting on the page.
     var loadGeneration = 0
@@ -175,7 +179,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         
         let themeBackgroundColor = self.readerContainer?.readerConfig.themeModeBackground[self.folioReader.themeMode]
         self.backgroundColor = themeBackgroundColor
-        self.contentView.backgroundColor = themeBackgroundColor
         
         if webView == nil {
             webView = FolioReaderWebView(frame: webViewFrame(), readerContainer: readerContainer)
@@ -200,7 +203,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         if panDeadZoneTop == nil {
             panDeadZoneTop = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 0))
             panDeadZoneTop?.autoresizingMask = []
-            panDeadZoneTop?.backgroundColor = self.readerContainer?.readerConfig.themeModeBackground[self.folioReader.themeMode]
             panDeadZoneTop?.isOpaque = false
             
             let panGeature = UIPanGestureRecognizer(target: self, action: nil)
@@ -215,7 +217,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         if panDeadZoneBot == nil {
             panDeadZoneBot = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 0))
             panDeadZoneBot?.autoresizingMask = []
-            panDeadZoneBot?.backgroundColor = self.readerContainer?.readerConfig.themeModeBackground[self.folioReader.themeMode]
             panDeadZoneBot?.isOpaque = false
             
             let panGeature = UIPanGestureRecognizer(target: self, action: nil)
@@ -230,7 +231,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         if panDeadZoneLeft == nil {
             panDeadZoneLeft = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 0))
             panDeadZoneLeft?.autoresizingMask = []
-            panDeadZoneLeft?.backgroundColor = self.readerContainer?.readerConfig.themeModeBackground[self.folioReader.themeMode]
             panDeadZoneLeft?.isOpaque = false
             
             let panGeature = UIPanGestureRecognizer(target: self, action: nil)
@@ -245,7 +245,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         if panDeadZoneRight == nil {
             panDeadZoneRight = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 0))
             panDeadZoneRight?.autoresizingMask = []
-            panDeadZoneRight?.backgroundColor = self.readerContainer?.readerConfig.themeModeBackground[self.folioReader.themeMode]
             panDeadZoneRight?.isOpaque = false
             
             let panGeature = UIPanGestureRecognizer(target: self, action: nil)
@@ -256,7 +255,9 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                 self.contentView.addSubview(panDeadZoneRight)
             }
         }
-        
+        // Every time: a reused cell kept the theme it was created with around the web view.
+        applyThemeBackground(folioReader.themeMode)
+
         if colorView == nil {
             let view = UIView()
             view.backgroundColor = self.readerConfig.nightModeBackground
@@ -381,6 +382,23 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             colorView?.frame = CGRect.zero
         } else {
             colorView?.frame = CGRect.zero
+        }
+    }
+
+    /// Gives the chapter the theme (`themeMode` in `Bridge.js`) and the page's views around the web
+    /// view its background, and records it (`FolioReaderCenter.hasOtherTheme`).
+    func applyTheme(_ themeMode: Int) {
+        styledThemeMode = themeMode
+        webView?.js("themeMode(\(themeMode))")
+        applyThemeBackground(themeMode)
+    }
+
+    /// The theme's background around the web view: the page margins in paged mode.
+    func applyThemeBackground(_ themeMode: Int) {
+        guard let color = readerConfig.themeModeBackground[safe: themeMode] else { return }
+        contentView.backgroundColor = color
+        for zone in [panDeadZoneTop, panDeadZoneBot, panDeadZoneLeft, panDeadZoneRight] {
+            zone?.backgroundColor = color
         }
     }
 }

@@ -73,7 +73,7 @@ extension FolioReaderPage {
         readerCenter.collectionView.collectionViewLayout.invalidateLayout()
         let frameForPage = readerCenter.frameForPage(currentPageNumber)
         readerCenter.collectionView.setContentOffset(frameForPage.origin, animated: false)
-        readerCenter.reloadPagesLaidOutForOtherLayout(except: self)
+        readerCenter.updateOtherVisiblePages(except: self)
 
         // Page progressive direction
         readerCenter.setCollectionViewProgressiveDirection()
@@ -208,7 +208,8 @@ writingMode
         self.layoutAdapting = .style
         self.updatePageOffsetRate()
 
-        let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame, userFontDescriptors: readerConfig.userFontDescriptors)
+        let styleState = currentStyleState()
+        recordStyle(styleState)
         let script = FolioReaderCSSInjector.runtimeStyleSource(
             themeMode: folioReader.themeMode,
             styleState: styleState,
@@ -241,7 +242,41 @@ writingMode
             }
         }
     }
-    
+
+    /// The style settings `updateRuntimeStyle` applies now.
+    func currentStyleState() -> FolioReaderStyleState {
+        FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame, userFontDescriptors: readerConfig.userFontDescriptors)
+    }
+
+    /// Records the style settings and theme the chapter is styled with, which
+    /// `FolioReaderCenter.hasOtherStyle` and `hasOtherTheme` compare with the current ones.
+    func recordStyle(_ styleState: FolioReaderStyleState) {
+        self.styleState = styleState
+        styledThemeMode = folioReader.themeMode
+    }
+
+    /// Styles a chapter kept next to the current page with the current settings, and returns it to
+    /// `position`, the one it recorded: the offset ratio `updateRuntimeStyle` restores otherwise
+    /// lands elsewhere in reflowed text. Without a position it restores the ratio.
+    func restyle(restoring position: FolioReaderReadPosition?) {
+        guard let position = position else {
+            updateRuntimeStyle(delay: 0.4)
+            return
+        }
+        // Still this chapter: the cell may be reused, or the chapter reloaded, meanwhile.
+        let pageNumber = self.pageNumber
+        let loadGeneration = self.loadGeneration
+        updateRuntimeStyle(delay: 0.4) {
+            guard self.pageNumber == pageNumber, self.loadGeneration == loadGeneration else { return }
+            // handleAnchor waits while the page is adapting.
+            self.layoutAdapting = nil
+            self.restorePinned(position) {
+                self.updatePageOffsetRate()
+                self.updatePageInfo()
+            }
+        }
+    }
+
     func updateStyleBackgroundPadding(delay bySecond: Double, tryShrinking: Bool = true, completion: (() -> Void)? = nil) {
         // Every layout pass ends here, a rotation's too: the padding, and the offsets set after it,
         // fit this size.
