@@ -123,6 +123,7 @@ class CSSGenerationTests: XCTestCase {
     func testEveryReferencedPropertyHasAValue() throws {
         let regex = try NSRegularExpression(pattern: "var\\((--[a-z-]+)\\)")
         let rules = FolioReaderCSSBuilder.settingRules + FolioReaderCSSBuilder.spreadRules(minimumWidth: 1000)
+            + FolioReaderCSSBuilder.tieredRules(minimumHeight: 1000)
         let referenced = Set(regex.matches(in: rules, range: NSRange(rules.startIndex..., in: rules)).compactMap {
             Range($0.range(at: 1), in: rules).map { String(rules[$0]) }
         })
@@ -163,6 +164,21 @@ class CSSGenerationTests: XCTestCase {
         XCTAssertEqual(
             FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: true),
             pagedHTML + " body { min-width: 100vw; margin: 0 0 !important; }"
+        )
+    }
+
+    /// Vertical writing in `.vertical` pages down in columns on the root, two tiers to a screen
+    /// inside a media query on the height, marked for `Bridge.js`. Horizontal writing keeps its own.
+    func testOverflowCSSPagesVerticalWritingDownInTiers() {
+        let tiers = FolioReaderCSSBuilder.overflowCSS(overflow: "scroll", verticalWritingMode: true, tiersMinimumHeight: 1000)
+        XCTAssertEqual(tiers, FolioReaderCSSBuilder.tieredRules(minimumHeight: 1000))
+        XCTAssertTrue(tiers.contains("--folio-pages-down: 1"))
+        XCTAssertTrue(tiers.contains("@media (orientation: portrait) and (min-height: 1000px) {"))
+        XCTAssertTrue(tiers.contains("column-count: 2"))
+
+        XCTAssertEqual(
+            FolioReaderCSSBuilder.overflowCSS(overflow: "scroll", verticalWritingMode: false, tiersMinimumHeight: 1000),
+            FolioReaderCSSBuilder.overflowCSS(overflow: "scroll", verticalWritingMode: false)
         )
     }
 

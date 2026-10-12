@@ -27,9 +27,10 @@ extension XCTestCase {
     /// CSS, the runtime style, and the overflow style for paged or scroll mode.
     /// `xhtml` loads it as `application/xhtml+xml`, as the reader serves `.xhtml` chapters, where
     /// element names are lowercase; `body` must then be well-formed XML. `spreadMinimumWidth` turns
-    /// on the two-page spread, as `FolioReaderCenter.spreadMinimumWidth` does; `margins` is the
-    /// margin setting for all four sides.
-    func readerChapter(_ body: String, paged: Bool, verticalWriting: Bool = false, xhtml: Bool = false, size: CGSize = CGSize(width: 402, height: 662), spreadMinimumWidth: CGFloat? = nil, margins: Int = 5) -> WKWebView {
+    /// on the two-page spread, as `FolioReaderCenter.spreadMinimumWidth` does, and
+    /// `tiersMinimumHeight` vertical writing's tiered pages (`FolioReaderCSSBuilder.tieredRules`);
+    /// `margins` is the margin setting for all four sides.
+    func readerChapter(_ body: String, paged: Bool, verticalWriting: Bool = false, xhtml: Bool = false, size: CGSize = CGSize(width: 402, height: 662), spreadMinimumWidth: CGFloat? = nil, tiersMinimumHeight: CGFloat? = nil, margins: Int = 5) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.addUserScript(FolioReaderScript.readiumCFIJS)
         configuration.userContentController.addUserScript(FolioReaderScript.bridgeJS)
@@ -52,12 +53,16 @@ extension XCTestCase {
         let mode = verticalWriting ? "vertical-rl" : "horizontal-tb"
         evaluate("writingMode = '\(mode)'; document.documentElement.style.writingMode = writingMode; "
             + FolioReaderCSSInjector.runtimeStyleSource(themeMode: 0, styleState: state, runtimeSheets: [], includeDebugDump: false) + "; true", in: webView)
-        let overflow = FolioReaderCSSBuilder.overflowCSS(overflow: paged ? "-webkit-paged-x" : "scroll", verticalWritingMode: verticalWriting, spreadMinimumWidth: spreadMinimumWidth)
-        evaluate("var s = document.createElement('style'); s.textContent = \(String(reflecting: overflow)); document.head.appendChild(s); true", in: webView)
+        setOverflowStyle(FolioReaderCSSBuilder.overflowCSS(overflow: paged ? "-webkit-paged-x" : "scroll", verticalWritingMode: verticalWriting, spreadMinimumWidth: spreadMinimumWidth, tiersMinimumHeight: tiersMinimumHeight), in: webView)
         // Resize after styling: WebKit doesn't always paginate when -webkit-paged-x arrives with no
         // viewport change after it.
         resize(webView, to: size, paged: paged)
         return webView
+    }
+
+    /// Sets the overflow style as `FolioReaderPage.updateOverflowStyle` does, replacing the one before.
+    func setOverflowStyle(_ css: String, in webView: WKWebView) {
+        evaluate(FolioReaderCSSInjector.upsertSource(id: FolioReaderCSSInjector.StyleID.overflow, css: css) + "; true", in: webView)
     }
 
     /// Resizes the web view and waits until the page has the new viewport and a settled layout.

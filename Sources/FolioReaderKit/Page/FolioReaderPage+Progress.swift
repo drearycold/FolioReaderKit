@@ -51,17 +51,18 @@ extension FolioReaderPage {
 
         guard let readerCenter = self.folioReader.readerCenter, let webView = self.webView else { return }
 
-        let pageSize = self.byWritingMode(
+        // Pages that run down are a web view high: the page frame keeps the status bar and margins.
+        let pageSize = pagesDown ? webView.frame.height : self.byWritingMode(
             self.readerConfig.isDirection(readerCenter.pageHeight, readerCenter.pageWidth, readerCenter.pageHeight),
             webView.frame.width
         )
-        let contentSize = self.byWritingMode(
+        let contentSize = pagesDown ? webView.scrollView.contentSize.height : self.byWritingMode(
             webView.scrollView.contentSize.forDirection(withConfiguration: self.readerConfig),
             webView.scrollView.contentSize.width
         )
         self.totalPages = ((pageSize != 0) ? Int(ceil(contentSize / pageSize)) : 0)
         
-        let pageOffSet = self.byWritingMode(
+        let pageOffSet = pagesDown ? webView.scrollView.contentOffset.y : self.byWritingMode(
             webView.scrollView.contentOffset.forDirection(withConfiguration: self.readerConfig),
             webView.scrollView.contentOffset.x //+ webView.frame.width
         )
@@ -107,11 +108,11 @@ extension FolioReaderPage {
             return 0
         }
         
-        let pageSize = self.byWritingMode(
+        let pageSize = pagesDown ? webView.frame.height : self.byWritingMode(
             self.readerConfig.isDirection(readerCenter.pageHeight, readerCenter.pageWidth, readerCenter.pageHeight),
             webView.frame.width
         )
-        let contentSize = self.byWritingMode(
+        let contentSize = pagesDown ? webView.scrollView.contentSize.height : self.byWritingMode(
             webView.scrollView.contentSize.forDirection(withConfiguration: self.readerConfig),
             webView.scrollView.contentSize.width
         )
@@ -119,7 +120,8 @@ extension FolioReaderPage {
         let currentPageItem = currentPage
         
         if totalPages > 0 {
-            var progress = self.byWritingMode(
+            // Pages that run down count from the start of the chapter, at the top.
+            var progress = pagesDown ? Double(currentPageItem - 1) * 100.0 / Double(totalPages) : self.byWritingMode(
                 Double(currentPageItem - 1) * 100.0 / Double(totalPages),
                 100.0 - Double(currentPageItem) * 100.0 / Double(totalPages)
             )

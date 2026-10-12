@@ -67,7 +67,7 @@ enum FolioReaderCSSInjector {
             \(bodyClassesJSON).forEach(function (cls) { addClass(document.body, cls); });
             \(propertiesJSON).forEach(function (property) { document.body.style.setProperty(property[0], property[1]); });
             if (writingMode == 'vertical-rl') {
-                document.body.style.minWidth = "100vw";
+                document.body.style.minWidth = "calc(\(FolioReaderCSSBuilder.spreadColumnsReference) * 100vw)";
             } else {
                 document.body.style.minHeight = "calc(\(FolioReaderCSSBuilder.spreadColumnsReference) * 100vh)";
             }

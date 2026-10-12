@@ -30,31 +30,38 @@ extension FolioReaderPage {
             if let infoLabelText = self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text {
                 self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text = "\(offset) \(infoLabelText)"
             }
-            self.byWritingMode {
-                switch self.readerConfig.scrollDirection {
-                case .horizontalWithPagedContent:
-                    let page = floor(offset / webView.frame.width)
-                    self.scrollPageToOffset(page * webView.frame.width, animated: animated)
-                default:
-                    let isBeginning = (offset < self.frame.forDirection(withConfiguration: self.readerConfig) * 0.5)
+            if self.pagesDown {
+                // The screen that holds the anchor; pages run down a web view high each.
+                let height = webView.frame.height
+                let page = height > 0 ? floor(offset / height) : 0
+                self.scrollPageToOffset(page * height, animated: animated)
+            } else {
+                self.byWritingMode {
+                    switch self.readerConfig.scrollDirection {
+                    case .horizontalWithPagedContent:
+                        let page = floor(offset / webView.frame.width)
+                        self.scrollPageToOffset(page * webView.frame.width, animated: animated)
+                    default:
+                        let isBeginning = (offset < self.frame.forDirection(withConfiguration: self.readerConfig) * 0.5)
                     
-                    var voffset = offset > offsetInWindow ?
-                    offset - offsetInWindow : offset
+                        var voffset = offset > offsetInWindow ?
+                        offset - offsetInWindow : offset
                     
-                    // No further than the last screen. The web view is shorter than the page (the
-                    // status bar and page indicator are reserved), so the page height gave offsets
-                    // short of the last screen, and below zero in a chapter of one screen.
-                    let scrollView = webView.scrollView
-                    voffset = max(min(voffset, scrollView.contentSize.height - scrollView.bounds.height), 0)
+                        // No further than the last screen. The web view is shorter than the page (the
+                        // status bar and page indicator are reserved), so the page height gave offsets
+                        // short of the last screen, and below zero in a chapter of one screen.
+                        let scrollView = webView.scrollView
+                        voffset = max(min(voffset, scrollView.contentSize.height - scrollView.bounds.height), 0)
                     
-                    if !avoidBeginningAnchors {
-                        self.scrollPageToOffset(voffset, animated: animated)
-                    } else if avoidBeginningAnchors && !isBeginning {
-                        self.scrollPageToOffset(voffset, animated: animated)
+                        if !avoidBeginningAnchors {
+                            self.scrollPageToOffset(voffset, animated: animated)
+                        } else if avoidBeginningAnchors && !isBeginning {
+                            self.scrollPageToOffset(voffset, animated: animated)
+                        }
                     }
+                } vertical: {
+                    self.scrollVerticalWriting(toAnchor: anchor, measured: offset, animated: self.readerConfig.scrollDirection == .horizontalWithPagedContent || animated)
                 }
-            } vertical: {
-                self.scrollVerticalWriting(toAnchor: anchor, measured: offset, animated: self.readerConfig.scrollDirection == .horizontalWithPagedContent || animated)
             }
             
             self.folioReader.readerCenter?.currentWebViewScrollPositions.removeValue(forKey: self.pageNumber - 1)

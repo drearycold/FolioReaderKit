@@ -14,11 +14,11 @@ extension FolioReaderPage {
         guard let webView = self.webView else { return }
 
         let pageScrollView = webView.scrollView
-        let contentSize = byWritingMode(
+        let contentSize = pagesDown ? pageScrollView.contentSize.height : byWritingMode(
             pageScrollView.contentSize.forDirection(withConfiguration: self.readerConfig),
             pageScrollView.contentSize.width
         )
-        let contentOffset = byWritingMode(
+        let contentOffset = pagesDown ? pageScrollView.contentOffset.y : byWritingMode(
             pageScrollView.contentOffset.forDirection(withConfiguration: self.readerConfig),
             pageScrollView.contentOffset.x
         )
@@ -55,7 +55,26 @@ extension FolioReaderPage {
             
             let contentSize = webView.scrollView.contentSize
             let webViewFrameSize = webView.frame.size
-            
+
+            if self.pagesDown {
+                // Pages run down from the start of the chapter, a web view high each.
+                let height = webViewFrameSize.height
+                let pageOffsetByProgress = contentSize.height * pageProgress / 100
+                if height > 0, pageOffset < pageOffsetByProgress * 0.95 || pageOffset > pageOffsetByProgress * 1.05 {
+                    pageOffset = floor(pageOffsetByProgress / height) * height
+                }
+                self.pageOffsetRate = contentSize.height > 0 ? max(pageOffset, 0) / contentSize.height : 0
+                self.scrollWebViewByPageOffsetRate(animated: animated) {
+                    DispatchQueue.main.asyncAfter(delay: 0.5) {
+                        self.getWebViewScrollPosition { position in
+                            readerCenter.currentWebViewScrollPositions[self.pageNumber - 1] = position
+                            completion?()
+                        }
+                    }
+                }
+                return
+            }
+
             var pageOffsetByProgress = self.byWritingMode(
                 contentSize.forDirection(withConfiguration: self.readerConfig) * pageProgress,
                 contentSize.width * (100 - pageProgress - webViewFrameSize.width * 100 / contentSize.width)) / 100
@@ -91,6 +110,13 @@ extension FolioReaderPage {
         guard let webViewFrameSize = webView?.frame.size,
               webViewFrameSize.width > 0, webViewFrameSize.height > 0,
               let contentSize = webView?.scrollView.contentSize else { return }
+
+        if pagesDown {
+            // The page that holds the ratio's point; the slack keeps an exact page from rounding down.
+            let page = floor(contentSize.height * pageOffsetRate / webViewFrameSize.height + 0.001)
+            scrollPageToOffset(page * webViewFrameSize.height, animated: animated, retry: 0, completion: completion)
+            return
+        }
         
         var pageOffset = byWritingMode(
             contentSize.forDirection(withConfiguration: self.readerConfig),
@@ -135,7 +161,7 @@ extension FolioReaderPage {
             return
         }
 
-        let pageOffsetPoint = byWritingMode(
+        let pageOffsetPoint = pagesDown ? CGPoint(x: 0, y: offset) : byWritingMode(
             self.readerConfig.isDirection(CGPoint(x: 0, y: offset), CGPoint(x: offset, y: 0), CGPoint(x: 0, y: offset)),
             CGPoint(x: offset, y: 0)
         )
@@ -161,7 +187,9 @@ extension FolioReaderPage {
         guard let webView = webView else { return }
         // A new place, as for scrollWebViewByPosition: a pin restored earlier would block recording it.
         pinnedPosition = nil
-        if writingMode == "vertical-rl" {
+        if pagesDown {
+            setScrollViewContentOffset(.zero, animated: false)
+        } else if writingMode == "vertical-rl" {
             let start = Self.verticalWritingContentOffset(fromStart: 0, contentWidth: webView.scrollView.contentSize.width, viewWidth: webView.frame.width)
             setScrollViewContentOffset(CGPoint(x: start, y: 0), animated: false)
         } else if folioReader.needsRTLChange {
@@ -243,11 +271,12 @@ extension FolioReaderPage {
             return
         }
 
-        let isHorizontal: Bool = self.byWritingMode(
+        // Pages that run down are measured in y, whatever the writing mode.
+        let isHorizontal: Bool = pagesDown ? false : self.byWritingMode(
             self.folioReader.readerConfig?.isDirection(false, true, false),
             true) ?? false
         // Paged mode records the middle of the page, which survives a relayout; see getVisibleMiddleCFI.
-        let locate = readerConfig.scrollDirection == .horizontalWithPagedContent && !firstVisibleText ? "getVisibleMiddleCFI" : "getVisibleCFI"
+        let locate = (readerConfig.scrollDirection == .horizontalWithPagedContent || pagesDown) && !firstVisibleText ? "getVisibleMiddleCFI" : "getVisibleCFI"
         webView.js("\(locate)(\(isHorizontal))") { jsonString in
             guard let jsonString = jsonString, (try? JSONSerialization.jsonObject(with: Data(jsonString.utf8))) != nil else {
                 onFailure?()
