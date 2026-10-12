@@ -69,6 +69,7 @@ extension FolioReaderCenter {
                 guard let currentPage = self.currentPage else { return }
                 
                 self.setPageProgressiveDirection(currentPage)
+                self.reloadPagesLaidOutForOtherLayout(except: currentPage)
 
                 // After rotation fix internal page offset
                 DispatchQueue.main.asyncAfter(delay: currentPage.delaySec()) {    //wait for webView finish resizing

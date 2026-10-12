@@ -141,6 +141,25 @@ open class FolioReaderCenter: UIViewController {
             && page.writingMode != "vertical-rl"
     }
 
+    /// Whether `page` was laid out for another scroll direction or web view size than it would get
+    /// now. Only the current page follows a scroll-direction change or a rotation; a chapter kept
+    /// next to it kept its old overflow style, background padding and content offset, off the
+    /// screen grid after a rotation (a strip of the next page showed).
+    func hasOtherLayout(_ page: FolioReaderPage) -> Bool {
+        page.layoutScrollDirection != readerConfig.scrollDirection
+            || page.layoutSize != page.webViewFrame().size
+    }
+
+    /// Whether `page`, which still shows its chapter, must load it again: its web content process
+    /// died, it was loaded from a port the server left, or it was laid out for another spread
+    /// setting, scroll direction or size.
+    func shouldReload(_ page: FolioReaderPage) -> Bool {
+        page.needsReload
+            || page.loadedPort != readerContainer?.pagePort
+            || hasOtherSpreadSetting(page)
+            || hasOtherLayout(page)
+    }
+
     // MARK: - Init
 
     init(withContainer readerContainer: FolioReaderContainer) {

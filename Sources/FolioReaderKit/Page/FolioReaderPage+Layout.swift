@@ -73,6 +73,7 @@ extension FolioReaderPage {
         readerCenter.collectionView.collectionViewLayout.invalidateLayout()
         let frameForPage = readerCenter.frameForPage(currentPageNumber)
         readerCenter.collectionView.setContentOffset(frameForPage.origin, animated: false)
+        readerCenter.reloadPagesLaidOutForOtherLayout(except: self)
 
         // Page progressive direction
         readerCenter.setCollectionViewProgressiveDirection()
@@ -171,12 +172,21 @@ writingMode
     
     /// The `folio_style_overflow` CSS for the current layout, with the spread setting in effect now,
     /// which it records (`spreadMinimumWidth`): a page that was in scroll mode or vertical writing
-    /// when the setting changed may have kept the old one.
+    /// when the setting changed may have kept the old one. It records the layout too (`recordLayout`).
     private func overflowCSS(for webView: FolioReaderWebView) -> String {
         if let readerCenter = folioReader.readerCenter {
             spreadMinimumWidth = readerCenter.spreadMinimumWidth
         }
+        recordLayout()
         return FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: writingMode == "vertical-rl", spreadMinimumWidth: spreadMinimumWidth)
+    }
+
+    /// Records the scroll direction and web view size the chapter is laid out for, which
+    /// `FolioReaderCenter.hasOtherLayout` compares with the current ones: when it is loaded, and when
+    /// its overflow style is chosen, once its writing mode is known.
+    func recordLayout() {
+        layoutScrollDirection = readerConfig.scrollDirection
+        layoutSize = webViewFrame().size
     }
 
     /// Continues once the web view's native content size reflects the current layout, or after
@@ -233,6 +243,9 @@ writingMode
     }
     
     func updateStyleBackgroundPadding(delay bySecond: Double, tryShrinking: Bool = true, completion: (() -> Void)? = nil) {
+        // Every layout pass ends here, a rotation's too: the padding, and the offsets set after it,
+        // fit this size.
+        layoutSize = webViewFrame().size
         let fillsScreens = self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true)
         let step = BackgroundPaddingSearch.Step(screens: fillsScreens ? max(self.totalPages ?? 1, 1) : 1, shrinking: tryShrinking)
         applyBackgroundPadding(step, search: BackgroundPaddingSearch(), fillsScreens: fillsScreens, delay: bySecond, completion: completion)

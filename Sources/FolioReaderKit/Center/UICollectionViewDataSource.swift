@@ -35,8 +35,9 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         
         if cell.pageNumber == indexPath.row + 1 {
             // A cell kept off screen may still show a chapter from a port the server left, or laid
-            // out for the other page-spread setting.
-            if cell.needsReload || cell.loadedPort != readerContainer.pagePort || hasOtherSpreadSetting(cell) {
+            // out for the other page-spread setting, another scroll direction or another size: only
+            // the current page follows a setting change or a rotation.
+            if shouldReload(cell) {
                 reloadChapter(in: cell)
             }
             return cell
@@ -82,14 +83,15 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         FolioLogger.log("webView.load url=\(url.absoluteString)")
         page.loadedPort = readerContainer.pagePort
         page.spreadMinimumWidth = spreadMinimumWidth
+        page.recordLayout()
         page.needsReload = false
         page.loadGeneration += 1
         page.loadInterval = FolioSignpost.begin("PageLoad", "page \(page.pageNumber)", log: FolioSignpost.milestones)
         page.loadNavigation = page.webView?.load(URLRequest(url: url))
     }
 
-    /// Loads a page's chapter again, after its web content process died or the server moved to
-    /// another port, and restores the position the page last recorded (`pageDidLoad`).
+    /// Loads a page's chapter again (`shouldReload`), and restores the position the page last
+    /// recorded (`pageDidLoad`).
     func reloadChapter(in page: FolioReaderPage) {
         if let pinned = page.pinnedPosition {
             currentWebViewScrollPositions[page.pageNumber - 1] = pinned
@@ -99,6 +101,9 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         page.loadInterval = nil
         page.loadNavigation = nil
         page.layoutAdapting = .initializing
+        // After a scroll-direction change the page's bounds may be unchanged: set up its web view's
+        // scrolling and frame for the current direction (`layoutSubviews`).
+        page.setNeedsLayout()
         loadChapter(in: page)
     }
 
@@ -108,6 +113,17 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         guard let readerContainer = readerContainer else { return }
         for case let page as FolioReaderPage in collectionView.visibleCells
         where all || page.needsReload || page.loadedPort != readerContainer.pagePort || hasOtherSpreadSetting(page) {
+            reloadChapter(in: page)
+        }
+    }
+
+    /// After a rotation or a scroll-direction change, which `current` follows itself, reloads the
+    /// other visible pages laid out for the old layout. Pages off screen are checked when shown again
+    /// (`configure`), but the cell holding the first responder (a chapter loaded later than the one
+    /// the reader went back to) stays among the visible cells off screen, takes the new size with
+    /// them, and comes back without the data source.
+    func reloadPagesLaidOutForOtherLayout(except current: FolioReaderPage) {
+        for case let page as FolioReaderPage in collectionView.visibleCells where page !== current && shouldReload(page) {
             reloadChapter(in: page)
         }
     }
