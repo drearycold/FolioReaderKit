@@ -501,6 +501,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
                     horizontal: { currentPage.updateViewerLayout(delay: 0.2) },
                     vertical: { currentPage.updateRuntimeStyle(delay: 0.4) }
                 )
+                self.folioReader.readerCenter?.updateOtherVisiblePages(except: currentPage)
             }
         } else if segmentView.tag == 5 {
             switch index {
@@ -548,6 +549,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
                     horizontal: { currentPage.updateRuntimeStyle(delay: 0.4) },
                     vertical: { currentPage.updateViewerLayout(delay: 0.2) }
                 )
+                self.folioReader.readerCenter?.updateOtherVisiblePages(except: currentPage)
             }
         }
     }

@@ -54,6 +54,22 @@ extension FolioReaderStyleState {
             CTFontDescriptorCopyAttribute($0, kCTFontFamilyNameAttribute) as? String == family
         }
     }
+
+    /// The settings the style sheet reads: horizontal writing pads `<body>` only on the left and
+    /// right, vertical writing only at the top and bottom. The other two margins inset the web view
+    /// frame in paged mode (`FolioReaderPage.webViewFrame()`, which `layoutSize` records) and do
+    /// nothing in scroll mode.
+    var styleSheetSettings: FolioReaderStyleState {
+        var state = self
+        if isVerticalWritingMode {
+            state.marginLeft = 0
+            state.marginRight = 0
+        } else {
+            state.marginTop = 0
+            state.marginBottom = 0
+        }
+        return state
+    }
 }
 
 /// Builds every CSS string and `<body>` class name used by the reader.

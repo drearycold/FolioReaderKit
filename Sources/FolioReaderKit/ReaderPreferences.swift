@@ -51,6 +51,15 @@ public class ReaderPreferences {
         NotificationCenter.default.post(name: .folioReaderNeedRefreshPageMode, object: folioReader)
     }
 
+    /// Applies a style setting: `update` styles the current page again, then the other pages the
+    /// collection view shows follow (`FolioReaderCenter.updateOtherVisiblePages`). Pages kept off
+    /// screen follow when the data source shows them again.
+    func restyleVisiblePages(_ update: (FolioReaderPage) -> Void) {
+        guard let readerCenter = folioReader?.readerCenter, let page = readerCenter.currentPage else { return }
+        update(page)
+        readerCenter.updateOtherVisiblePages(except: page)
+    }
+
     // MARK: - Properties
 
     /// Check if current theme is Night mode
@@ -107,7 +116,7 @@ public class ReaderPreferences {
             }
             
             UIView.animate(withDuration: 0.6, animations: {
-                _ = readerCenter.currentPage?.webView?.js("themeMode(\(value))")
+                readerCenter.currentPage?.applyTheme(value)
                 readerCenter.pageIndicatorView?.reloadColors()
                 readerCenter.configureNavBar()
                 readerCenter.scrollScrubber?.reloadColors()
@@ -118,16 +127,12 @@ public class ReaderPreferences {
                 }
                 
                 readerCenter.collectionView.backgroundColor = backgroundColor
-                
-                if let page = readerCenter.currentPage {
-                    page.panDeadZoneTop?.backgroundColor = backgroundColor
-                    page.panDeadZoneBot?.backgroundColor = backgroundColor
-                    page.panDeadZoneLeft?.backgroundColor = backgroundColor
-                    page.panDeadZoneRight?.backgroundColor = backgroundColor
-                }
             }, completion: { (finished: Bool) in
                 self.postPageModeRefresh()
             })
+            if let page = readerCenter.currentPage {
+                readerCenter.updateOtherVisiblePages(except: page)
+            }
         }
     }
 
@@ -137,7 +142,7 @@ public class ReaderPreferences {
         }
         set (fontFamilyName) {
             pref(setString: fontFamilyName, for: .currentFont)
-            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
+            restyleVisiblePages { $0.updateRuntimeStyle(delay: 0.4) }
         }
     }
     
@@ -148,7 +153,7 @@ public class ReaderPreferences {
         }
         set (fontSize) {
             pref(setString: fontSize, for: .currentFontSize)
-            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
+            restyleVisiblePages { $0.updateRuntimeStyle(delay: 0.4) }
         }
     }
     
@@ -162,7 +167,7 @@ public class ReaderPreferences {
         }
         set (fontWeight) {
             pref(setString: fontWeight, for: .currentFontWeight)
-            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
+            restyleVisiblePages { $0.updateRuntimeStyle(delay: 0.4) }
         }
     }
     
@@ -324,10 +329,9 @@ public class ReaderPreferences {
             let newValue = max(0, min(50, value))
             pref(setInt: newValue, for: .currentMarginTop)
             guard currentVMarginLinked == false else { return }
-            folioReader?.readerCenter?.currentPage?.byWritingMode(
-                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) },
-                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) }
-            )
+            restyleVisiblePages { page in
+                page.byWritingMode(horizontal: { page.updateViewerLayout(delay: 0.2) }, vertical: { page.updateRuntimeStyle(delay: 0.4) })
+            }
         }
     }
 
@@ -343,10 +347,9 @@ public class ReaderPreferences {
             let newValue = max(0, min(50, value))
             pref(setInt: newValue, for: .currentMarginBottom)
             guard currentVMarginLinked == false else { return }
-            folioReader?.readerCenter?.currentPage?.byWritingMode(
-                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) },
-                vertical: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) }
-            )
+            restyleVisiblePages { page in
+                page.byWritingMode(horizontal: { page.updateViewerLayout(delay: 0.2) }, vertical: { page.updateRuntimeStyle(delay: 0.4) })
+            }
         }
     }
 
@@ -371,10 +374,9 @@ public class ReaderPreferences {
             let newValue = max(0, min(50, value))
             pref(setInt: newValue, for: .currentMarginLeft)
             guard currentHMarginLinked == false else { return }
-            folioReader?.readerCenter?.currentPage?.byWritingMode(
-                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) },
-                vertical: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) }
-            )
+            restyleVisiblePages { page in
+                page.byWritingMode(horizontal: { page.updateRuntimeStyle(delay: 0.4) }, vertical: { page.updateViewerLayout(delay: 0.2) })
+            }
         }
     }
 
@@ -390,10 +392,9 @@ public class ReaderPreferences {
             let newValue = max(0, min(50, value))
             pref(setInt: newValue, for: .currentMarginRight)
             guard currentHMarginLinked == false else { return }
-            folioReader?.readerCenter?.currentPage?.byWritingMode(
-                horizontal: { self.folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4) },
-                vertical: { self.folioReader?.readerCenter?.currentPage?.updateViewerLayout(delay: 0.2) }
-            )
+            restyleVisiblePages { page in
+                page.byWritingMode(horizontal: { page.updateRuntimeStyle(delay: 0.4) }, vertical: { page.updateViewerLayout(delay: 0.2) })
+            }
         }
     }
     
@@ -403,7 +404,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentLetterSpacing)
-            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
+            restyleVisiblePages { $0.updateRuntimeStyle(delay: 0.4) }
         }
     }
     
@@ -413,7 +414,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentLineHeight)
-            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
+            restyleVisiblePages { $0.updateRuntimeStyle(delay: 0.4) }
         }
     }
 
@@ -424,7 +425,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value, for: .currentTextIndent)
-            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.4)
+            restyleVisiblePages { $0.updateRuntimeStyle(delay: 0.4) }
         }
     }
     
@@ -453,7 +454,7 @@ public class ReaderPreferences {
         }
         set (value) {
             pref(setInt: value.rawValue, for: .styleOverride)
-            folioReader?.readerCenter?.currentPage?.updateRuntimeStyle(delay: 0.2)
+            restyleVisiblePages { $0.updateRuntimeStyle(delay: 0.2) }
         }
     }
     
