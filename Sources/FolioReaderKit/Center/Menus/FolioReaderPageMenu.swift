@@ -22,9 +22,8 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
     /// Where the screen's long side reaches `spreadMinimumWidth` (by default every iPad and no
     /// iPhone), and only horizontal writing has spreads.
     private(set) lazy var showsSpreadSegment: Bool = {
-        let screen = folioReader.readerCenter?.view.window?.screen.bounds.size ?? .zero
-        return readerConfig.canChangeScrollDirection
-            && max(screen.width, screen.height) >= readerConfig.spreadMinimumWidth
+        readerConfig.canChangeScrollDirection
+            && screenLongSide >= readerConfig.spreadMinimumWidth
             && folioReader.readerCenter?.currentPage?.writingMode != "vertical-rl"
     }()
     /// The direction last chosen here. The reader applies it once it has recorded the position.
@@ -53,14 +52,24 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
     enum VerticalWritingOption {
         case paged, tiered, scroll
     }
-    /// Tiered where the screen's long side reaches `tiersMinimumHeight` (by default every iPad and
-    /// no iPhone), as the spread row is shown.
+    /// Tiered where a portrait page can reach `tiersMinimumHeight`, as the tiers' media query measures
+    /// it: the screen's long side less the space kept above and below the text (the status bar, the
+    /// page indicator). By default every iPad and no iPhone. Also wherever `.vertical` is in effect,
+    /// whose vertical-writing pages run down on any screen, so the row shows what the pages do.
     private(set) lazy var verticalWritingOptions: [VerticalWritingOption] = {
-        let screen = folioReader.readerCenter?.view.window?.screen.bounds.size ?? .zero
-        return max(screen.width, screen.height) >= readerConfig.tiersMinimumHeight
+        let page = folioReader.readerCenter?.currentPage
+        let reserved = page.flatMap { page in page.webView.map { page.bounds.height - $0.frame.height } } ?? 0
+        let tiers = screenLongSide - max(reserved, 0) >= readerConfig.tiersMinimumHeight
+        return tiers || readerConfig.isDirection(true, false, false)
             ? [.paged, .tiered, .scroll]
             : [.paged, .scroll]
     }()
+
+    /// The screen's long side, which decides the rows a large screen gets.
+    private var screenLongSide: CGFloat {
+        let screen = folioReader.readerCenter?.view.window?.screen.bounds.size ?? .zero
+        return max(screen.width, screen.height)
+    }
 
     let marginLinked = UIImage(readerImageNamed: "icon-page-linked")
     let marginUnlinked = UIImage(readerImageNamed: "icon-page-unlinked")
@@ -199,7 +208,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
         switch scrollDirection {
         case .vertical, .defaultVertical:
             layoutDirectionHorizontalSegment.selectSegmentAtIndex(FolioReaderScrollDirection.vertical.rawValue)
-            verticalWritingOption = verticalWritingOptions.contains(.tiered) ? .tiered : .scroll
+            verticalWritingOption = .tiered
         case .horizontalWithPagedContent:
             layoutDirectionHorizontalSegment.selectSegmentAtIndex(FolioReaderScrollDirection.horizontalWithPagedContent.rawValue)
             verticalWritingOption = .paged

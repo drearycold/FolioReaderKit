@@ -1581,7 +1581,8 @@ function getVisibleCFI(horizontal) {
                         firstRange = range;
                         
                         //find first visible offset
-                        if (writingMode == "vertical-rl") {
+                        // Pages that run down split text at the top edge, like horizontal writing scrolled down.
+                        if (writingMode == "vertical-rl" && !folioPagesDown()) {
                             if (clientRect.right > window.innerWidth) { //spanning across page border
                                 var varRange = firstRange
                                 while (varRange.startOffset < varRange.endOffset) {
@@ -1843,8 +1844,8 @@ var onClassBasedListenerClick = function(schemeName, attributeContent) {
 }
 
 /**
- Columns on one screen in horizontal paged mode: 2 in a two-page spread, where the overflow style
- lays the root out in columns (`FolioReaderCSSBuilder.spreadRules`), else 1. Read from the
+ Columns on one screen: 2 in a two-page spread or in tiers, where the overflow style lays the root
+ out in columns (`FolioReaderCSSBuilder.spreadRules`, `tieredRules`), else 1. Read from the
  `--folio-spread-columns` property the spread sets, not the root's `column-count`, which a book's
  stylesheet can set too.
  */

@@ -340,9 +340,8 @@ enum FolioReaderCSSBuilder {
     static func spreadRules(minimumWidth: CGFloat) -> String {
         typealias P = CustomProperty
         let horizontal = "html body.\(BodyClass.horizontal)"
-        let width = Int(exactly: minimumWidth).map(String.init) ?? "\(minimumWidth)"
         return """
-            @media (orientation: landscape) and (min-width: \(width)px) {
+            @media (orientation: landscape) and (min-width: \(cssPixels(minimumWidth))px) {
                 html { \(spreadColumnsProperty): 2; overflow-x: auto !important; overflow-y: hidden !important; height: 100vh !important; column-count: 2 !important; column-gap: 0 !important; column-fill: auto !important; }
                 body { min-height: 200vh; }
                 /* Style.css limits media to 80vw, the settings images that stand alone to 84vw. */
@@ -371,15 +370,18 @@ enum FolioReaderCSSBuilder {
     ///
     /// `--folio-pages-down` tells `Bridge.js` (`folioPagesDown`) to measure pages in y. As in
     /// `spreadRules`, `<body>`'s inline padding (top and bottom here) repeats in every tier, so each
-    /// tier gets half the margins, and media limits are halved.
+    /// tier gets half the margins, and media limits are halved. An infinite `minimumHeight` never
+    /// shows tiers: the pages still run down, one to a screen.
     static func tieredRules(minimumHeight: CGFloat) -> String {
         typealias P = CustomProperty
         let vertical = "html body.\(BodyClass.vertical)"
-        let height = minimumHeight.rounded() == minimumHeight ? "\(Int(minimumHeight))" : "\(minimumHeight)"
-        return """
+        let pagesDown = """
             html { overflow-x: hidden !important; overflow-y: auto !important; display: block !important; text-align: justify !important; width: 100vw !important; column-width: 100vh !important; column-gap: 0 !important; column-fill: auto !important; --folio-pages-down: 1; }
             body { min-width: 100vw; margin: 0 0 !important; }
-            @media (orientation: portrait) and (min-height: \(height)px) {
+            """
+        guard minimumHeight.isFinite else { return pagesDown }
+        return pagesDown + "\n" + """
+            @media (orientation: portrait) and (min-height: \(cssPixels(minimumHeight))px) {
                 html { \(spreadColumnsProperty): 2; column-width: auto !important; column-count: 2 !important; }
                 body { min-width: 200vw; }
                 /* Style.css limits media to 80vh, the settings images that stand alone to 84vh. */
@@ -397,6 +399,11 @@ enum FolioReaderCSSBuilder {
                 }
             }
             """
+    }
+
+    /// A length in points for a media query: a whole number without a fraction.
+    private static func cssPixels(_ value: CGFloat) -> String {
+        Int(exactly: value).map(String.init) ?? "\(value)"
     }
 
     // MARK: - Selectors

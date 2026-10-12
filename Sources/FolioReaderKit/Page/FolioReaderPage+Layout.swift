@@ -153,12 +153,18 @@ writingMode
 """
         ) { writingMode in
             overflowInterval.end()
+            let laidOut = (self.writingMode, self.pagesDown)
             if let writingMode = writingMode {
                 self.writingMode = writingMode
             }
             // Vertical writing in `.vertical` pages down: the scroll view pages now that it's known.
-            webView.pagesDown = self.pagesDown
+            self.pagesDown = self.writingMode == "vertical-rl" && self.readerConfig.isDirection(true, false, false)
             webView.setupScrollDirection()
+            // The web view's frame follows both. A reused cell computed it for the chapter it showed
+            // before, and the load chain lays it out again only for vertical writing.
+            if (self.writingMode, self.pagesDown) != laidOut {
+                self.setNeedsLayout()
+            }
             // The overflow CSS depends on the writing mode, which is only known after the script above.
             let overflowCSSInterval = FolioSignpost.begin("OverflowCSS", "page \(self.pageNumber)")
             FolioReaderCSSInjector.apply(
@@ -355,8 +361,8 @@ struct BackgroundPaddingSearch {
     struct Step: Hashable {
         /// The page count the body is sized from.
         let screens: Int
-        /// The body is sized short of `screens` (two screens in vertical writing, one otherwise), to
-        /// see whether the page count falls.
+        /// The body is sized short of `screens` (two screens in vertical writing paged right to left,
+        /// one otherwise, pages that run down too), to see whether the page count falls.
         let shrinking: Bool
     }
 

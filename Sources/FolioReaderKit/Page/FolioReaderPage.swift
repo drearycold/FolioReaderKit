@@ -86,8 +86,10 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     var spreadMinimumWidth: CGFloat?
     /// The chapter's pages run top to bottom: vertical writing in `.vertical` ("Tiered",
     /// `FolioReaderCSSBuilder.tieredRules`). It is measured and scrolled in y, a web view high a page.
-    var pagesDown: Bool {
-        writingMode == "vertical-rl" && readerConfig.isDirection(true, false, false)
+    /// Set with the overflow style (`updateOverflowStyle`), so it describes the layout the page has:
+    /// a page laid out before a scroll-direction change is still measured on its own axis.
+    var pagesDown = false {
+        didSet { webView?.pagesDown = pagesDown }
     }
     /// The scroll direction the chapter is laid out for (`recordLayout`).
     var layoutScrollDirection: FolioReaderScrollDirection?

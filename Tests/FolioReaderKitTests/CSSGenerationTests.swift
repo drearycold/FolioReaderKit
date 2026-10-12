@@ -180,6 +180,11 @@ class CSSGenerationTests: XCTestCase {
             FolioReaderCSSBuilder.overflowCSS(overflow: "scroll", verticalWritingMode: false, tiersMinimumHeight: 1000),
             FolioReaderCSSBuilder.overflowCSS(overflow: "scroll", verticalWritingMode: false)
         )
+
+        // An infinite minimum height never shows tiers (and isn't converted to an integer): pages still run down.
+        let never = FolioReaderCSSBuilder.overflowCSS(overflow: "scroll", verticalWritingMode: true, tiersMinimumHeight: .infinity)
+        XCTAssertTrue(never.contains("--folio-pages-down: 1"))
+        XCTAssertFalse(never.contains("@media"), never)
     }
 
     /// The spread's rules come only with horizontal paged pages, inside a media query on the width.

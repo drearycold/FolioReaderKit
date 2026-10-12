@@ -49,23 +49,13 @@ extension FolioReaderPage {
     func updatePages(updateWebViewScrollPosition: Bool = true) {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
-        guard let readerCenter = self.folioReader.readerCenter, let webView = self.webView else { return }
+        guard self.folioReader.readerCenter != nil, let webView = self.webView else { return }
 
-        // Pages that run down are a web view high: the page frame keeps the status bar and margins.
-        let pageSize = pagesDown ? webView.frame.height : self.byWritingMode(
-            self.readerConfig.isDirection(readerCenter.pageHeight, readerCenter.pageWidth, readerCenter.pageHeight),
-            webView.frame.width
-        )
-        let contentSize = pagesDown ? webView.scrollView.contentSize.height : self.byWritingMode(
-            webView.scrollView.contentSize.forDirection(withConfiguration: self.readerConfig),
-            webView.scrollView.contentSize.width
-        )
+        let pageSize = pageLengthAlongPages
+        let contentSize = contentLengthAlongPages
         self.totalPages = ((pageSize != 0) ? Int(ceil(contentSize / pageSize)) : 0)
         
-        let pageOffSet = pagesDown ? webView.scrollView.contentOffset.y : self.byWritingMode(
-            webView.scrollView.contentOffset.forDirection(withConfiguration: self.readerConfig),
-            webView.scrollView.contentOffset.x //+ webView.frame.width
-        )
+        let pageOffSet = contentOffsetAlongPages
         
         FolioLogger.log("updatePages pageNumber=\(self.pageNumber) totalPages=\(self.totalPages ?? 0) contentSize=\(contentSize) pageSize=\(pageSize)")
         self.currentPage = pageForOffset(pageOffSet, pageHeight: pageSize)
@@ -88,6 +78,10 @@ extension FolioReaderPage {
         guard let scrollDirection = self.folioReader.readerCenter?.pageScrollDirection, scrollDirection != .none else {
             return Int(ceil(offset / height))+1
         }
+        if pagesDown {
+            // Paged, as horizontal pages: a page counts once a drag reaches it, not as it starts.
+            return (scrollDirection == .down ? Int(ceil(offset / height)) : Int(floor(offset / height))) + 1
+        }
         let page = self.byWritingMode(
             self.readerConfig.isDirection(
                 Int(ceil(offset / height))+1,
@@ -103,19 +97,12 @@ extension FolioReaderPage {
     func getPageProgress() -> Double {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
-        guard let readerCenter = self.folioReader.readerCenter,
-              let webView = webView else {
+        guard self.folioReader.readerCenter != nil, webView != nil else {
             return 0
         }
         
-        let pageSize = pagesDown ? webView.frame.height : self.byWritingMode(
-            self.readerConfig.isDirection(readerCenter.pageHeight, readerCenter.pageWidth, readerCenter.pageHeight),
-            webView.frame.width
-        )
-        let contentSize = pagesDown ? webView.scrollView.contentSize.height : self.byWritingMode(
-            webView.scrollView.contentSize.forDirection(withConfiguration: self.readerConfig),
-            webView.scrollView.contentSize.width
-        )
+        let pageSize = pageLengthAlongPages
+        let contentSize = contentLengthAlongPages
         let totalPages = ((pageSize != 0) ? Int(ceil(contentSize / pageSize)) : 0)
         let currentPageItem = currentPage
         

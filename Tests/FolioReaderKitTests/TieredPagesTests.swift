@@ -163,20 +163,23 @@ class TieredPagesTests: XCTestCase {
         }
     }
 
-    /// `getOffsetsOfElementsWithID` gives the content offset (in y) of the screen that shows each element.
+    /// `getOffsetsOfElementsWithID` gives the content offset (in y) of the screen that shows each
+    /// element: scrolled there, the element starts on screen.
     func testElementOffsetsPointAtTheirScreen() throws {
         let webView = chapter()
+        let height = Int(Self.portrait.height)
         let json = try XCTUnwrap(evaluate("getOffsetsOfElementsWithID(false)", in: webView) as? String)
         let offsets = try JSONDecoder().decode([String: Int].self, from: Data(json.utf8))
-        let screens = try XCTUnwrap(evaluate("""
-            JSON.stringify(Object.fromEntries(Array.from(document.querySelectorAll('p')).map(p =>
-                [p.id, innerHeight * Math.floor((p.getClientRects()[0].top + scrollY) / innerHeight)])))
-            """, in: webView) as? String)
-        let expected = try JSONDecoder().decode([String: Int].self, from: Data(screens.utf8))
-        XCTAssertEqual(expected.count, 160)
-        XCTAssertGreaterThan(Set(expected.values).count, 3)
-        for (id, offset) in expected {
-            XCTAssertEqual(offsets[id], offset, id)
+        XCTAssertEqual(offsets.filter { $0.key.hasPrefix("p") }.count, 160)
+        XCTAssertGreaterThan(Set(offsets.values).count, 3)
+        for index in stride(from: 1, through: 160, by: 23) {
+            let id = "p\(index)"
+            let offset = try XCTUnwrap(offsets[id], id)
+            XCTAssertEqual(offset % height, 0, "\(id) at \(offset) is a screen's offset")
+            scrollNatively(webView, to: CGPoint(x: 0, y: offset))
+            let top = try XCTUnwrap(evaluate("document.getElementById('\(id)').getClientRects()[0].top", in: webView) as? Double)
+            XCTAssertGreaterThanOrEqual(top, 0, "\(id) starts on the screen at \(offset)")
+            XCTAssertLessThan(top, Double(height), "\(id) starts on the screen at \(offset)")
         }
     }
 
@@ -190,6 +193,8 @@ class TieredPagesTests: XCTestCase {
             show(screen: screen, in: webView)
             let position = try middle(in: webView)
             middles.insert(position)
+            // Measured from another screen: a measurement that returned the current offset would pass otherwise.
+            show(screen: 0, in: webView)
             XCTAssertEqual(evaluate("__screenOf('\(position)')", in: webView) as? Int, screen, "Restoring the middle shows screen \(screen)")
         }
         XCTAssertEqual(middles.count, 3)

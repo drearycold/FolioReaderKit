@@ -31,10 +31,12 @@ extension FolioReaderPage {
                 self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text = "\(offset) \(infoLabelText)"
             }
             if self.pagesDown {
-                // The screen that holds the anchor; pages run down a web view high each.
+                // The screen that holds the anchor; pages run down a web view high each. No further
+                // than the last screen, in case the content isn't whole screens yet.
                 let height = webView.frame.height
                 let page = height > 0 ? floor(offset / height) : 0
-                self.scrollPageToOffset(page * height, animated: animated)
+                let lastOffset = max(webView.scrollView.contentSize.height - height, 0)
+                self.scrollPageToOffset(min(page * height, lastOffset), animated: animated)
             } else {
                 self.byWritingMode {
                     switch self.readerConfig.scrollDirection {
