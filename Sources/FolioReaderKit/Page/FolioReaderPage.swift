@@ -84,6 +84,11 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     /// The width from which the chapter shows two pages side by side in landscape, or nil for one
     /// page (`FolioReaderCenter.spreadMinimumWidth`, as it was when the chapter was loaded).
     var spreadMinimumWidth: CGFloat?
+    /// The scroll direction the chapter is laid out for (`recordLayout`).
+    var layoutScrollDirection: FolioReaderScrollDirection?
+    /// The web view size (`webViewFrame()`) the chapter is laid out for, which its background
+    /// padding and content offset fit (`recordLayout`, `updateStyleBackgroundPadding`).
+    var layoutSize = CGSize.zero
     /// Counts the chapter loads started in this page. A reload of the same chapter keeps the page
     /// number, so the load chain checks this too before acting on the page.
     var loadGeneration = 0
@@ -294,6 +299,16 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         webView?.scrollView.delegate = nil
         webView?.navigationDelegate = nil
         NotificationCenter.default.removeObserver(self)
+    }
+
+    /// The collection view has just applied the layout attributes, whose transform is the identity:
+    /// mirror a right-to-left book's page again. It applies them whenever they change, so after a
+    /// rotation (which mirrors only the current page itself) a chapter kept next to the current one
+    /// came back with mirrored text. Setting the transform before it is shown
+    /// (`willDisplay`, `cellForItemAt`) isn't enough: a reused cell gets its attributes after both.
+    override open func apply(_ layoutAttributes: UICollectionViewLayoutAttributes) {
+        super.apply(layoutAttributes)
+        readerContainer?.centerViewController?.setPageProgressiveDirection(self)
     }
 
     override open func layoutSubviews() {
