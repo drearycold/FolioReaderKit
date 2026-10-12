@@ -238,6 +238,12 @@ open class FolioReaderConfig: NSObject {
     /// (956 pt at most) with one page and gives every iPad two.
     open var spreadMinimumWidth: CGFloat = 1000
 
+    /// In `.vertical`, vertical-writing books page top to bottom ("Tiered" in the page menu), with
+    /// two tiers to a screen, one above the other, while the page is portrait and at least this tall
+    /// (in points), and one page to a screen otherwise. The default leaves iPhones (956 pt at most)
+    /// with one page and gives iPads two tiers in portrait, as `spreadMinimumWidth` does for spreads.
+    open var tiersMinimumHeight: CGFloat = 1000
+
     /// Enable or disable hability to user change font style on menu.
     open var canChangeFontStyle = true
     
@@ -342,6 +348,7 @@ open class FolioReaderConfig: NSObject {
     open var localizedLayoutScroll = NSLocalizedString("Scroll", comment: "")
     open var localizedLayoutSinglePage = NSLocalizedString("One Page", comment: "")
     open var localizedLayoutTwoPages = NSLocalizedString("Two Pages", comment: "")
+    open var localizedLayoutTiered = NSLocalizedString("Tiered", comment: "")
 
     
     open var localizedReaderOnePageLeft = NSLocalizedString("1 page left", comment: "")

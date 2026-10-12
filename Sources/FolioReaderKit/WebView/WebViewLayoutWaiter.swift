@@ -29,7 +29,7 @@ enum WebViewLayoutWaiter {
     struct Measurement: Equatable {
         let document: CGSize
         let viewport: CGSize
-        /// The columns on a screen (`--folio-spread-columns`): 2 in a spread, else 1.
+        /// The columns on a screen (`--folio-spread-columns`): 2 in a spread or in tiers, else 1.
         var columns = 1
     }
 

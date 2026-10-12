@@ -104,7 +104,8 @@ class FolioReaderPageIndicator: UIView {
               let totalPages = readerPage.totalPages,
               let totalMinutes = readerPage.totalMinutes else { return }
         
-        var pagesRemaining = self.folioReader.needsRTLChange ? totalPages-(totalPages-page+1) : totalPages-page
+        // Right-to-left pages count from the end of the chapter; pages that run down from its start.
+        var pagesRemaining = self.folioReader.needsRTLChange && !readerPage.pagesDown ? totalPages-(totalPages-page+1) : totalPages-page
         if pagesRemaining >= totalPages {
             pagesRemaining = totalPages - 1
         }

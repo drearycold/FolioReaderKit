@@ -190,7 +190,9 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        guard readerConfig.scrollDirection != .horizontalWithPagedContent else { return }
+        // Not for paged content: a dragged slider would leave a page between screens.
+        guard readerConfig.scrollDirection != .horizontalWithPagedContent,
+              folioReader.readerCenter?.currentPage?.pagesDown != true else { return }
 
         if visible && usingSlider == false {
             setSliderVal()

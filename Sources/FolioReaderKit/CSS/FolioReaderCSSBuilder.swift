@@ -298,8 +298,12 @@ enum FolioReaderCSSBuilder {
 
     /// Content of the `folio_style_overflow` element for the current scroll mode and writing mode.
     /// With `spreadMinimumWidth`, horizontal paged pages show two pages side by side
-    /// (`spreadRules`) while the viewport is landscape and at least that wide.
-    static func overflowCSS(overflow: String, verticalWritingMode: Bool, spreadMinimumWidth: CGFloat? = nil) -> String {
+    /// (`spreadRules`) while the viewport is landscape and at least that wide. With
+    /// `tiersMinimumHeight`, vertical-writing pages run top to bottom instead (`tieredRules`).
+    static func overflowCSS(overflow: String, verticalWritingMode: Bool, spreadMinimumWidth: CGFloat? = nil, tiersMinimumHeight: CGFloat? = nil) -> String {
+        if verticalWritingMode, let tiersMinimumHeight = tiersMinimumHeight {
+            return tieredRules(minimumHeight: tiersMinimumHeight)
+        }
         var cssText = "html { overflow: \(overflow) !important; display: block !important; text-align: justify !important;}"
         if overflow == "-webkit-paged-x" {
             if verticalWritingMode {
@@ -315,11 +319,12 @@ enum FolioReaderCSSBuilder {
         return cssText
     }
 
-    /// The columns on a screen: 2 on the root in a spread (`spreadRules`), unset otherwise. The reader
-    /// sets it, so a book's own `column-count` on `<html>` doesn't read as a spread.
+    /// The columns on a screen: 2 on the root in a spread (`spreadRules`) or in tiers
+    /// (`tieredRules`), unset otherwise. The reader sets it, so a book's own `column-count` on
+    /// `<html>` doesn't read as a spread.
     static let spreadColumnsProperty = "--folio-spread-columns"
     /// `spreadColumnsProperty` in CSS, 1 outside a spread. A body height in screens multiplied by it
-    /// follows a rotation between one page and a spread.
+    /// follows a rotation between one page and a spread (a body width, between one page and tiers).
     static let spreadColumnsReference = "var(\(spreadColumnsProperty), 1)"
 
     /// Two pages to a screen. `-webkit-paged-x` pages are always as wide as the viewport, and a
@@ -329,14 +334,14 @@ enum FolioReaderCSSBuilder {
     /// the two layouts without a native step, as `-webkit-paged-x` follows the viewport.
     ///
     /// `<body>`'s left and right padding repeats in every column, so each column gets half the
-    /// margins a full-width page has: the same share of its width. Media limits are halved the same way. `Bridge.js` reads the column
-    /// count (`folioColumnsPerScreen`) where a page is measured in columns.
+    /// margins a full-width page has: the same share of its width. Media limits are halved the same
+    /// way. `Bridge.js` reads the column count (`folioColumnsPerScreen`) where a page is measured in
+    /// columns.
     static func spreadRules(minimumWidth: CGFloat) -> String {
         typealias P = CustomProperty
         let horizontal = "html body.\(BodyClass.horizontal)"
-        let width = Int(exactly: minimumWidth).map(String.init) ?? "\(minimumWidth)"
         return """
-            @media (orientation: landscape) and (min-width: \(width)px) {
+            @media (orientation: landscape) and (min-width: \(cssPixels(minimumWidth))px) {
                 html { \(spreadColumnsProperty): 2; overflow-x: auto !important; overflow-y: hidden !important; height: 100vh !important; column-count: 2 !important; column-gap: 0 !important; column-fill: auto !important; }
                 body { min-height: 200vh; }
                 /* Style.css limits media to 80vw, the settings images that stand alone to 84vw. */
@@ -354,6 +359,51 @@ enum FolioReaderCSSBuilder {
                 }
             }
             """
+    }
+
+    /// A vertical-writing book's pages in `.vertical` ("Tiered"): they run top to bottom, a screen
+    /// at a time, with two tiers to a screen, one above the other, in a portrait page at least
+    /// `minimumHeight` tall. Columns in vertical writing stack down its inline axis, so columns on
+    /// the root, whose block size (its width) is the screen, run down: one a screen high, or two in
+    /// the media query. They can't run left like `-webkit-paged-x` pages: WebKit lays out
+    /// multi-column elements in a paginated document in one column, and has no `column-wrap`.
+    ///
+    /// `--folio-pages-down` tells `Bridge.js` (`folioPagesDown`) to measure pages in y. As in
+    /// `spreadRules`, `<body>`'s inline padding (top and bottom here) repeats in every tier, so each
+    /// tier gets half the margins, and media limits are halved. An infinite `minimumHeight` never
+    /// shows tiers: the pages still run down, one to a screen.
+    static func tieredRules(minimumHeight: CGFloat) -> String {
+        typealias P = CustomProperty
+        let vertical = "html body.\(BodyClass.vertical)"
+        let pagesDown = """
+            html { overflow-x: hidden !important; overflow-y: auto !important; display: block !important; text-align: justify !important; width: 100vw !important; column-width: 100vh !important; column-gap: 0 !important; column-fill: auto !important; --folio-pages-down: 1; }
+            body { min-width: 100vw; margin: 0 0 !important; }
+            """
+        guard minimumHeight.isFinite else { return pagesDown }
+        return pagesDown + "\n" + """
+            @media (orientation: portrait) and (min-height: \(cssPixels(minimumHeight))px) {
+                html { \(spreadColumnsProperty): 2; column-width: auto !important; column-count: 2 !important; }
+                body { min-width: 200vw; }
+                /* Style.css limits media to 80vh, the settings images that stand alone to 84vh. */
+                img, svg, audio, video { max-height: 40vh !important; }
+                \(vertical) {
+                    padding-top: calc(\(P.paddingTop.reference) / 2) !important;
+                    padding-bottom: calc(\(P.paddingBottom.reference) / 2) !important;
+                }
+                \(scopedSelectors(descendant: "img.folioImg")) {
+                    max-height: 42vh !important;
+                }
+                \(vertical) img.folioImg {
+                    margin-top: calc(-1 * max(\(P.paddingTop.reference) / 2 - 1.25vh, 0vh)) !important;
+                    margin-bottom: calc(-1 * max(\(P.paddingBottom.reference) / 2 - 1.25vh, 0vh)) !important;
+                }
+            }
+            """
+    }
+
+    /// A length in points for a media query: a whole number without a fraction.
+    private static func cssPixels(_ value: CGFloat) -> String {
+        Int(exactly: value).map(String.init) ?? "\(value)"
     }
 
     // MARK: - Selectors

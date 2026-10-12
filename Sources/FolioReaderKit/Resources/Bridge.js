@@ -945,6 +945,10 @@ var getAnchorOffset = function(target, horizontal) {
                 let rangeClientBounds = range.getBoundingClientRect()
                 window.webkit.messageHandlers.FolioReaderPage.postMessage(`getAnchorOffset partialCFI rangeClientBounds ${rangeClientBounds.left}:${rangeClientBounds.right}:${rangeClientBounds.top}:${rangeClientBounds.bottom} scrollX=${window.scrollX} scrollY=${window.scrollY} rangeText=${range.toString().trim()}`);
                 
+                if (folioPagesDown()) {
+                    return rangeClientBounds.top + window.scrollY;
+                }
+                
                 if (writingMode == "vertical-rl") {
                     return -(rangeClientBounds.right + window.scrollX);
                 }
@@ -993,6 +997,10 @@ var getAnchorOffset = function(target, horizontal) {
     // reaches a page edge on its own page; scrolling shows the start of the box, its top or, in
     // vertical writing, its right edge.
     const rect = elem.getClientRects()[0] || elem.getBoundingClientRect()
+    
+    if (folioPagesDown()) {
+        return rect.top + window.scrollY;
+    }
     
     if (writingMode == "vertical-rl") {
         return -((horizontal ? rect.left + rect.width / 2 : rect.right) + window.scrollX);
@@ -1573,7 +1581,8 @@ function getVisibleCFI(horizontal) {
                         firstRange = range;
                         
                         //find first visible offset
-                        if (writingMode == "vertical-rl") {
+                        // Pages that run down split text at the top edge, like horizontal writing scrolled down.
+                        if (writingMode == "vertical-rl" && !folioPagesDown()) {
                             if (clientRect.right > window.innerWidth) { //spanning across page border
                                 var varRange = firstRange
                                 while (varRange.startOffset < varRange.endOffset) {
@@ -1703,11 +1712,16 @@ function getVisibleCFI(horizontal) {
  */
 function getVisibleMiddleCFI(horizontal) {
     try {
-        // Pages run right to left in vertical-rl.
+        // Pages run right to left in vertical-rl, and top to bottom when they run down.
         const pagesRightToLeft = writingMode == "vertical-rl"
+        const pagesDown = folioPagesDown()
 
         // -1 on an earlier page, 0 on this one, 1 on a later one.
         function sideOf(rect) {
+            if (pagesDown) {
+                const y = rect.top + rect.height / 2
+                return y < 0 ? -1 : (y >= window.innerHeight ? 1 : 0)
+            }
             const x = rect.left + rect.width / 2
             const side = x < 0 ? -1 : (x >= window.innerWidth ? 1 : 0)
             return pagesRightToLeft ? -side : side
@@ -1830,13 +1844,22 @@ var onClassBasedListenerClick = function(schemeName, attributeContent) {
 }
 
 /**
- Columns on one screen in horizontal paged mode: 2 in a two-page spread, where the overflow style
- lays the root out in columns (`FolioReaderCSSBuilder.spreadRules`), else 1. Read from the
+ Columns on one screen: 2 in a two-page spread or in tiers, where the overflow style lays the root
+ out in columns (`FolioReaderCSSBuilder.spreadRules`, `tieredRules`), else 1. Read from the
  `--folio-spread-columns` property the spread sets, not the root's `column-count`, which a book's
  stylesheet can set too.
  */
 function folioColumnsPerScreen() {
     return parseInt(getComputedStyle(document.documentElement).getPropertyValue("--folio-spread-columns")) || 1
+}
+
+/**
+ Whether pages run top to bottom, a screen at a time: vertical writing in `.vertical` ("Tiered"),
+ whose overflow style sets `--folio-pages-down` (`FolioReaderCSSBuilder.tieredRules`). Pages are then
+ measured in y. Its tiers set `--folio-spread-columns`, which `folioColumnsPerScreen` reads.
+ */
+function folioPagesDown() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--folio-pages-down').trim() == '1'
 }
 
 /**
@@ -1853,9 +1876,15 @@ function getOffsetsOfElementsWithID(horizontal) {
     const els = document.querySelectorAll("[id]")
     const columns = folioColumnsPerScreen()
     var offsets = {}
+    const pagesDown = folioPagesDown()
 
     for(const elem of els) {
-        if (writingMode == "vertical-rl") {
+        if (pagesDown) {
+            const rect = elem.getClientRects()[0]
+            if (rect) {
+                offsets[elem.id] = window.innerHeight * Math.floor((rect.top + window.scrollY) / window.innerHeight)
+            }
+        } else if (writingMode == "vertical-rl") {
             offsets[elem.id] = elem.offsetLeft
         } else if (horizontal) {
             offsets[elem.id] = folioScreenOffset(elem.offsetTop, columns);

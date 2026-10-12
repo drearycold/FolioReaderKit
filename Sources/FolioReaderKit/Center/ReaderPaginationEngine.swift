@@ -175,9 +175,10 @@ open class ReaderPaginationEngine {
         }
         
         let cellSize = cell.frame.size
-        let contentOffsetX = contentOffset.x + cellSize.width
+        // Pages that run down step a web view high, in y (`scrollPageToOffset` reads them so).
+        let contentOffsetX = cell.pagesDown ? cell.contentOffsetAlongPages + cell.pageLengthAlongPages : contentOffset.x + cellSize.width
         
-        if contentOffsetX >= contentOffsetXLimit {
+        if contentOffsetX >= (cell.pagesDown ? cell.contentLengthAlongPages : contentOffsetXLimit) {
             changePageToNext(completion)
         } else {
             cell.pinnedPosition = nil
@@ -214,7 +215,7 @@ open class ReaderPaginationEngine {
         }
         
         let cellSize = cell.frame.size
-        let contentOffsetX = contentOffset.x - cellSize.width
+        let contentOffsetX = cell.pagesDown ? cell.contentOffsetAlongPages - cell.pageLengthAlongPages : contentOffset.x - cellSize.width
         
         if contentOffsetX < 0 {
             changePageToPrevious(completion)
@@ -239,7 +240,9 @@ open class ReaderPaginationEngine {
         let cellSize = cell.frame.size
         var contentOffsetX: CGFloat = 0.0
         
-        if contentSize.width > 0 && cellSize.width > 0 {
+        if cell.pagesDown {
+            contentOffsetX = cell.contentLengthAlongPages - cell.pageLengthAlongPages
+        } else if contentSize.width > 0 && cellSize.width > 0 {
             contentOffsetX = (cellSize.width * (contentSize.width / cellSize.width)) - cellSize.width
         }
         
@@ -263,15 +266,17 @@ open class ReaderPaginationEngine {
                 return
         }
         
-        let cellSize = cell.frame.size
+        // Pages that run down are a web view high, in y.
+        let pageLength = cell.pagesDown ? cell.pageLengthAlongPages : cell.frame.size.width
+        let contentLength = cell.pagesDown ? cell.contentLengthAlongPages : contentSize.width
         var contentOffsetX: CGFloat = 0.0
         
-        if contentSize.width > 0 && cellSize.width > 0 {
-            contentOffsetX = (cellSize.width * CGFloat(to)) - cellSize.width
+        if contentLength > 0 && pageLength > 0 {
+            contentOffsetX = (pageLength * CGFloat(to)) - pageLength
         }
         
-        if contentOffsetX > contentSize.width {
-            contentOffsetX = contentSize.width - cellSize.width
+        if contentOffsetX > contentLength {
+            contentOffsetX = contentLength - pageLength
         }
         
         if contentOffsetX < 0 {

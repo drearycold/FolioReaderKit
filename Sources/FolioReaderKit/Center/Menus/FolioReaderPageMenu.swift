@@ -22,9 +22,8 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
     /// Where the screen's long side reaches `spreadMinimumWidth` (by default every iPad and no
     /// iPhone), and only horizontal writing has spreads.
     private(set) lazy var showsSpreadSegment: Bool = {
-        let screen = folioReader.readerCenter?.view.window?.screen.bounds.size ?? .zero
-        return readerConfig.canChangeScrollDirection
-            && max(screen.width, screen.height) >= readerConfig.spreadMinimumWidth
+        readerConfig.canChangeScrollDirection
+            && screenLongSide >= readerConfig.spreadMinimumWidth
             && folioReader.readerCenter?.currentPage?.writingMode != "vertical-rl"
     }()
     /// The direction last chosen here. The reader applies it once it has recorded the position.
@@ -48,6 +47,30 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
     let lineB4MarginV = UIView()
     let lineB4MarginH = UIView()
     
+    /// The vertical-writing row: paged right to left, paged top to bottom in tiers (`.vertical`),
+    /// scrolled.
+    enum VerticalWritingOption {
+        case paged, tiered, scroll
+    }
+    /// Tiered where a portrait page can reach `tiersMinimumHeight`, as the tiers' media query measures
+    /// it: the screen's long side less the space kept above and below the text (the status bar, the
+    /// page indicator). By default every iPad and no iPhone. Also wherever `.vertical` is in effect,
+    /// whose vertical-writing pages run down on any screen, so the row shows what the pages do.
+    private(set) lazy var verticalWritingOptions: [VerticalWritingOption] = {
+        let page = folioReader.readerCenter?.currentPage
+        let reserved = page.flatMap { page in page.webView.map { page.bounds.height - $0.frame.height } } ?? 0
+        let tiers = screenLongSide - max(reserved, 0) >= readerConfig.tiersMinimumHeight
+        return tiers || readerConfig.isDirection(true, false, false)
+            ? [.paged, .tiered, .scroll]
+            : [.paged, .scroll]
+    }()
+
+    /// The screen's long side, which decides the rows a large screen gets.
+    private var screenLongSide: CGFloat {
+        let screen = folioReader.readerCenter?.view.window?.screen.bounds.size ?? .zero
+        return max(screen.width, screen.height)
+    }
+
     let marginLinked = UIImage(readerImageNamed: "icon-page-linked")
     let marginUnlinked = UIImage(readerImageNamed: "icon-page-unlinked")
     
@@ -166,22 +189,34 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
         layoutDirectionVerticalSegment.delegate = self
         layoutDirectionVerticalSegment.tag = 33
         
-        layoutDirectionVerticalSegment.addSegmentWithTitle(self.readerConfig.localizedLayoutPaged, onSelectionImage: rtlSelected, offSelectionImage: rtlNormal)
-        layoutDirectionVerticalSegment.addSegmentWithTitle(self.readerConfig.localizedLayoutScroll, onSelectionImage: rtlSelected, offSelectionImage: rtlNormal)
+        // Vertical writing: paged right to left, paged in tiers (portrait), or scrolled.
+        let tiers = UIImage(systemName: "rectangle.split.1x2")
+        for option in verticalWritingOptions {
+            switch option {
+            case .paged:
+                layoutDirectionVerticalSegment.addSegmentWithTitle(self.readerConfig.localizedLayoutPaged, onSelectionImage: rtlSelected, offSelectionImage: rtlNormal)
+            case .tiered:
+                layoutDirectionVerticalSegment.addSegmentWithTitle(self.readerConfig.localizedLayoutTiered, onSelectionImage: tiers?.withTintColor(selectedColor, renderingMode: .alwaysOriginal), offSelectionImage: tiers?.withTintColor(normalColor, renderingMode: .alwaysOriginal))
+            case .scroll:
+                layoutDirectionVerticalSegment.addSegmentWithTitle(self.readerConfig.localizedLayoutScroll, onSelectionImage: rtlSelected, offSelectionImage: rtlNormal)
+            }
+        }
         
         let scrollDirection = FolioReaderScrollDirection(rawValue: self.folioReader.currentScrollDirection) ?? self.readerConfig.scrollDirection
+        let verticalWritingOption: VerticalWritingOption
 
         switch scrollDirection {
         case .vertical, .defaultVertical:
             layoutDirectionHorizontalSegment.selectSegmentAtIndex(FolioReaderScrollDirection.vertical.rawValue)
-            layoutDirectionVerticalSegment.selectSegmentAtIndex(FolioReaderScrollDirection.horizontalWithScrollContent.rawValue-1)
+            verticalWritingOption = .tiered
         case .horizontalWithPagedContent:
             layoutDirectionHorizontalSegment.selectSegmentAtIndex(FolioReaderScrollDirection.horizontalWithPagedContent.rawValue)
-            layoutDirectionVerticalSegment.selectSegmentAtIndex(FolioReaderScrollDirection.horizontalWithPagedContent.rawValue-1)
+            verticalWritingOption = .paged
         case .horizontalWithScrollContent:
             layoutDirectionHorizontalSegment.selectSegmentAtIndex(FolioReaderScrollDirection.horizontalWithScrollContent.rawValue)
-            layoutDirectionVerticalSegment.selectSegmentAtIndex(FolioReaderScrollDirection.horizontalWithScrollContent.rawValue-1)
+            verticalWritingOption = .scroll
         }
+        layoutDirectionVerticalSegment.selectSegmentAtIndex(verticalWritingOptions.firstIndex(of: verticalWritingOption) ?? 0)
         menuView.addSubview(layoutDirectionHorizontalSegment)
         menuView.addSubview(layoutDirectionVerticalSegment)
 
@@ -444,11 +479,20 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
             self.folioReader.preferences.currentLandscapeSpread = twoPages
         }  else if segmentView.tag == 33 {
 
-            guard self.folioReader.currentScrollDirection != index + 1 else {
+            guard let option = verticalWritingOptions[safe: index] else { return }
+            // Tiered is `.vertical`: vertical writing pages top to bottom (`FolioReaderPage.pagesDown`).
+            let direction: FolioReaderScrollDirection
+            switch option {
+            case .paged: direction = .horizontalWithPagedContent
+            case .tiered: direction = .vertical
+            case .scroll: direction = .horizontalWithScrollContent
+            }
+            guard self.folioReader.currentScrollDirection != direction.rawValue else {
                 return
             }
 
-            self.folioReader.currentScrollDirection = index + 1
+            self.folioReader.currentScrollDirection = direction.rawValue
+            chosenScrollDirection = direction
         } else if segmentView.tag == 4 {
             switch index {
             case 0:

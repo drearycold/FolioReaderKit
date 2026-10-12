@@ -24,6 +24,7 @@ This is a modernized fork of [FolioReader/FolioReaderKit](https://github.com/Fol
 - [x] RTL Support
 - [x] Vertical or/and Horizontal scrolling
 - [x] Two pages side by side in landscape on iPad (paged, horizontal writing)
+- [x] Two tiers to a screen for vertical writing in portrait on iPad, pages turning top to bottom
 - [x] Share Custom Image Quotes **<sup>NEW</sup>**
 - [x] Support multiple instances at same time, like parallel reading **<sup>NEW</sup>**
 - [x] Add Notes to a Highlight
@@ -132,6 +133,14 @@ In paged mode, horizontal-writing books show two pages side by side while the pa
 |---|---|---|
 | `landscapeSpread` | `true` | Two pages in landscape until the user chooses otherwise |
 | `spreadMinimumWidth` | `1000` | The narrowest page, in points, that shows two pages: every iPad in landscape, no iPhone |
+
+### Tiers for vertical writing
+
+In `.vertical`, vertical-writing books page top to bottom, chapters too. On a portrait page at least `tiersMinimumHeight` tall, each screen shows two tiers, one above the other, so lines are half as long; otherwise one page. Rotating keeps the reading position, and each tier gets half the top and bottom margins of a full-height page. Users choose "Tiered" in the vertical-writing row of the page menu (Paged | Tiered | Scroll), shown where a portrait page can reach `tiersMinimumHeight` (the screen's long side less the status bar and page indicator): by default every iPad and no iPhone, which keep Paged | Scroll unless `.vertical` is already in effect. An infinite `tiersMinimumHeight` never shows two tiers. `.vertical` is the setting horizontal books scroll top to bottom with, so choosing Tiered in a vertical-writing book makes horizontal books scroll, and the other way round; horizontal chapters in a vertical-writing book (a cover, a colophon) scroll too.
+
+| Option | Default | Effect |
+|---|---|---|
+| `tiersMinimumHeight` | `1000` | The shortest page, in points, that shows two tiers: iPads in portrait, no iPhone |
 
 ## Architecture & Migration
 

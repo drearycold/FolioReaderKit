@@ -158,7 +158,9 @@ extension FolioReaderPage {
                 return (
                  toc: toc,
                  offset: offset,
-                 distance: self.byWritingMode(
+                 distance: self.pagesDown
+                    ? contentOffset.y + webViewFrameSize.height / 2 - CGFloat(offset)
+                    : self.byWritingMode(
                      contentOffset.forDirection(withConfiguration: self.readerConfig) + webViewFrameSize.forDirection(withConfiguration: self.readerConfig) / 2 - CGFloat(offset),
                      -(contentOffset.x - CGFloat(offset))
                      )

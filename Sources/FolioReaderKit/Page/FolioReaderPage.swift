@@ -84,6 +84,13 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     /// The width from which the chapter shows two pages side by side in landscape, or nil for one
     /// page (`FolioReaderCenter.spreadMinimumWidth`, as it was when the chapter was loaded).
     var spreadMinimumWidth: CGFloat?
+    /// The chapter's pages run top to bottom: vertical writing in `.vertical` ("Tiered",
+    /// `FolioReaderCSSBuilder.tieredRules`). It is measured and scrolled in y, a web view high a page.
+    /// Set with the overflow style (`updateOverflowStyle`), so it describes the layout the page has:
+    /// a page laid out before a scroll-direction change is still measured on its own axis.
+    var pagesDown = false {
+        didSet { webView?.pagesDown = pagesDown }
+    }
     /// The scroll direction the chapter is laid out for (`recordLayout`).
     var layoutScrollDirection: FolioReaderScrollDirection?
     /// The web view size (`webViewFrame()`) the chapter is laid out for, which its background
@@ -409,6 +416,7 @@ private extension FolioReaderPage {
             bounds: bounds,
             writingMode: writingMode,
             scrollDirection: readerConfig.scrollDirection,
+            pagesDown: pagesDown,
             currentMarginTop: folioReader.currentMarginTop,
             currentMarginBottom: folioReader.currentMarginBottom,
             currentMarginLeft: folioReader.currentMarginLeft,
@@ -428,6 +436,8 @@ struct FolioReaderPageFrameInput {
     let bounds: CGRect
     let writingMode: String
     let scrollDirection: FolioReaderScrollDirection
+    /// Vertical writing in `.vertical`, paged down (`FolioReaderPage.pagesDown`).
+    var pagesDown = false
     let currentMarginTop: Int
     let currentMarginBottom: Int
     let currentMarginLeft: Int
@@ -504,10 +514,11 @@ private struct FrameMetrics {
         )
     }
 
-    /// Only horizontal paged content puts the user margins into the frame;
-    /// the other scroll directions leave them to the CSS body padding.
+    /// Only paged content puts the user margins into the frame (in vertical writing, its left and
+    /// right ones, which `<body>` padding would give only at the chapter's ends); the other scroll
+    /// directions leave them to the CSS body padding.
     var pagedPadding: UIEdgeInsets {
-        input.scrollDirection == .horizontalWithPagedContent ? padding : .zero
+        input.scrollDirection == .horizontalWithPagedContent || input.pagesDown ? padding : .zero
     }
 
     func byWritingMode<T>(horizontal: T, vertical: T) -> T {

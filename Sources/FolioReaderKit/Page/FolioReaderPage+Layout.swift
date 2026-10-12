@@ -147,13 +147,23 @@ writingMode = window.getComputedStyle(document.body).getPropertyValue("writing-m
 
 document.body.style.minHeight = null;
 document.body.style.minWidth = null;
+document.body.style.width = null;
 
 writingMode
 """
         ) { writingMode in
             overflowInterval.end()
+            let laidOut = (self.writingMode, self.pagesDown)
             if let writingMode = writingMode {
                 self.writingMode = writingMode
+            }
+            // Vertical writing in `.vertical` pages down: the scroll view pages now that it's known.
+            self.pagesDown = self.writingMode == "vertical-rl" && self.readerConfig.isDirection(true, false, false)
+            webView.setupScrollDirection()
+            // The web view's frame follows both. A reused cell computed it for the chapter it showed
+            // before, and the load chain lays it out again only for vertical writing.
+            if (self.writingMode, self.pagesDown) != laidOut {
+                self.setNeedsLayout()
             }
             // The overflow CSS depends on the writing mode, which is only known after the script above.
             let overflowCSSInterval = FolioSignpost.begin("OverflowCSS", "page \(self.pageNumber)")
@@ -178,7 +188,7 @@ writingMode
             spreadMinimumWidth = readerCenter.spreadMinimumWidth
         }
         recordLayout()
-        return FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: writingMode == "vertical-rl", spreadMinimumWidth: spreadMinimumWidth)
+        return FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: writingMode == "vertical-rl", spreadMinimumWidth: spreadMinimumWidth, tiersMinimumHeight: pagesDown ? readerConfig.tiersMinimumHeight : nil)
     }
 
     /// Records the scroll direction and web view size the chapter is laid out for, which
@@ -351,8 +361,8 @@ struct BackgroundPaddingSearch {
     struct Step: Hashable {
         /// The page count the body is sized from.
         let screens: Int
-        /// The body is sized short of `screens` (two screens in vertical writing, one otherwise), to
-        /// see whether the page count falls.
+        /// The body is sized short of `screens` (two screens in vertical writing paged right to left,
+        /// one otherwise, pages that run down too), to see whether the page count falls.
         let shrinking: Bool
     }
 
@@ -360,11 +370,15 @@ struct BackgroundPaddingSearch {
 
     /// Sizes `<body>` for `step`. In horizontal writing its height counts the pages it fills, each one
     /// viewport high: the pages of `-webkit-paged-x`, or the columns of a two-page spread, two to a
-    /// screen. The column count stays in the CSS (`FolioReaderCSSBuilder.spreadColumnsReference`), so
-    /// a chapter that isn't laid out again after a rotation keeps its size in screens.
+    /// screen. When vertical-writing pages run down (`FolioReaderCSSBuilder.tieredRules`), its width
+    /// counts its tiers, or pages, each a viewport wide, and the search shrinks by one screen. The
+    /// column count stays in the CSS (`FolioReaderCSSBuilder.spreadColumnsReference`), so a chapter
+    /// that isn't laid out again after a rotation keeps its size in screens.
     static func script(for step: Step) -> String {
         """
-        if (writingMode == 'vertical-rl') {
+        if (folioPagesDown()) {
+            document.body.style.width = "calc(\(step.screens - (step.shrinking ? 1 : 0)) * \(FolioReaderCSSBuilder.spreadColumnsReference) * 100vw)"
+        } else if (writingMode == 'vertical-rl') {
             document.body.style.width     = "\(step.screens * 100 - (step.shrinking ? 200 : 0))vw"
         } else {
             document.body.style.minHeight = "calc(\(step.screens - (step.shrinking ? 1 : 0)) * \(FolioReaderCSSBuilder.spreadColumnsReference) * 100vh)"

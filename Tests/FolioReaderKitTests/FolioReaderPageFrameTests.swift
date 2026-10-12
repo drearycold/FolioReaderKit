@@ -141,9 +141,26 @@ final class FolioReaderPageFrameTests: XCTestCase {
             CGRect(x: 60, y: 84, width: 260, height: 566)
         )
 
-        let scrolled = makeInput(
+        // Pages that run down (`.vertical`, "Tiered") are paged too.
+        let pagedDown = makeInput(
             writingMode: "vertical-rl",
             scrollDirection: .vertical,
+            pagesDown: true,
+            currentMarginTop: 10,
+            currentMarginBottom: 20,
+            currentMarginLeft: 30,
+            currentMarginRight: 40,
+            statusbarHeight: 44,
+            pageIndicatorHeight: 70
+        )
+        XCTAssertEqual(
+            FolioReaderPageFrameCalculator.webViewFrame(input: pagedDown),
+            FolioReaderPageFrameCalculator.webViewFrame(input: paged)
+        )
+
+        let scrolled = makeInput(
+            writingMode: "vertical-rl",
+            scrollDirection: .horizontalWithScrollContent,
             currentMarginTop: 10,
             currentMarginBottom: 20,
             currentMarginLeft: 30,
@@ -215,6 +232,7 @@ final class FolioReaderPageFrameTests: XCTestCase {
         bounds: CGRect = CGRect(x: 0, y: 0, width: 400, height: 800),
         writingMode: String = "horizontal-tb",
         scrollDirection: FolioReaderScrollDirection = .horizontalWithScrollContent,
+        pagesDown: Bool = false,
         currentMarginTop: Int = 0,
         currentMarginBottom: Int = 0,
         currentMarginLeft: Int = 0,
@@ -231,6 +249,7 @@ final class FolioReaderPageFrameTests: XCTestCase {
             bounds: bounds,
             writingMode: writingMode,
             scrollDirection: scrollDirection,
+            pagesDown: pagesDown,
             currentMarginTop: currentMarginTop,
             currentMarginBottom: currentMarginBottom,
             currentMarginLeft: currentMarginLeft,

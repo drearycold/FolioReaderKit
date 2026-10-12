@@ -6,23 +6,56 @@
 import UIKit
 
 extension FolioReaderPage {
+    // MARK: Along the pages
+
+    /// The content's length along the pages: its height when they run down (`pagesDown`), else
+    /// along the scroll direction, or its width in vertical writing.
+    var contentLengthAlongPages: CGFloat {
+        guard let contentSize = webView?.scrollView.contentSize else { return 0 }
+        return pagesDown ? contentSize.height : byWritingMode(contentSize.forDirection(withConfiguration: readerConfig), contentSize.width)
+    }
+
+    /// The content offset along the pages, as `contentLengthAlongPages` measures them.
+    var contentOffsetAlongPages: CGFloat {
+        guard let contentOffset = webView?.scrollView.contentOffset else { return 0 }
+        return pagesDown ? contentOffset.y : byWritingMode(contentOffset.forDirection(withConfiguration: readerConfig), contentOffset.x)
+    }
+
+    /// A page's length along the pages: a web view high when they run down (the page frame keeps the
+    /// status bar and margins), else the page along the scroll direction, or the web view's width in
+    /// vertical writing.
+    var pageLengthAlongPages: CGFloat {
+        guard let webView = webView else { return 0 }
+        if pagesDown {
+            return webView.frame.height
+        }
+        guard let readerCenter = folioReader.readerCenter else { return 0 }
+        return byWritingMode(
+            readerConfig.isDirection(readerCenter.pageHeight, readerCenter.pageWidth, readerCenter.pageHeight),
+            webView.frame.width
+        )
+    }
+
+    /// The content offset that is `offset` along the pages.
+    func contentOffsetPoint(alongPages offset: CGFloat) -> CGPoint {
+        pagesDown ? CGPoint(x: 0, y: offset) : byWritingMode(
+            readerConfig.isDirection(CGPoint(x: 0, y: offset), CGPoint(x: offset, y: 0), CGPoint(x: 0, y: offset)),
+            CGPoint(x: offset, y: 0)
+        )
+    }
+
     /// Get internal page offset before layout change.
     /// Represent upper-left point regardless of layout
     public func updatePageOffsetRate() {
         if readerConfig.debug.contains(.functionTrace) { FolioLogger.log("ENTER") }
 
-        guard let webView = self.webView else { return }
+        guard webView != nil else { return }
 
-        let pageScrollView = webView.scrollView
-        let contentSize = byWritingMode(
-            pageScrollView.contentSize.forDirection(withConfiguration: self.readerConfig),
-            pageScrollView.contentSize.width
-        )
-        let contentOffset = byWritingMode(
-            pageScrollView.contentOffset.forDirection(withConfiguration: self.readerConfig),
-            pageScrollView.contentOffset.x
-        )
-        self.pageOffsetRate = (contentSize != 0 ? (contentOffset / contentSize) : 0)
+        let contentLength = contentLengthAlongPages
+        // Vertical writing counts from the end of the chapter, its left in pages that run right to
+        // left, so pages that run down count from the bottom: the ratio carries over a switch.
+        let contentOffset = pagesDown ? contentLength - contentOffsetAlongPages - pageLengthAlongPages : contentOffsetAlongPages
+        self.pageOffsetRate = (contentLength != 0 ? (contentOffset / contentLength) : 0)
     }
 
     public func updateScrollPosition(delay bySecond: Double = 0.1, completion: (() -> Void)?) {
@@ -55,7 +88,27 @@ extension FolioReaderPage {
             
             let contentSize = webView.scrollView.contentSize
             let webViewFrameSize = webView.frame.size
-            
+
+            if self.pagesDown {
+                // Pages run down from the start of the chapter, a web view high each.
+                let height = webViewFrameSize.height
+                let pageOffsetByProgress = contentSize.height * pageProgress / 100
+                if height > 0, pageOffset < pageOffsetByProgress * 0.95 || pageOffset > pageOffsetByProgress * 1.05 {
+                    pageOffset = floor(pageOffsetByProgress / height) * height
+                }
+                // From the end of the chapter, as `updatePageOffsetRate` counts.
+                self.pageOffsetRate = contentSize.height > 0 ? (contentSize.height - height - max(pageOffset, 0)) / contentSize.height : 0
+                self.scrollWebViewByPageOffsetRate(animated: animated) {
+                    DispatchQueue.main.asyncAfter(delay: 0.5) {
+                        self.getWebViewScrollPosition { position in
+                            readerCenter.currentWebViewScrollPositions[self.pageNumber - 1] = position
+                            completion?()
+                        }
+                    }
+                }
+                return
+            }
+
             var pageOffsetByProgress = self.byWritingMode(
                 contentSize.forDirection(withConfiguration: self.readerConfig) * pageProgress,
                 contentSize.width * (100 - pageProgress - webViewFrameSize.width * 100 / contentSize.width)) / 100
@@ -91,6 +144,17 @@ extension FolioReaderPage {
         guard let webViewFrameSize = webView?.frame.size,
               webViewFrameSize.width > 0, webViewFrameSize.height > 0,
               let contentSize = webView?.scrollView.contentSize else { return }
+
+        if pagesDown {
+            // The ratio counts from the end of the chapter (`updatePageOffsetRate`), as in vertical
+            // writing's other layouts. Screens from the end, as the paged branch below counts them;
+            // the slack keeps an exact screen from rounding down.
+            let height = webViewFrameSize.height
+            let screens = max(ceil(contentSize.height / height - 0.001), 1)
+            let page = min(max(floor(contentSize.height * (1 - pageOffsetRate) / height + 0.001), 1), screens)
+            scrollPageToOffset((page - 1) * height, animated: animated, retry: 0, completion: completion)
+            return
+        }
         
         var pageOffset = byWritingMode(
             contentSize.forDirection(withConfiguration: self.readerConfig),
@@ -135,10 +199,7 @@ extension FolioReaderPage {
             return
         }
 
-        let pageOffsetPoint = byWritingMode(
-            self.readerConfig.isDirection(CGPoint(x: 0, y: offset), CGPoint(x: offset, y: 0), CGPoint(x: 0, y: offset)),
-            CGPoint(x: offset, y: 0)
-        )
+        let pageOffsetPoint = contentOffsetPoint(alongPages: offset)
         setScrollViewContentOffset(pageOffsetPoint, animated: animated)
         
         if retry > 0 {
@@ -161,7 +222,9 @@ extension FolioReaderPage {
         guard let webView = webView else { return }
         // A new place, as for scrollWebViewByPosition: a pin restored earlier would block recording it.
         pinnedPosition = nil
-        if writingMode == "vertical-rl" {
+        if pagesDown {
+            setScrollViewContentOffset(.zero, animated: false)
+        } else if writingMode == "vertical-rl" {
             let start = Self.verticalWritingContentOffset(fromStart: 0, contentWidth: webView.scrollView.contentSize.width, viewWidth: webView.frame.width)
             setScrollViewContentOffset(CGPoint(x: start, y: 0), animated: false)
         } else if folioReader.needsRTLChange {
@@ -243,11 +306,12 @@ extension FolioReaderPage {
             return
         }
 
-        let isHorizontal: Bool = self.byWritingMode(
+        // Pages that run down are measured in y, whatever the writing mode.
+        let isHorizontal: Bool = pagesDown ? false : self.byWritingMode(
             self.folioReader.readerConfig?.isDirection(false, true, false),
             true) ?? false
         // Paged mode records the middle of the page, which survives a relayout; see getVisibleMiddleCFI.
-        let locate = readerConfig.scrollDirection == .horizontalWithPagedContent && !firstVisibleText ? "getVisibleMiddleCFI" : "getVisibleCFI"
+        let locate = (readerConfig.scrollDirection == .horizontalWithPagedContent || pagesDown) && !firstVisibleText ? "getVisibleMiddleCFI" : "getVisibleCFI"
         webView.js("\(locate)(\(isHorizontal))") { jsonString in
             guard let jsonString = jsonString, (try? JSONSerialization.jsonObject(with: Data(jsonString.utf8))) != nil else {
                 onFailure?()

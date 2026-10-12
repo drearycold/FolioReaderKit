@@ -22,6 +22,9 @@ open class FolioReaderWebView: WKWebView {
     open var additionalMenuItems = [UIMenuItem]()
     
     fileprivate(set) var cssOverflowProperty = "scroll"
+    /// The page shows vertical writing in `.vertical`, whose pages run down a screen at a time
+    /// (`FolioReaderPage.pagesDown`): the scroll view pages instead of scrolling.
+    var pagesDown = false
 
     lazy var highlightManager = WebViewHighlightManager(webView: self)
     lazy var menuManager = WebViewMenuManager(webView: self)
@@ -240,7 +243,12 @@ open class FolioReaderWebView: WKWebView {
     
     func setupScrollDirection() {
         switch self.readerConfig.scrollDirection {
-        case .vertical, .defaultVertical, .horizontalWithScrollContent:
+        case .vertical, .defaultVertical:
+            scrollView.isPagingEnabled = pagesDown
+            cssOverflowProperty = "scroll"
+            scrollView.bounces = !pagesDown
+            break
+        case .horizontalWithScrollContent:
             scrollView.isPagingEnabled = false
             cssOverflowProperty = "scroll"
             scrollView.bounces = true
