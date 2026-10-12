@@ -15,6 +15,10 @@ import XCTest
 class BridgePositionTests: XCTestCase {
     static let portrait = CGSize(width: 402, height: 662)
     static let landscape = CGSize(width: 874, height: 270)
+    /// An 11" iPad: one page in portrait, a two-page spread in landscape.
+    static let tabletPortrait = CGSize(width: 834, height: 1150)
+    static let tabletLandscape = CGSize(width: 1194, height: 790)
+    static let spreadMinimumWidth: CGFloat = 1000
 
     /// The page `handleAnchor` shows for a recorded partial CFI in horizontal paged mode.
     static let helpers = """
@@ -25,11 +29,11 @@ class BridgePositionTests: XCTestCase {
         true
         """
 
-    private func pagedChapter(verticalWriting: Bool = false) -> WKWebView {
+    private func pagedChapter(verticalWriting: Bool = false, size: CGSize = BridgePositionTests.portrait, spreadMinimumWidth: CGFloat? = nil) -> WKWebView {
         let paragraphs = (1...160).map { index in
             "<p>Paragraph \(index): the quick brown fox jumps over the lazy dog, 敏捷的棕色狐狸跳过了懒狗，第\(index)段。</p>"
         }.joined()
-        let webView = readerChapter("<h1>Chapter</h1>" + paragraphs, paged: true, verticalWriting: verticalWriting, size: Self.portrait)
+        let webView = readerChapter("<h1>Chapter</h1>" + paragraphs, paged: true, verticalWriting: verticalWriting, size: size, spreadMinimumWidth: spreadMinimumWidth)
         XCTAssertGreaterThan(evaluate("document.body.getClientRects().length", in: webView) as? Int ?? 0, 10, "The chapter is paginated")
         evaluate(Self.helpers, in: webView)
         return webView
@@ -80,6 +84,36 @@ class BridgePositionTests: XCTestCase {
         var position = try record("getVisibleMiddleCFI", in: webView)
         for size in Array(repeating: [Self.landscape, Self.portrait], count: 4).joined() {
             resize(webView, to: size, paged: true)
+            let page = try XCTUnwrap(evaluate("__pageOf('\(position)')", in: webView) as? Int)
+            show(page, in: webView)
+            position = try record("getVisibleMiddleCFI", in: webView)
+        }
+        let endPage = try XCTUnwrap(evaluate("__page()", in: webView) as? Int)
+        XCTAssertLessThanOrEqual(abs(endPage - startPage), 1, "Back in portrait on page \(endPage), started on \(startPage)")
+    }
+
+    /// In a two-page spread the middle of the visible text is at the foot of the left column or the
+    /// head of the right one; restoring it shows the same spread.
+    func testSpreadMiddleIsOnTheCurrentSpread() throws {
+        let webView = pagedChapter(size: Self.tabletLandscape, spreadMinimumWidth: Self.spreadMinimumWidth)
+        XCTAssertEqual(evaluate("folioColumnsPerScreen()", in: webView) as? Int, 2)
+        for spread in [1, 3, 6] {
+            show(spread, in: webView)
+            let middle = try record("getVisibleMiddleCFI", in: webView)
+            XCTAssertEqual(evaluate("__pageOf('\(middle)')", in: webView) as? Int, spread, "Restoring the middle shows spread \(spread)")
+        }
+    }
+
+    /// Rotating an iPad switches between one page in portrait and a spread in landscape; going back
+    /// and forth must keep the reader on the page.
+    func testRepeatedRotationsBetweenPageAndSpreadKeepThePage() throws {
+        let webView = pagedChapter(size: Self.tabletPortrait, spreadMinimumWidth: Self.spreadMinimumWidth)
+        let startPage = 8
+        show(startPage, in: webView)
+        var position = try record("getVisibleMiddleCFI", in: webView)
+        for size in Array(repeating: [Self.tabletLandscape, Self.tabletPortrait], count: 4).joined() {
+            resize(webView, to: size, paged: true)
+            XCTAssertEqual(evaluate("folioColumnsPerScreen()", in: webView) as? Int, size == Self.tabletLandscape ? 2 : 1)
             let page = try XCTUnwrap(evaluate("__pageOf('\(position)')", in: webView) as? Int)
             show(page, in: webView)
             position = try record("getVisibleMiddleCFI", in: webView)

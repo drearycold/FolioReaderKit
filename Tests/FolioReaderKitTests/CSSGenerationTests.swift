@@ -122,7 +122,7 @@ class CSSGenerationTests: XCTestCase {
     /// so every property the rules read must get a value.
     func testEveryReferencedPropertyHasAValue() throws {
         let regex = try NSRegularExpression(pattern: "var\\((--[a-z-]+)\\)")
-        let rules = FolioReaderCSSBuilder.settingRules
+        let rules = FolioReaderCSSBuilder.settingRules + FolioReaderCSSBuilder.spreadRules(minimumWidth: 1000)
         let referenced = Set(regex.matches(in: rules, range: NSRange(rules.startIndex..., in: rules)).compactMap {
             Range($0.range(at: 1), in: rules).map { String(rules[$0]) }
         })
@@ -164,6 +164,25 @@ class CSSGenerationTests: XCTestCase {
             FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: true),
             pagedHTML + " body { min-width: 100vw; margin: 0 0 !important; }"
         )
+    }
+
+    /// The spread's rules come only with horizontal paged pages, inside a media query on the width.
+    func testOverflowCSSAddsTheSpreadToHorizontalPagedPagesOnly() {
+        let spread = FolioReaderCSSBuilder.spreadRules(minimumWidth: 1000)
+        XCTAssertTrue(spread.hasPrefix("@media (orientation: landscape) and (min-width: 1000px) {"), spread)
+        XCTAssertTrue(FolioReaderCSSBuilder.spreadRules(minimumWidth: 900.5).contains("(min-width: 900.5px)"))
+
+        let paged = FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: false)
+        XCTAssertEqual(FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: false, spreadMinimumWidth: 1000), paged + " " + spread)
+        XCTAssertEqual(FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: false, spreadMinimumWidth: .infinity), paged, "Never a spread")
+        XCTAssertTrue(FolioReaderCSSBuilder.spreadRules(minimumWidth: .greatestFiniteMagnitude).contains("(min-width: 1.7976931348623157e+308px)"))
+        for (overflow, vertical) in [("-webkit-paged-x", true), ("scroll", false), ("scroll", true)] {
+            XCTAssertEqual(
+                FolioReaderCSSBuilder.overflowCSS(overflow: overflow, verticalWritingMode: vertical, spreadMinimumWidth: 1000),
+                FolioReaderCSSBuilder.overflowCSS(overflow: overflow, verticalWritingMode: vertical),
+                "\(overflow) vertical=\(vertical)"
+            )
+        }
     }
 
     // MARK: - Custom style sheets

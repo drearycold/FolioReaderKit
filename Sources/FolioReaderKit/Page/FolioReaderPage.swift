@@ -81,6 +81,9 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
 
     /// The resource server port the chapter was loaded from.
     var loadedPort: UInt = 0
+    /// The width from which the chapter shows two pages side by side in landscape, or nil for one
+    /// page (`FolioReaderCenter.spreadMinimumWidth`, as it was when the chapter was loaded).
+    var spreadMinimumWidth: CGFloat?
     /// Counts the chapter loads started in this page. A reload of the same chapter keeps the page
     /// number, so the load chain checks this too before acting on the page.
     var loadGeneration = 0

@@ -21,10 +21,11 @@ class WebViewLayoutWaiterTests: XCTestCase {
 
     func testMeasurementRequiresLoadedFonts() {
         XCTAssertEqual(
-            WebViewLayoutWaiter.measurement(from: "[320,1000,320,480,true]"),
+            WebViewLayoutWaiter.measurement(from: "[320,1000,320,480,true,1]"),
             .init(document: CGSize(width: 320, height: 1000), viewport: CGSize(width: 320, height: 480))
         )
-        XCTAssertNil(WebViewLayoutWaiter.measurement(from: "[320,1000,320,480,false]"), "Wait while web fonts load")
+        XCTAssertEqual(WebViewLayoutWaiter.measurement(from: "[10149,790,1194,790,true,2]")?.columns, 2)
+        XCTAssertNil(WebViewLayoutWaiter.measurement(from: "[320,1000,320,480,false,1]"), "Wait while web fonts load")
         XCTAssertNil(WebViewLayoutWaiter.measurement(from: nil))
     }
 
@@ -48,6 +49,14 @@ class WebViewLayoutWaiterTests: XCTestCase {
         let expected = WebViewLayoutWaiter.expectedContentSizes(for: measured, paged: true)
         XCTAssertEqual(expected, [CGSize(width: 2814, height: 662)])
         XCTAssertFalse(expected.contains { WebViewLayoutWaiter.layoutMatches(contentSize: CGSize(width: 402, height: 4201), documentSize: $0, zoomScale: 1) })
+    }
+
+    /// A two-page spread lays the root out in columns, and JS reports the scrolled size: 17 columns
+    /// of 597 px on a 1194 × 790 iPad page. One screen (1194 × 790) is also what the scroll view held
+    /// before the columns, so it must not count.
+    func testSpreadAcceptsOnlyTheDocumentSize() {
+        let measured = WebViewLayoutWaiter.Measurement(document: CGSize(width: 10149, height: 790), viewport: CGSize(width: 1194, height: 790), columns: 2)
+        XCTAssertEqual(WebViewLayoutWaiter.expectedContentSizes(for: measured, paged: true), [CGSize(width: 10149, height: 790)])
     }
 
     /// Some documents report the paginated size to JS already (one page high, all pages wide).

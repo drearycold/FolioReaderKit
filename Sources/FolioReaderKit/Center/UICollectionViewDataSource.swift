@@ -34,8 +34,9 @@ extension FolioReaderCenter: UICollectionViewDataSource {
         }
         
         if cell.pageNumber == indexPath.row + 1 {
-            // A cell kept off screen may still show a chapter from a port the server left.
-            if cell.needsReload || cell.loadedPort != readerContainer.pagePort {
+            // A cell kept off screen may still show a chapter from a port the server left, or laid
+            // out for the other page-spread setting.
+            if cell.needsReload || cell.loadedPort != readerContainer.pagePort || hasOtherSpreadSetting(cell) {
                 reloadChapter(in: cell)
             }
             return cell
@@ -80,6 +81,7 @@ extension FolioReaderCenter: UICollectionViewDataSource {
 
         FolioLogger.log("webView.load url=\(url.absoluteString)")
         page.loadedPort = readerContainer.pagePort
+        page.spreadMinimumWidth = spreadMinimumWidth
         page.needsReload = false
         page.loadGeneration += 1
         page.loadInterval = FolioSignpost.begin("PageLoad", "page \(page.pageNumber)", log: FolioSignpost.milestones)
@@ -105,7 +107,7 @@ extension FolioReaderCenter: UICollectionViewDataSource {
     func reloadPages(all: Bool) {
         guard let readerContainer = readerContainer else { return }
         for case let page as FolioReaderPage in collectionView.visibleCells
-        where all || page.needsReload || page.loadedPort != readerContainer.pagePort {
+        where all || page.needsReload || page.loadedPort != readerContainer.pagePort || hasOtherSpreadSetting(page) {
             reloadChapter(in: page)
         }
     }

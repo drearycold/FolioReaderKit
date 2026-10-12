@@ -139,6 +139,25 @@ class ReaderPreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.savedScrollDirection, .horizontalWithPagedContent)
     }
 
+    /// The configured default until the user chooses; the center turns the choice into the width
+    /// from which pages show two pages.
+    func testLandscapeSpreadFollowsTheConfigUntilChosen() {
+        XCTAssertTrue(preferences.currentLandscapeSpread, "On without a reader config")
+
+        let config = FolioReaderConfig()
+        config.landscapeSpread = false
+        config.spreadMinimumWidth = 1100
+        let container = makeContainer(config)
+        container.loadViewIfNeeded()
+        XCTAssertFalse(preferences.currentLandscapeSpread)
+        XCTAssertNil(folioReader.readerCenter?.spreadMinimumWidth)
+
+        preferences.currentLandscapeSpread = true
+        XCTAssertTrue(preferences.currentLandscapeSpread)
+        XCTAssertTrue(delegate.preferenceProvider.preference(boolFor: ReaderPreferenceKey.currentLandscapeSpread.rawKey, default: false))
+        XCTAssertEqual(folioReader.readerCenter?.spreadMinimumWidth, 1100)
+    }
+
     func testContainerKeepsConfiguredScrollDirectionWhenNothingSaved() {
         let config = FolioReaderConfig()
         config.scrollDirection = .vertical

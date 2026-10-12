@@ -23,6 +23,7 @@ This is a modernized fork of [FolioReader/FolioReaderKit](https://github.com/Fol
 - [x] Parse epub cover image
 - [x] RTL Support
 - [x] Vertical or/and Horizontal scrolling
+- [x] Two pages side by side in landscape on iPad (paged, horizontal writing)
 - [x] Share Custom Image Quotes **<sup>NEW</sup>**
 - [x] Support multiple instances at same time, like parallel reading **<sup>NEW</sup>**
 - [x] Add Notes to a Highlight
@@ -122,6 +123,15 @@ config.customStyleSheets = [
 | `reservePageIndicatorInsidePageFrame` | `true` | Inset pages by the page indicator |
 
 Set both `reserve…` options to `false` and the margins to `0` for edge-to-edge pages.
+
+### Two-page spread
+
+In paged mode, horizontal-writing books show two pages side by side while the page is landscape and wide enough. Each page gets half the left and right margins a full-width page has. A spread counts as one page in page numbers and progress. Users choose "One Page" or "Two Pages" in the page menu on iPad (`ReaderPreferences.currentLandscapeSpread`, stored under `currentLandscapeSpread`).
+
+| Option | Default | Effect |
+|---|---|---|
+| `landscapeSpread` | `true` | Two pages in landscape until the user chooses otherwise |
+| `spreadMinimumWidth` | `1000` | The narrowest page, in points, that shows two pages: every iPad in landscape, no iPhone |
 
 ## Architecture & Migration
 

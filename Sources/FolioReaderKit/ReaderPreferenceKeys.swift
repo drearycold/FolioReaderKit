@@ -24,6 +24,7 @@ public enum ReaderPreferenceKey {
     case currentHighlightStyle
     case currentMediaOverlayStyle
     case currentScrollDirection
+    case currentLandscapeSpread
     
     // MARK: - Navigation
     case currentNavigationMenuIndex
@@ -62,6 +63,7 @@ public enum ReaderPreferenceKey {
         case .currentHighlightStyle: return "currentHighlightStyle"
         case .currentMediaOverlayStyle: return "currentMediaOverlayStyle"
         case .currentScrollDirection: return "currentScrollDirection"
+        case .currentLandscapeSpread: return "currentLandscapeSpread"
         case .currentNavigationMenuIndex: return "currentNavigationMenuIndex"
         case .currentAnnotationMenuIndex: return "currentAnnotationMenuIndex"
         case .currentNavigationMenuBookListStyle: return "currentNavigationMenuBookListStyle"

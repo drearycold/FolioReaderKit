@@ -127,6 +127,20 @@ open class FolioReaderCenter: UIViewController {
         return readerContainer.folioReader
     }
 
+    /// The width from which pages show two pages side by side in landscape
+    /// (`FolioReaderCSSBuilder.spreadRules`), or nil while the user keeps one page.
+    var spreadMinimumWidth: CGFloat? {
+        folioReader.preferences.currentLandscapeSpread ? readerConfig.spreadMinimumWidth : nil
+    }
+
+    /// Whether `page` is laid out for a spread setting other than the current one, where that
+    /// matters: horizontal writing in paged mode. Other pages pick the setting up when they turn paged.
+    func hasOtherSpreadSetting(_ page: FolioReaderPage) -> Bool {
+        page.spreadMinimumWidth != spreadMinimumWidth
+            && readerConfig.scrollDirection == .horizontalWithPagedContent
+            && page.writingMode != "vertical-rl"
+    }
+
     // MARK: - Init
 
     init(withContainer readerContainer: FolioReaderContainer) {

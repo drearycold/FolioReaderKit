@@ -281,16 +281,63 @@ enum FolioReaderCSSBuilder {
     }
 
     /// Content of the `folio_style_overflow` element for the current scroll mode and writing mode.
-    static func overflowCSS(overflow: String, verticalWritingMode: Bool) -> String {
+    /// With `spreadMinimumWidth`, horizontal paged pages show two pages side by side
+    /// (`spreadRules`) while the viewport is landscape and at least that wide.
+    static func overflowCSS(overflow: String, verticalWritingMode: Bool, spreadMinimumWidth: CGFloat? = nil) -> String {
         var cssText = "html { overflow: \(overflow) !important; display: block !important; text-align: justify !important;}"
         if overflow == "-webkit-paged-x" {
             if verticalWritingMode {
                 cssText += " body { min-width: 100vw; margin: 0 0 !important; }"
             } else {
                 cssText += " body { min-height: 100vh; margin: 0 0 !important; }"
+                // An infinite width never shows a spread.
+                if let spreadMinimumWidth = spreadMinimumWidth, spreadMinimumWidth.isFinite {
+                    cssText += " " + spreadRules(minimumWidth: spreadMinimumWidth)
+                }
             }
         }
         return cssText
+    }
+
+    /// The columns on a screen: 2 on the root in a spread (`spreadRules`), unset otherwise. The reader
+    /// sets it, so a book's own `column-count` on `<html>` doesn't read as a spread.
+    static let spreadColumnsProperty = "--folio-spread-columns"
+    /// `spreadColumnsProperty` in CSS, 1 outside a spread. A body height in screens multiplied by it
+    /// follows a rotation between one page and a spread.
+    static let spreadColumnsReference = "var(\(spreadColumnsProperty), 1)"
+
+    /// Two pages to a screen. `-webkit-paged-x` pages are always as wide as the viewport, and a
+    /// paginated document lays out multi-column elements in one column, so the spread replaces it
+    /// with columns on the root: two half-width columns fill each screen, and the ones that don't fit
+    /// run to the right, a screen at a time. Inside the media query, rotating switches between
+    /// the two layouts without a native step, as `-webkit-paged-x` follows the viewport.
+    ///
+    /// `<body>`'s left and right padding repeats in every column, so each column gets half the
+    /// margins a full-width page has: the same share of its width. Media limits are halved the same way. `Bridge.js` reads the column
+    /// count (`folioColumnsPerScreen`) where a page is measured in columns.
+    static func spreadRules(minimumWidth: CGFloat) -> String {
+        typealias P = CustomProperty
+        let horizontal = "html body.\(BodyClass.horizontal)"
+        let width = Int(exactly: minimumWidth).map(String.init) ?? "\(minimumWidth)"
+        return """
+            @media (orientation: landscape) and (min-width: \(width)px) {
+                html { \(spreadColumnsProperty): 2; overflow-x: auto !important; overflow-y: hidden !important; height: 100vh !important; column-count: 2 !important; column-gap: 0 !important; column-fill: auto !important; }
+                body { min-height: 200vh; }
+                /* Style.css limits media to 80vw, the settings images that stand alone to 84vw. */
+                img, svg, audio, video { max-width: 40vw !important; }
+                \(horizontal) {
+                    padding-left: calc(\(P.paddingLeft.reference) / 2 + \(P.safeAreaLeft.reference)) !important;
+                    padding-right: calc(\(P.paddingRight.reference) / 2 + \(P.safeAreaRight.reference)) !important;
+                }
+                \(scopedSelectors(descendant: "img.folioImg")) {
+                    max-width: 42vw !important;
+                }
+                \(horizontal) img.folioImg {
+                    margin-left: calc(-1 * max(\(P.paddingLeft.reference) / 2 - 1.25vw, 0vw)) !important;
+                    margin-right: calc(-1 * max(\(P.paddingRight.reference) / 2 - 1.25vw, 0vw)) !important;
+                }
+            }
+            """
     }
 
     // MARK: - Selectors

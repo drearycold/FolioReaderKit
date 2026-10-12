@@ -247,6 +247,26 @@ public class ReaderPreferences {
         }
     }
 
+    /// Whether horizontal paged pages show two pages side by side in a wide landscape view: the
+    /// user's choice, else `FolioReaderConfig.landscapeSpread`. Setting it saves the choice and lays
+    /// the current page out again where it was; other loaded chapters reload when shown.
+    public var currentLandscapeSpread: Bool {
+        get {
+            pref(boolFor: .currentLandscapeSpread, default: folioReader?.readerConfig?.landscapeSpread ?? true)
+        }
+        set (value) {
+            pref(setBool: value, for: .currentLandscapeSpread)
+
+            guard let readerCenter = folioReader?.readerCenter, let page = readerCenter.currentPage else { return }
+            if readerCenter.hasOtherSpreadSetting(page) {
+                page.spreadMinimumWidth = readerCenter.spreadMinimumWidth
+                // After a load or relayout in progress, which may have laid the page out with the old setting.
+                page.waitForLayoutFinish { page.applySpreadSetting() }
+            }
+            readerCenter.reloadPages(all: false)
+        }
+    }
+
     public var currentNavigationMenuIndex: Int {
         get {
             pref(intFor: .currentNavigationMenuIndex, default: 0)

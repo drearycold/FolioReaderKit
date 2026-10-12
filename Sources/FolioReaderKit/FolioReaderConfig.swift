@@ -229,6 +229,15 @@ open class FolioReaderConfig: NSObject {
     /// Enable or disable hability to user change scroll direction on menu.
     open var canChangeScrollDirection = true
 
+    /// Whether `.horizontalWithPagedContent` shows two pages side by side in a wide landscape view,
+    /// unless the user chose otherwise (`ReaderPreferences.currentLandscapeSpread`). Horizontal
+    /// writing only.
+    open var landscapeSpread = true
+
+    /// The narrowest page, in points, that shows two pages in landscape. The default leaves iPhones
+    /// (956 pt at most) with one page and gives every iPad two.
+    open var spreadMinimumWidth: CGFloat = 1000
+
     /// Enable or disable hability to user change font style on menu.
     open var canChangeFontStyle = true
     
@@ -331,6 +340,8 @@ open class FolioReaderConfig: NSObject {
     open var localizedLayoutHybrid = NSLocalizedString("Hybrid", comment: "")
     open var localizedLayoutPaged = NSLocalizedString("Paged", comment: "")
     open var localizedLayoutScroll = NSLocalizedString("Scroll", comment: "")
+    open var localizedLayoutSinglePage = NSLocalizedString("One Page", comment: "")
+    open var localizedLayoutTwoPages = NSLocalizedString("Two Pages", comment: "")
 
     
     open var localizedReaderOnePageLeft = NSLocalizedString("1 page left", comment: "")

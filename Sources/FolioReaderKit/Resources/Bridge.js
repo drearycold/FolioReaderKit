@@ -1093,7 +1093,7 @@ function findElementWithIDInView() {
 
         // Horizontal scroll
         if (document.body.scrollTop == 0) {
-            var elLeft = document.body.clientWidth * Math.floor(element.offsetTop / window.innerHeight);
+            var elLeft = folioScreenOffset(element.offsetTop);
             // document.body.scrollLeft = elLeft;
 
             if (elLeft == document.body.scrollLeft) {
@@ -1159,7 +1159,7 @@ function goToEl(el) {
         to scroll to that page.
     */
     if( document.body.scrollTop == 0 ){
-        var elLeft = document.body.clientWidth * Math.floor(el.offsetTop / window.innerHeight);
+        var elLeft = folioScreenOffset(el.offsetTop);
         document.body.scrollLeft = elLeft;
     }
 
@@ -1213,7 +1213,7 @@ function findSentenceWithIDInView(els) {
 
         // Horizontal scroll
         if (document.body.scrollTop == 0) {
-            var elLeft = document.body.clientWidth * Math.floor(element.offsetTop / window.innerHeight);
+            var elLeft = folioScreenOffset(element.offsetTop);
             // document.body.scrollLeft = elLeft;
 
             if (elLeft == document.body.scrollLeft) {
@@ -1829,16 +1829,36 @@ var onClassBasedListenerClick = function(schemeName, attributeContent) {
 	window.location = schemeName + "://" + attributeContent + positionParameterString;
 }
 
+/**
+ Columns on one screen in horizontal paged mode: 2 in a two-page spread, where the overflow style
+ lays the root out in columns (`FolioReaderCSSBuilder.spreadRules`), else 1. Read from the
+ `--folio-spread-columns` property the spread sets, not the root's `column-count`, which a book's
+ stylesheet can set too.
+ */
+function folioColumnsPerScreen() {
+    return parseInt(getComputedStyle(document.documentElement).getPropertyValue("--folio-spread-columns")) || 1
+}
+
+/**
+ The content offset of the screen that shows an element in horizontal paged mode. `offsetTop` counts
+ down the pages, or the columns of a spread, as if they were stacked, each one screen high.
+ `columns` is `folioColumnsPerScreen()`, which a loop reads once.
+ */
+function folioScreenOffset(offsetTop, columns = folioColumnsPerScreen()) {
+    return window.innerWidth * Math.floor(offsetTop / (window.innerHeight * columns))
+}
+
 function getOffsetsOfElementsWithID(horizontal) {
 
     const els = document.querySelectorAll("[id]")
+    const columns = folioColumnsPerScreen()
     var offsets = {}
-    
+
     for(const elem of els) {
         if (writingMode == "vertical-rl") {
             offsets[elem.id] = elem.offsetLeft
         } else if (horizontal) {
-            offsets[elem.id] = document.body.clientWidth * Math.floor(elem.offsetTop / window.innerHeight);
+            offsets[elem.id] = folioScreenOffset(elem.offsetTop, columns);
         } else {
             offsets[elem.id] = elem.offsetTop
         }
