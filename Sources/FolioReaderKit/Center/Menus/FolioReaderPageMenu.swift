@@ -19,10 +19,16 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
     /// One page or two side by side in landscape (`ReaderPreferences.currentLandscapeSpread`).
     let layoutSpreadSegment = FolioSegmentedControl()
     let lineB4Spread = UIView()
-    /// Only iPads are wide enough by default, and only horizontal writing has spreads.
-    private(set) lazy var showsSpreadSegment = readerConfig.canChangeScrollDirection
-        && traitCollection.userInterfaceIdiom == .pad
-        && folioReader.readerCenter?.currentPage?.writingMode != "vertical-rl"
+    /// Where the screen's long side reaches `spreadMinimumWidth` (by default every iPad and no
+    /// iPhone), and only horizontal writing has spreads.
+    private(set) lazy var showsSpreadSegment: Bool = {
+        let screen = folioReader.readerCenter?.view.window?.screen.bounds.size ?? .zero
+        return readerConfig.canChangeScrollDirection
+            && max(screen.width, screen.height) >= readerConfig.spreadMinimumWidth
+            && folioReader.readerCenter?.currentPage?.writingMode != "vertical-rl"
+    }()
+    /// The direction last chosen here. The reader applies it once it has recorded the position.
+    private var chosenScrollDirection: FolioReaderScrollDirection?
     
     let marginMenuVSegment = FolioSegmentedControl()
     let marginMenuVSegmentHeight = CGFloat(55)
@@ -338,7 +344,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
                 layoutSpreadSegment.frame = CGRect(x: 0, y: lineB4Spread.frame.maxY, width: frame.width, height: layoutDirectionSegmentHeight)
                 layoutSpreadSegment.segmentTitleFont = segmentFont  //to trigger segment width re-calculation
                 // Spreads are pages: the choice only applies in paged mode.
-                let paged = readerConfig.scrollDirection == .horizontalWithPagedContent
+                let paged = (chosenScrollDirection ?? readerConfig.scrollDirection) == .horizontalWithPagedContent
                 layoutSpreadSegment.isUserInteractionEnabled = paged
                 layoutSpreadSegment.alpha = paged ? 1 : 0.4
                 rowsMaxY = layoutSpreadSegment.frame.maxY
@@ -432,6 +438,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
             }
 
             self.folioReader.currentScrollDirection = index
+            chosenScrollDirection = FolioReaderScrollDirection(rawValue: index)
             layoutSubviews(frame: view.frame)
         }  else if segmentView.tag == 6 {
 

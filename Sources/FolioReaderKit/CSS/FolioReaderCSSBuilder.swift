@@ -290,13 +290,21 @@ enum FolioReaderCSSBuilder {
                 cssText += " body { min-width: 100vw; margin: 0 0 !important; }"
             } else {
                 cssText += " body { min-height: 100vh; margin: 0 0 !important; }"
-                if let spreadMinimumWidth = spreadMinimumWidth {
+                // An infinite width never shows a spread.
+                if let spreadMinimumWidth = spreadMinimumWidth, spreadMinimumWidth.isFinite {
                     cssText += " " + spreadRules(minimumWidth: spreadMinimumWidth)
                 }
             }
         }
         return cssText
     }
+
+    /// The columns on a screen: 2 on the root in a spread (`spreadRules`), unset otherwise. The reader
+    /// sets it, so a book's own `column-count` on `<html>` doesn't read as a spread.
+    static let spreadColumnsProperty = "--folio-spread-columns"
+    /// `spreadColumnsProperty` in CSS, 1 outside a spread. A body height in screens multiplied by it
+    /// follows a rotation between one page and a spread.
+    static let spreadColumnsReference = "var(\(spreadColumnsProperty), 1)"
 
     /// Two pages to a screen. `-webkit-paged-x` pages are always as wide as the viewport, and a
     /// paginated document lays out multi-column elements in one column, so the spread replaces it
@@ -310,10 +318,10 @@ enum FolioReaderCSSBuilder {
     static func spreadRules(minimumWidth: CGFloat) -> String {
         typealias P = CustomProperty
         let horizontal = "html body.\(BodyClass.horizontal)"
-        let width = minimumWidth.rounded() == minimumWidth ? "\(Int(minimumWidth))" : "\(minimumWidth)"
+        let width = Int(exactly: minimumWidth).map(String.init) ?? "\(minimumWidth)"
         return """
             @media (orientation: landscape) and (min-width: \(width)px) {
-                html { overflow-x: auto !important; overflow-y: hidden !important; height: 100vh !important; column-count: 2 !important; column-gap: 0 !important; column-fill: auto !important; }
+                html { \(spreadColumnsProperty): 2; overflow-x: auto !important; overflow-y: hidden !important; height: 100vh !important; column-count: 2 !important; column-gap: 0 !important; column-fill: auto !important; }
                 body { min-height: 200vh; }
                 /* Style.css limits media to 80vw, the settings images that stand alone to 84vw. */
                 img, svg, audio, video { max-width: 40vw !important; }

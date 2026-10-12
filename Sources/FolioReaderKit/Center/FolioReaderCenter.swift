@@ -133,6 +133,14 @@ open class FolioReaderCenter: UIViewController {
         folioReader.preferences.currentLandscapeSpread ? readerConfig.spreadMinimumWidth : nil
     }
 
+    /// Whether `page` is laid out for a spread setting other than the current one, where that
+    /// matters: horizontal writing in paged mode. Other pages pick the setting up when they turn paged.
+    func hasOtherSpreadSetting(_ page: FolioReaderPage) -> Bool {
+        page.spreadMinimumWidth != spreadMinimumWidth
+            && readerConfig.scrollDirection == .horizontalWithPagedContent
+            && page.writingMode != "vertical-rl"
+    }
+
     // MARK: - Init
 
     init(withContainer readerContainer: FolioReaderContainer) {

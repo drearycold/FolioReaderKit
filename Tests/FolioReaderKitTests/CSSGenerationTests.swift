@@ -174,6 +174,8 @@ class CSSGenerationTests: XCTestCase {
 
         let paged = FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: false)
         XCTAssertEqual(FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: false, spreadMinimumWidth: 1000), paged + " " + spread)
+        XCTAssertEqual(FolioReaderCSSBuilder.overflowCSS(overflow: "-webkit-paged-x", verticalWritingMode: false, spreadMinimumWidth: .infinity), paged, "Never a spread")
+        XCTAssertTrue(FolioReaderCSSBuilder.spreadRules(minimumWidth: .greatestFiniteMagnitude).contains("(min-width: 1.7976931348623157e+308px)"))
         for (overflow, vertical) in [("-webkit-paged-x", true), ("scroll", false), ("scroll", true)] {
             XCTAssertEqual(
                 FolioReaderCSSBuilder.overflowCSS(overflow: overflow, verticalWritingMode: vertical, spreadMinimumWidth: 1000),

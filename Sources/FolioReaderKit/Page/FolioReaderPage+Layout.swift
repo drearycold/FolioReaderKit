@@ -19,6 +19,14 @@ extension FolioReaderPage {
     /// of the page. Keeping the first visible text went back a spread on every round trip, as the
     /// single page that holds a spread's first line starts before the spread.
     func applySpreadSetting() {
+        guard let webView = webView else { return }
+        // Where neither setting shows a spread (portrait, narrower than the minimum: the media query
+        // in `spreadRules`), only the rules for a later rotation change, and the pages stay as they are.
+        let size = webView.bounds.size
+        guard size.width > size.height, size.width >= readerConfig.spreadMinimumWidth else {
+            FolioReaderCSSInjector.apply(id: FolioReaderCSSInjector.StyleID.overflow, css: overflowCSS(for: webView), to: webView)
+            return
+        }
         relayout(direction: readerConfig.scrollDirection, keepingFirstVisibleText: false)
     }
 
@@ -37,13 +45,17 @@ extension FolioReaderPage {
         // the paged axis: the position became the chapter heading, and the offset ratio 0.
         self.updatePageOffsetRate()
 
-        let pinned = keepingFirstVisibleText ? nil : pinnedPosition
+        // The pinned position needs no measuring.
+        if !keepingFirstVisibleText, let pinned = pinnedPosition {
+            let restorable = FolioReaderCenter.isRestorableCFI(pinned.cfi, pageNumber: pageNumber)
+            applyScrollDirection(direction, restoring: restorable ? pinned : nil)
+            return
+        }
         getWebViewScrollPosition(firstVisibleText: keepingFirstVisibleText, onFailure: {
-            self.applyScrollDirection(direction, restoring: pinned)
+            self.applyScrollDirection(direction, restoring: nil)
         }) { position in
-            let anchor = pinned ?? position
-            let restorable = FolioReaderCenter.isRestorableCFI(anchor.cfi, pageNumber: self.pageNumber)
-            self.applyScrollDirection(direction, restoring: restorable ? anchor : nil)
+            let restorable = FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: self.pageNumber)
+            self.applyScrollDirection(direction, restoring: restorable ? position : nil)
         }
     }
 
@@ -146,7 +158,7 @@ writingMode
             let overflowCSSInterval = FolioSignpost.begin("OverflowCSS", "page \(self.pageNumber)")
             FolioReaderCSSInjector.apply(
                 id: FolioReaderCSSInjector.StyleID.overflow,
-                css: FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: self.writingMode == "vertical-rl", spreadMinimumWidth: self.spreadMinimumWidth),
+                css: self.overflowCSS(for: webView),
                 to: webView
             ) {
                 overflowCSSInterval.end()
@@ -157,6 +169,16 @@ writingMode
         }
     }
     
+    /// The `folio_style_overflow` CSS for the current layout, with the spread setting in effect now,
+    /// which it records (`spreadMinimumWidth`): a page that was in scroll mode or vertical writing
+    /// when the setting changed may have kept the old one.
+    private func overflowCSS(for webView: FolioReaderWebView) -> String {
+        if let readerCenter = folioReader.readerCenter {
+            spreadMinimumWidth = readerCenter.spreadMinimumWidth
+        }
+        return FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: writingMode == "vertical-rl", spreadMinimumWidth: spreadMinimumWidth)
+    }
+
     /// Continues once the web view's native content size reflects the current layout, or after
     /// `timeout` at the latest (the fixed delay this replaces). See `WebViewLayoutWaiter`.
     func waitForLayout(timeout: Double, label: String, _ completion: @escaping () -> Void) {
@@ -290,13 +312,14 @@ struct BackgroundPaddingSearch {
 
     /// Sizes `<body>` for `step`. In horizontal writing its height counts the pages it fills, each one
     /// viewport high: the pages of `-webkit-paged-x`, or the columns of a two-page spread, two to a
-    /// screen (`folioColumnsPerScreen` in `Bridge.js`).
+    /// screen. The column count stays in the CSS (`FolioReaderCSSBuilder.spreadColumnsReference`), so
+    /// a chapter that isn't laid out again after a rotation keeps its size in screens.
     static func script(for step: Step) -> String {
         """
         if (writingMode == 'vertical-rl') {
             document.body.style.width     = "\(step.screens * 100 - (step.shrinking ? 200 : 0))vw"
         } else {
-            document.body.style.minHeight = (\(step.screens - (step.shrinking ? 1 : 0)) * folioColumnsPerScreen() * 100) + "vh"
+            document.body.style.minHeight = "calc(\(step.screens - (step.shrinking ? 1 : 0)) * \(FolioReaderCSSBuilder.spreadColumnsReference) * 100vh)"
         }
         """
     }

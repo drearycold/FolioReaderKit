@@ -69,7 +69,7 @@ enum FolioReaderCSSInjector {
             if (writingMode == 'vertical-rl') {
                 document.body.style.minWidth = "100vw";
             } else {
-                document.body.style.minHeight = "100vh";
+                document.body.style.minHeight = "calc(\(FolioReaderCSSBuilder.spreadColumnsReference) * 100vh)";
             }
             \(sheets)
             \(debugDump)

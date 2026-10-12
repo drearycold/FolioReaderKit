@@ -1831,31 +1831,34 @@ var onClassBasedListenerClick = function(schemeName, attributeContent) {
 
 /**
  Columns on one screen in horizontal paged mode: 2 in a two-page spread, where the overflow style
- lays the root out in columns (`FolioReaderCSSBuilder.spreadRules`), else 1. Under
- `-webkit-paged-x` the root's column count is `auto`.
+ lays the root out in columns (`FolioReaderCSSBuilder.spreadRules`), else 1. Read from the
+ `--folio-spread-columns` property the spread sets, not the root's `column-count`, which a book's
+ stylesheet can set too.
  */
 function folioColumnsPerScreen() {
-    return parseInt(getComputedStyle(document.documentElement).columnCount) || 1
+    return parseInt(getComputedStyle(document.documentElement).getPropertyValue("--folio-spread-columns")) || 1
 }
 
 /**
  The content offset of the screen that shows an element in horizontal paged mode. `offsetTop` counts
  down the pages, or the columns of a spread, as if they were stacked, each one screen high.
+ `columns` is `folioColumnsPerScreen()`, which a loop reads once.
  */
-function folioScreenOffset(offsetTop) {
-    return window.innerWidth * Math.floor(offsetTop / (window.innerHeight * folioColumnsPerScreen()))
+function folioScreenOffset(offsetTop, columns = folioColumnsPerScreen()) {
+    return window.innerWidth * Math.floor(offsetTop / (window.innerHeight * columns))
 }
 
 function getOffsetsOfElementsWithID(horizontal) {
 
     const els = document.querySelectorAll("[id]")
+    const columns = folioColumnsPerScreen()
     var offsets = {}
-    
+
     for(const elem of els) {
         if (writingMode == "vertical-rl") {
             offsets[elem.id] = elem.offsetLeft
         } else if (horizontal) {
-            offsets[elem.id] = folioScreenOffset(elem.offsetTop);
+            offsets[elem.id] = folioScreenOffset(elem.offsetTop, columns);
         } else {
             offsets[elem.id] = elem.offsetTop
         }

@@ -258,9 +258,10 @@ public class ReaderPreferences {
             pref(setBool: value, for: .currentLandscapeSpread)
 
             guard let readerCenter = folioReader?.readerCenter, let page = readerCenter.currentPage else { return }
-            page.spreadMinimumWidth = readerCenter.spreadMinimumWidth
-            if readerCenter.readerConfig.scrollDirection == .horizontalWithPagedContent {
-                page.applySpreadSetting()
+            if readerCenter.hasOtherSpreadSetting(page) {
+                page.spreadMinimumWidth = readerCenter.spreadMinimumWidth
+                // After a load or relayout in progress, which may have laid the page out with the old setting.
+                page.waitForLayoutFinish { page.applySpreadSetting() }
             }
             readerCenter.reloadPages(all: false)
         }

@@ -29,7 +29,7 @@ enum WebViewLayoutWaiter {
     struct Measurement: Equatable {
         let document: CGSize
         let viewport: CGSize
-        /// The root's column count: 2 in a spread, else 1.
+        /// The columns on a screen (`--folio-spread-columns`): 2 in a spread, else 1.
         var columns = 1
     }
 
@@ -39,7 +39,8 @@ enum WebViewLayoutWaiter {
             var e = document.scrollingElement || document.documentElement;
             var fontsLoaded = !document.fonts || document.fonts.status === 'loaded';
             // window.inner* is the viewport; documentElement.client* is the whole document in quirks mode.
-            var columns = parseInt(getComputedStyle(document.documentElement).columnCount) || 1;
+            // Set by the spread (FolioReaderCSSBuilder.spreadColumnsProperty), unlike column-count, which a book can set.
+            var columns = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--folio-spread-columns')) || 1;
             return JSON.stringify([e.scrollWidth, e.scrollHeight, window.innerWidth, window.innerHeight, fontsLoaded, columns]);
         })()
         """
