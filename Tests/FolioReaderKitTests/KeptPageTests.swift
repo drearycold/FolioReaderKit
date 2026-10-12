@@ -144,4 +144,29 @@ final class KeptPageTests: XCTestCase {
         page.apply(attributes)
         XCTAssertEqual(page.transform, CGAffineTransform(scaleX: -1, y: 1))
     }
+
+    /// On iPad every focus update asks the collection view for its preferred focused cell, and the
+    /// collection view prepares that cell, from the data source if it isn't shown. It took the
+    /// first item: 1984's cover loaded again off screen in a dequeued cell, evicting a kept chapter.
+    func testTheFocusSystemIsPointedAtThePageOnScreen() throws {
+        let config = FolioReaderConfig()
+        config.scrollDirection = .horizontalWithPagedContent
+        let container = FolioReaderContainer(withConfig: config, folioReader: FolioReader(), epubPath: "", webServer: ReadiumGCDWebServer())
+        containers.append(container)
+        container.loadViewIfNeeded()
+        let center = try XCTUnwrap(container.centerViewController)
+        center.loadViewIfNeeded()
+        let collectionView = try XCTUnwrap(center.collectionView)
+        center.totalPages = 7
+        collectionView.frame = CGRect(x: 0, y: 0, width: 744, height: 1133)
+        collectionView.reloadData()
+        collectionView.layoutIfNeeded()
+        collectionView.contentOffset = CGPoint(x: 744 * 5, y: 0)
+        collectionView.layoutIfNeeded()
+        XCTAssertEqual(collectionView.indexPathsForVisibleItems, [IndexPath(item: 5, section: 0)])
+
+        let preferred = try XCTUnwrap(collectionView.preferredFocusEnvironments.first as? UICollectionViewCell)
+        XCTAssertEqual(collectionView.indexPath(for: preferred), IndexPath(item: 5, section: 0))
+        XCTAssertEqual(collectionView.indexPathsForVisibleItems, [IndexPath(item: 5, section: 0)], "No chapter loaded off screen")
+    }
 }
