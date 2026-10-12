@@ -270,6 +270,45 @@ final class FolioReaderPageFrameTests: XCTestCase {
         XCTAssertEqual(spread(landscape, writingMode: "vertical-rl"), CGRect(x: 169, y: 0, width: 795, height: 744))
     }
 
+    /// Tiers, one above the other, repeat `<body>`'s top and bottom padding: the frame adds as much
+    /// again above and below the web view, so the gap between the tiers is as wide as the margin
+    /// above them.
+    func testTiersInsetTheOuterMarginsByTheTiersPadding() {
+        func tiers(_ bounds: CGRect, top: Int = 10, bottom: Int = 10, minimumHeight: CGFloat? = 1000, left: Int = 30, right: Int = 30, pagesDown: Bool = true) -> CGRect {
+            FolioReaderPageFrameCalculator.webViewFrame(input: makeInput(
+                bounds: bounds,
+                writingMode: "vertical-rl",
+                scrollDirection: pagesDown ? .vertical : .horizontalWithPagedContent,
+                pagesDown: pagesDown,
+                tiersMinimumHeight: minimumHeight,
+                currentMarginTop: top,
+                currentMarginBottom: bottom,
+                currentMarginLeft: left,
+                currentMarginRight: right,
+                pageWidth: bounds.width,
+                pageHeight: bounds.height
+            ))
+        }
+        // iPad mini in portrait: the side margins inset the page to 522 points; 5vh margins put
+        // 1.25% of the web view's height outside it. 1133 = 1107 * 1.025 (13 + 13 points, rounded down).
+        let portrait = CGRect(x: 0, y: 0, width: 744, height: 1133)
+        XCTAssertEqual(tiers(portrait), CGRect(x: 111, y: 13, width: 522, height: 1107))
+        XCTAssertEqual(tiers(portrait, top: 50, bottom: 50), CGRect(x: 111, y: 62, width: 522, height: 1009))
+
+        // The web view stays as tall as the media query asks, and portrait.
+        XCTAssertEqual(tiers(CGRect(x: 0, y: 0, width: 744, height: 1040), top: 30, bottom: 30), CGRect(x: 111, y: 20, width: 522, height: 1000))
+        XCTAssertEqual(tiers(CGRect(x: 0, y: 0, width: 1060, height: 1100), top: 30, bottom: 30, left: 0, right: 0), CGRect(x: 0, y: 20, width: 1060, height: 1060))
+
+        // No tiers: the frame is the page's.
+        let page = CGRect(x: 111, y: 0, width: 522, height: 1133)
+        XCTAssertEqual(tiers(portrait, minimumHeight: nil), page)
+        XCTAssertEqual(tiers(portrait, minimumHeight: .infinity), page)
+        XCTAssertEqual(tiers(portrait, minimumHeight: 1134), page)
+        XCTAssertEqual(tiers(portrait, top: 0, bottom: 0), page)
+        XCTAssertEqual(tiers(portrait, pagesDown: false), page, "Paged right to left")
+        XCTAssertEqual(tiers(CGRect(x: 0, y: 0, width: 1133, height: 744)), CGRect(x: 169, y: 0, width: 795, height: 744), "Landscape")
+    }
+
     /// A spread fits by the web view's size before its outer margins, which narrow it.
     func testFitsSpreadMeasuresThePageBeforeTheOuterMargins() {
         let input = makeInput(
@@ -292,6 +331,7 @@ final class FolioReaderPageFrameTests: XCTestCase {
         scrollDirection: FolioReaderScrollDirection = .horizontalWithScrollContent,
         pagesDown: Bool = false,
         spreadMinimumWidth: CGFloat? = nil,
+        tiersMinimumHeight: CGFloat? = nil,
         currentMarginTop: Int = 0,
         currentMarginBottom: Int = 0,
         currentMarginLeft: Int = 0,
@@ -310,6 +350,7 @@ final class FolioReaderPageFrameTests: XCTestCase {
             scrollDirection: scrollDirection,
             pagesDown: pagesDown,
             spreadMinimumWidth: spreadMinimumWidth,
+            tiersMinimumHeight: tiersMinimumHeight,
             currentMarginTop: currentMarginTop,
             currentMarginBottom: currentMarginBottom,
             currentMarginLeft: currentMarginLeft,

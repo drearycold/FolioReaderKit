@@ -344,9 +344,10 @@ enum FolioReaderCSSBuilder {
     /// full-width page's, the same share of a page's width, and the gutter is as wide as one, as in a
     /// printed book. Media limits are halved. `Bridge.js` reads the column count
     /// (`folioColumnsPerScreen`) where a page is measured in columns.
-    /// A spread column's `<body>` padding is a full-width page's divided by this, and so is each
-    /// outer margin the page adds outside the web view.
-    static let spreadPaddingDivisor = 4
+    /// With two pages to a screen (a spread's columns, or tiers), each one's `<body>` padding is a
+    /// full-size page's divided by this, and so is each outer margin the page adds outside the web
+    /// view (`FolioReaderPageFrameCalculator`).
+    static let columnPaddingDivisor = 4
 
     static func spreadRules(minimumWidth: CGFloat) -> String {
         typealias P = CustomProperty
@@ -358,15 +359,15 @@ enum FolioReaderCSSBuilder {
                 /* Style.css limits media to 80vw, the settings images that stand alone to 84vw. */
                 img, svg, audio, video { max-width: 40vw !important; }
                 \(horizontal) {
-                    padding-left: calc(\(P.paddingLeft.reference) / \(spreadPaddingDivisor) + \(P.safeAreaLeft.reference)) !important;
-                    padding-right: calc(\(P.paddingRight.reference) / \(spreadPaddingDivisor) + \(P.safeAreaRight.reference)) !important;
+                    padding-left: calc(\(P.paddingLeft.reference) / \(columnPaddingDivisor) + \(P.safeAreaLeft.reference)) !important;
+                    padding-right: calc(\(P.paddingRight.reference) / \(columnPaddingDivisor) + \(P.safeAreaRight.reference)) !important;
                 }
                 \(scopedSelectors(descendant: "img.folioImg")) {
                     max-width: 42vw !important;
                 }
                 \(horizontal) img.folioImg {
-                    margin-left: calc(-1 * max(\(P.paddingLeft.reference) / \(spreadPaddingDivisor) - 1.25vw, 0vw)) !important;
-                    margin-right: calc(-1 * max(\(P.paddingRight.reference) / \(spreadPaddingDivisor) - 1.25vw, 0vw)) !important;
+                    margin-left: calc(-1 * max(\(P.paddingLeft.reference) / \(columnPaddingDivisor) - 1.25vw, 0vw)) !important;
+                    margin-right: calc(-1 * max(\(P.paddingRight.reference) / \(columnPaddingDivisor) - 1.25vw, 0vw)) !important;
                 }
             }
             """
@@ -381,8 +382,9 @@ enum FolioReaderCSSBuilder {
     ///
     /// `--folio-pages-down` tells `Bridge.js` (`folioPagesDown`) to measure pages in y. As in
     /// `spreadRules`, `<body>`'s inline padding (top and bottom here) repeats in every tier, so each
-    /// tier gets half the margins, and media limits are halved. An infinite `minimumHeight` never
-    /// shows tiers: the pages still run down, one to a screen.
+    /// tier gets a quarter of the margins and the page adds as much again above and below the web
+    /// view: the gap between the tiers is as wide as the margin above them. Media limits are halved.
+    /// An infinite `minimumHeight` never shows tiers: the pages still run down, one to a screen.
     static func tieredRules(minimumHeight: CGFloat) -> String {
         typealias P = CustomProperty
         let vertical = "html body.\(BodyClass.vertical)"
@@ -398,15 +400,15 @@ enum FolioReaderCSSBuilder {
                 /* Style.css limits media to 80vh, the settings images that stand alone to 84vh. */
                 img, svg, audio, video { max-height: 40vh !important; }
                 \(vertical) {
-                    padding-top: calc(\(P.paddingTop.reference) / 2) !important;
-                    padding-bottom: calc(\(P.paddingBottom.reference) / 2) !important;
+                    padding-top: calc(\(P.paddingTop.reference) / \(columnPaddingDivisor)) !important;
+                    padding-bottom: calc(\(P.paddingBottom.reference) / \(columnPaddingDivisor)) !important;
                 }
                 \(scopedSelectors(descendant: "img.folioImg")) {
                     max-height: 42vh !important;
                 }
                 \(vertical) img.folioImg {
-                    margin-top: calc(-1 * max(\(P.paddingTop.reference) / 2 - 1.25vh, 0vh)) !important;
-                    margin-bottom: calc(-1 * max(\(P.paddingBottom.reference) / 2 - 1.25vh, 0vh)) !important;
+                    margin-top: calc(-1 * max(\(P.paddingTop.reference) / \(columnPaddingDivisor) - 1.25vh, 0vh)) !important;
+                    margin-bottom: calc(-1 * max(\(P.paddingBottom.reference) / \(columnPaddingDivisor) - 1.25vh, 0vh)) !important;
                 }
             }
             """
