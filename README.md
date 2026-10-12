@@ -127,7 +127,7 @@ Set both `reserve…` options to `false` and the margins to `0` for edge-to-edge
 
 ### Two-page spread
 
-In paged mode, horizontal-writing books show two pages side by side while the page is landscape and wide enough. Each page gets half the left and right margins a full-width page has. A spread counts as one page in page numbers and progress. Users choose "One Page" or "Two Pages" in the page menu on iPad (`ReaderPreferences.currentLandscapeSpread`, stored under `currentLandscapeSpread`).
+In paged mode, horizontal-writing books show two pages side by side while the page is landscape and wide enough. Each page's outer margin is about half a full-width page's, the same share of its width, and the gutter between the pages is as wide as one outer margin, as in a printed book. A spread counts as one page in page numbers and progress. Users choose "One Page" or "Two Pages" in the page menu on iPad (`ReaderPreferences.currentLandscapeSpread`, stored under `currentLandscapeSpread`).
 
 | Option | Default | Effect |
 |---|---|---|

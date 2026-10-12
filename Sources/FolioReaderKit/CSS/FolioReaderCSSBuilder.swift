@@ -143,17 +143,21 @@ enum FolioReaderCSSBuilder {
             .textIndent: "calc((\(letterSpacing)em + 1em) * \(abs(state.textIndent)))\(state.textIndent < 0 ? " hanging" : "")",
             .paragraphSpaceBefore: state.isVerticalWritingMode ? "0em" : "1em",
             .paragraphSpaceAfter: state.isVerticalWritingMode ? "\(spaceAfter / 2)em" : "\(spaceAfter)em",
-            // Each margin step of 5 is 2.5% of the viewport.
-            .paddingTop: "\(Double(state.marginTop / 5) * 2.5)vh",
-            .paddingBottom: "\(Double(state.marginBottom / 5) * 2.5)vh",
-            .paddingLeft: "\(Double(state.marginLeft / 5) * 2.5)vw",
-            .paddingRight: "\(Double(state.marginRight / 5) * 2.5)vw",
+            .paddingTop: "\(paddingPercent(margin: state.marginTop))vh",
+            .paddingBottom: "\(paddingPercent(margin: state.marginBottom))vh",
+            .paddingLeft: "\(paddingPercent(margin: state.marginLeft))vw",
+            .paddingRight: "\(paddingPercent(margin: state.marginRight))vw",
             // The page frame keeps clear of the status bar only; in landscape the Dynamic Island or
             // notch is at the side, inside the web view. `env()` follows rotation without a refresh.
             .safeAreaLeft: state.reserveSafeArea ? "env(safe-area-inset-left, 0px)" : "0px",
             .safeAreaRight: state.reserveSafeArea ? "env(safe-area-inset-right, 0px)" : "0px",
         ]
         return CustomProperty.allCases.map { (name: $0.rawValue, value: values[$0] ?? "") }
+    }
+
+    /// The `<body>` padding for a margin setting, in percent of the viewport: each step of 5 is 2.5%.
+    static func paddingPercent(margin: Int) -> Double {
+        Double(margin / 5) * 2.5
     }
 
     /// `value` as a double-quoted CSS string.
@@ -333,10 +337,17 @@ enum FolioReaderCSSBuilder {
     /// run to the right, a screen at a time. Inside the media query, rotating switches between
     /// the two layouts without a native step, as `-webkit-paged-x` follows the viewport.
     ///
-    /// `<body>`'s left and right padding repeats in every column, so each column gets half the
-    /// margins a full-width page has: the same share of its width. Media limits are halved the same
-    /// way. `Bridge.js` reads the column count (`folioColumnsPerScreen`) where a page is measured in
-    /// columns.
+    /// `<body>`'s left and right padding repeats in every column, so the gutter is two columns'
+    /// padding, and evenly spaced columns can't make it narrower than both outer margins together.
+    /// Each column gets a quarter of a full-width page's margins, and the page adds as much again
+    /// outside the web view (`FolioReaderPageFrameCalculator`): each outer margin is about half a
+    /// full-width page's, the same share of a page's width, and the gutter is as wide as one, as in a
+    /// printed book. Media limits are halved. `Bridge.js` reads the column count
+    /// (`folioColumnsPerScreen`) where a page is measured in columns.
+    /// A spread column's `<body>` padding is a full-width page's divided by this, and so is each
+    /// outer margin the page adds outside the web view.
+    static let spreadPaddingDivisor = 4
+
     static func spreadRules(minimumWidth: CGFloat) -> String {
         typealias P = CustomProperty
         let horizontal = "html body.\(BodyClass.horizontal)"
@@ -347,15 +358,15 @@ enum FolioReaderCSSBuilder {
                 /* Style.css limits media to 80vw, the settings images that stand alone to 84vw. */
                 img, svg, audio, video { max-width: 40vw !important; }
                 \(horizontal) {
-                    padding-left: calc(\(P.paddingLeft.reference) / 2 + \(P.safeAreaLeft.reference)) !important;
-                    padding-right: calc(\(P.paddingRight.reference) / 2 + \(P.safeAreaRight.reference)) !important;
+                    padding-left: calc(\(P.paddingLeft.reference) / \(spreadPaddingDivisor) + \(P.safeAreaLeft.reference)) !important;
+                    padding-right: calc(\(P.paddingRight.reference) / \(spreadPaddingDivisor) + \(P.safeAreaRight.reference)) !important;
                 }
                 \(scopedSelectors(descendant: "img.folioImg")) {
                     max-width: 42vw !important;
                 }
                 \(horizontal) img.folioImg {
-                    margin-left: calc(-1 * max(\(P.paddingLeft.reference) / 2 - 1.25vw, 0vw)) !important;
-                    margin-right: calc(-1 * max(\(P.paddingRight.reference) / 2 - 1.25vw, 0vw)) !important;
+                    margin-left: calc(-1 * max(\(P.paddingLeft.reference) / \(spreadPaddingDivisor) - 1.25vw, 0vw)) !important;
+                    margin-right: calc(-1 * max(\(P.paddingRight.reference) / \(spreadPaddingDivisor) - 1.25vw, 0vw)) !important;
                 }
             }
             """

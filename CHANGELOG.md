@@ -28,6 +28,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 
 **Changed:**
 
+- In a two-page spread the gutter is as wide as an outer margin, as in a printed book; it was twice as wide. Each column's padding is a quarter of a full-width page's left and right margins (it was half), and the page adds as much again outside the web view, so each outer margin is still about half a full-width page's. Near `spreadMinimumWidth` the outer margins are narrower: the web view stays at least that wide, or the spread would turn into one page (a 1024 pt iPad gets 12 pt a side at the iPad's default margins instead of about 38). A swipe that starts in a spread's outer margin, beside the web view, turns the page as one on the text does.
 - `Style.css` animates only the background and text colors of `html` and `body` (theme changes), no longer every property. The reader measures the layout right after a settings change, and an animated padding or `min-height` was measured halfway through: wrong page counts, a blank trailing page, a drifted position.
 - Rotation restores the reading position to the text that was at the top of the screen (its CFI) instead of the same scroll ratio, which drifted when text reflowed. `handleAnchor(...)` gained `flashTarget:` (default `true`) to skip the yellow flash.
 - In paged mode the reading position is the middle of the visible text (`getVisibleMiddleCFI` in `Bridge.js`) instead of its first character. Restoring shows the page that holds the position, and a page usually starts before the text that brought the reader there, so recording the start moved the reader back about half a page on every rotation or other relayout; the middle stays on the same page. Positions saved by earlier versions still restore to the same page. The snippet, used for bookmark titles, still comes from the start of the page. Scroll mode is unchanged.
@@ -49,6 +50,7 @@ See [ROADMAP.md](ROADMAP.md) for the plan this belongs to.
 
 **Fixed:**
 
+- The page-item navigation (`changePageItemToNext`, `changePageItemToPrevious`, `changePageItemToLast`, `changePageItem(to:)`) steps by the web view's width, which its scroll view pages by, instead of the page's. They differ in a spread, and in vertical writing in paged mode, whose margins inset the web view. The pan dead zones around the web view cover its margins exactly; the side ones started at the top of the page instead of beside the web view, and the top and bottom ones were only as wide as the web view.
 - Runtime style changes no longer add a new `WKUserScript` each time.
 - `FolioReaderContainer` loads its book once. Before, every `viewWillAppear` (a host switching tabs, or a full-screen sheet closing) re-parsed the book, re-applied the position it was opened at and reloaded the pages, which sent the reader back to that position.
 - Zero page margins are respected (`FolioReaderPageFrameCalculator`).

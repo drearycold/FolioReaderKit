@@ -93,6 +93,14 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
     /// The scroll direction the chapter is laid out for (`recordLayout`).
     var layoutScrollDirection: FolioReaderScrollDirection?
+    /// The spread setting the chapter is laid out for (`recordLayout`). The web view's frame follows
+    /// it, as a spread's outer margins are partly outside the web view: it changes with the overflow
+    /// style, not when the setting does, which is before the position is recorded.
+    var layoutSpreadMinimumWidth: CGFloat? {
+        didSet {
+            if layoutSpreadMinimumWidth != oldValue { setNeedsLayout() }
+        }
+    }
     /// The web view size (`webViewFrame()`) the chapter is laid out for, which its background
     /// padding and content offset fit (`recordLayout`, `updateStyleBackgroundPadding`).
     var layoutSize = CGSize.zero
@@ -326,16 +334,17 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         let webViewFrame = self.webViewFrame()
         webView?.frame = webViewFrame
         
-        let panDeadZoneTopFrame = CGRect(x: 0, y: 0, width: webViewFrame.width, height: webViewFrame.minY)
+        // The zones cover the margins around the web view, the corners with the top and bottom ones.
+        let panDeadZoneTopFrame = CGRect(x: 0, y: 0, width: frame.width, height: webViewFrame.minY)
         panDeadZoneTop?.frame = panDeadZoneTopFrame
         
-        let panDeadZoneBotFrame = CGRect(x: 0, y: webViewFrame.maxY, width: webViewFrame.width, height: frame.height - webViewFrame.maxY)
+        let panDeadZoneBotFrame = CGRect(x: 0, y: webViewFrame.maxY, width: frame.width, height: frame.height - webViewFrame.maxY)
         panDeadZoneBot?.frame = panDeadZoneBotFrame
         
-        let panDeadZoneLeftFrame = CGRect(x: 0, y: 0, width: webViewFrame.minX, height: webViewFrame.height)
+        let panDeadZoneLeftFrame = CGRect(x: 0, y: webViewFrame.minY, width: webViewFrame.minX, height: webViewFrame.height)
         panDeadZoneLeft?.frame = panDeadZoneLeftFrame
         
-        let panDeadZoneRightFrame = CGRect(x: webViewFrame.maxX, y: 0, width: frame.width - webViewFrame.maxX, height: webViewFrame.height)
+        let panDeadZoneRightFrame = CGRect(x: webViewFrame.maxX, y: webViewFrame.minY, width: frame.width - webViewFrame.maxX, height: webViewFrame.height)
         panDeadZoneRight?.frame = panDeadZoneRightFrame
         
         print("\(#function) frame=\(frame) webViewFrame=\(webViewFrame)  panDeadZoneLeftFrame=\(panDeadZoneLeftFrame) panDeadZoneRightFrame=\(panDeadZoneRightFrame)")
@@ -346,8 +355,23 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         FolioReaderPageFrameCalculator.webViewFrame(input: pageFrameInput)
     }
     
+    /// Whether the page, in horizontal writing in paged mode, is wide enough for a spread at
+    /// `minimumWidth` (`FolioReaderPageFrameCalculator.fitsSpread`).
+    func fitsSpread(minimumWidth: CGFloat) -> Bool {
+        FolioReaderPageFrameCalculator.fitsSpread(input: pageFrameInput, minimumWidth: minimumWidth)
+    }
+
     func anchorBoundsFrame() -> CGRect {
         FolioReaderPageFrameCalculator.anchorBoundsFrame(input: pageFrameInput)
+    }
+
+    /// A swipe that starts in a spread's outer margin, beside the web view, turns the page as one on
+    /// the text does: the margin's pan dead zone would swallow it.
+    override open func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let view = super.hitTest(point, with: event)
+        guard let webView = webView, view != nil, view === panDeadZoneLeft || view === panDeadZoneRight,
+              FolioReaderPageFrameCalculator.spreadInsets(input: pageFrameInput) != .zero else { return view }
+        return webView.scrollView
     }
     
     func loadHTMLString(_ htmlContent: String, baseURL: URL?) {
@@ -417,6 +441,7 @@ private extension FolioReaderPage {
             writingMode: writingMode,
             scrollDirection: readerConfig.scrollDirection,
             pagesDown: pagesDown,
+            spreadMinimumWidth: layoutSpreadMinimumWidth,
             currentMarginTop: folioReader.currentMarginTop,
             currentMarginBottom: folioReader.currentMarginBottom,
             currentMarginLeft: folioReader.currentMarginLeft,
@@ -438,6 +463,8 @@ struct FolioReaderPageFrameInput {
     let scrollDirection: FolioReaderScrollDirection
     /// Vertical writing in `.vertical`, paged down (`FolioReaderPage.pagesDown`).
     var pagesDown = false
+    /// The spread setting the page is laid out for (`FolioReaderPage.layoutSpreadMinimumWidth`).
+    var spreadMinimumWidth: CGFloat? = nil
     let currentMarginTop: Int
     let currentMarginBottom: Int
     let currentMarginLeft: Int
@@ -459,16 +486,18 @@ enum FolioReaderPageFrameCalculator {
     /// screens, and `updateStyleBackgroundPadding` never finished.
     static func webViewFrame(input: FolioReaderPageFrameInput) -> CGRect {
         let metrics = FrameMetrics(input: input)
-        let paged = metrics.pagedPadding
+        return metrics.pageFrame.inset(by: metrics.spreadInsets)
+    }
 
-        return input.bounds
-            .inset(by: metrics.reserved)
-            .inset(by: metrics.byWritingMode(
-                horizontal: UIEdgeInsets(top: paged.top, left: 0, bottom: paged.bottom, right: 0),
-                vertical: UIEdgeInsets(top: 0, left: paged.left, bottom: 0, right: paged.right)
-            ))
-            .clampedToNonNegativeSize
-            .flooredSize
+    /// A spread's outer margins outside the web view (`FrameMetrics.spreadInsets`), else zero.
+    static func spreadInsets(input: FolioReaderPageFrameInput) -> UIEdgeInsets {
+        FrameMetrics(input: input).spreadInsets
+    }
+
+    /// Whether the page shows a spread at `minimumWidth`, in horizontal writing in paged mode: its
+    /// web view, before a spread's outer margins, is landscape and at least that wide.
+    static func fitsSpread(input: FolioReaderPageFrameInput, minimumWidth: CGFloat) -> Bool {
+        FrameMetrics(input: input).fitsSpread(minimumWidth: minimumWidth)
     }
 
     /// The text area in the page's coordinates, where `FolioReaderAnchorPreview` places itself. In
@@ -519,6 +548,43 @@ private struct FrameMetrics {
     /// directions leave them to the CSS body padding.
     var pagedPadding: UIEdgeInsets {
         input.scrollDirection == .horizontalWithPagedContent || input.pagesDown ? padding : .zero
+    }
+
+    /// The web view's frame without a spread's outer margins.
+    var pageFrame: CGRect {
+        let paged = pagedPadding
+        return input.bounds
+            .inset(by: reserved)
+            .inset(by: byWritingMode(
+                horizontal: UIEdgeInsets(top: paged.top, left: 0, bottom: paged.bottom, right: 0),
+                vertical: UIEdgeInsets(top: 0, left: paged.left, bottom: 0, right: paged.right)
+            ))
+            .clampedToNonNegativeSize
+            .flooredSize
+    }
+
+    /// As `FolioReaderCSSBuilder.spreadRules`' media query asks, before the outer margins.
+    func fitsSpread(minimumWidth: CGFloat) -> Bool {
+        let size = pageFrame.size
+        return input.scrollDirection == .horizontalWithPagedContent && input.writingMode != "vertical-rl"
+            && size.width > size.height && size.width >= minimumWidth
+    }
+
+    /// A spread's outer margins outside the web view, each as wide as its columns' padding
+    /// (`FolioReaderCSSBuilder.spreadRules`: a fraction of the web view's width), so the gutter, two
+    /// columns' padding, is as wide as an outer margin. The web view stays as wide as the media
+    /// query asks, so near `spreadMinimumWidth` the outer margins are narrower.
+    var spreadInsets: UIEdgeInsets {
+        guard let minimumWidth = input.spreadMinimumWidth, fitsSpread(minimumWidth: minimumWidth) else { return .zero }
+        let divisor = 100 * Double(FolioReaderCSSBuilder.spreadPaddingDivisor)
+        let left = CGFloat(FolioReaderCSSBuilder.paddingPercent(margin: input.currentMarginLeft) / divisor)
+        let right = CGFloat(FolioReaderCSSBuilder.paddingPercent(margin: input.currentMarginRight) / divisor)
+        guard left + right > 0 else { return .zero }
+        let page = pageFrame.size
+        // A web view w wide leaves (left + right) * w outside it. The media query wants it landscape.
+        let width = min(max(page.width / (1 + left + right), minimumWidth, page.height + 1), page.width)
+        let outside = page.width - width
+        return UIEdgeInsets(top: 0, left: floor(outside * left / (left + right)), bottom: 0, right: floor(outside * right / (left + right)))
     }
 
     func byWritingMode<T>(horizontal: T, vertical: T) -> T {

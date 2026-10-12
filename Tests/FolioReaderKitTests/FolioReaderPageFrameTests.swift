@@ -228,11 +228,70 @@ final class FolioReaderPageFrameTests: XCTestCase {
         )
     }
 
+    /// A spread's columns repeat `<body>`'s padding, so the gutter is two columns' padding; the
+    /// frame adds as much again on the outside (a quarter of the margin, in the web view's width),
+    /// so an outer margin is as wide as the gutter.
+    func testSpreadInsetsTheOuterMarginsByTheColumnsPadding() {
+        func spread(_ bounds: CGRect, left: Int = 30, right: Int = 30, minimumWidth: CGFloat? = 1000,
+                    writingMode: String = "horizontal-tb", scrollDirection: FolioReaderScrollDirection = .horizontalWithPagedContent) -> CGRect {
+            FolioReaderPageFrameCalculator.webViewFrame(input: makeInput(
+                bounds: bounds,
+                writingMode: writingMode,
+                scrollDirection: scrollDirection,
+                spreadMinimumWidth: minimumWidth,
+                currentMarginTop: 10,
+                currentMarginBottom: 10,
+                currentMarginLeft: left,
+                currentMarginRight: right,
+                pageWidth: bounds.width,
+                pageHeight: bounds.height
+            ))
+        }
+        // iPad mini in landscape: 15vw margins, so 3.75% of the web view's width outside it and in
+        // each column. 1133 = 1055 * 1.075 (39 + 39 points, rounded down).
+        let landscape = CGRect(x: 0, y: 0, width: 1133, height: 744)
+        XCTAssertEqual(spread(landscape), CGRect(x: 39, y: 37, width: 1055, height: 670))
+        XCTAssertEqual(0.0375 * 1055, 39, accuracy: 1, "The columns' padding")
+        XCTAssertEqual(spread(landscape, left: 30, right: 10), CGRect(x: 40, y: 37, width: 1080, height: 670))
+
+        // The web view stays as wide as the media query asks: a 1024-point iPad only gets 24 points.
+        XCTAssertEqual(spread(CGRect(x: 0, y: 0, width: 1024, height: 748)), CGRect(x: 12, y: 37, width: 1000, height: 674))
+        // And landscape: 1001 points for a page 1000 high.
+        XCTAssertEqual(spread(CGRect(x: 0, y: 0, width: 1012, height: 1110)), CGRect(x: 5, y: 55, width: 1002, height: 1000))
+
+        // No spread, or no margins: the frame is the page's.
+        let page = CGRect(x: 0, y: 37, width: 1133, height: 670)
+        XCTAssertEqual(spread(landscape, minimumWidth: nil), page)
+        XCTAssertEqual(spread(landscape, minimumWidth: .infinity), page)
+        XCTAssertEqual(spread(landscape, minimumWidth: 1134), page)
+        XCTAssertEqual(spread(landscape, left: 0, right: 0), page)
+        XCTAssertEqual(spread(CGRect(x: 0, y: 0, width: 744, height: 1133)), CGRect(x: 0, y: 56, width: 744, height: 1021), "Portrait")
+        XCTAssertEqual(spread(landscape, scrollDirection: .horizontalWithScrollContent), landscape)
+        XCTAssertEqual(spread(landscape, writingMode: "vertical-rl"), CGRect(x: 169, y: 0, width: 795, height: 744))
+    }
+
+    /// A spread fits by the web view's size before its outer margins, which narrow it.
+    func testFitsSpreadMeasuresThePageBeforeTheOuterMargins() {
+        let input = makeInput(
+            bounds: CGRect(x: 0, y: 0, width: 1024, height: 748),
+            scrollDirection: .horizontalWithPagedContent,
+            spreadMinimumWidth: 1000,
+            currentMarginLeft: 30,
+            currentMarginRight: 30,
+            pageWidth: 1024,
+            pageHeight: 748
+        )
+        XCTAssertTrue(FolioReaderPageFrameCalculator.fitsSpread(input: input, minimumWidth: 1024))
+        XCTAssertFalse(FolioReaderPageFrameCalculator.fitsSpread(input: input, minimumWidth: 1025))
+        XCTAssertLessThan(FolioReaderPageFrameCalculator.webViewFrame(input: input).width, 1024)
+    }
+
     private func makeInput(
         bounds: CGRect = CGRect(x: 0, y: 0, width: 400, height: 800),
         writingMode: String = "horizontal-tb",
         scrollDirection: FolioReaderScrollDirection = .horizontalWithScrollContent,
         pagesDown: Bool = false,
+        spreadMinimumWidth: CGFloat? = nil,
         currentMarginTop: Int = 0,
         currentMarginBottom: Int = 0,
         currentMarginLeft: Int = 0,
@@ -250,6 +309,7 @@ final class FolioReaderPageFrameTests: XCTestCase {
             writingMode: writingMode,
             scrollDirection: scrollDirection,
             pagesDown: pagesDown,
+            spreadMinimumWidth: spreadMinimumWidth,
             currentMarginTop: currentMarginTop,
             currentMarginBottom: currentMarginBottom,
             currentMarginLeft: currentMarginLeft,

@@ -100,16 +100,41 @@ class SpreadLayoutTests: XCTestCase {
         XCTAssertEqual(webView.scrollView.contentSize.width, CGFloat(step.screens) * width, accuracy: 1)
     }
 
-    /// Each column gets half the margins of a full-width page: the same share of its width.
-    func testMarginsAreHalvedInEachColumn() throws {
+    /// The gutter is as wide as an outer margin, as in a printed book: each column's padding is a
+    /// quarter of a full-width page's margins, and the page frame adds as much outside the web view.
+    /// Before, the columns alone made the gutter twice as wide.
+    func testTheGutterIsAsWideAsAnOuterMargin() throws {
         // 30 is the iPad default, 15vw a side.
-        let spread = chapter(margins: 30)
-        let single = readerChapter("<p>Text</p>", paged: true, size: Self.landscape, margins: 30)
-        let padding = "parseFloat(getComputedStyle(document.body).paddingLeft)"
-        let spreadPadding = try XCTUnwrap(evaluate(padding, in: spread) as? Double)
-        let singlePadding = try XCTUnwrap(evaluate(padding, in: single) as? Double)
-        XCTAssertEqual(singlePadding, 0.15 * Self.landscape.width, accuracy: 1)
-        XCTAssertEqual(spreadPadding, singlePadding / 2, accuracy: 1)
+        let page = CGRect(origin: .zero, size: Self.landscape)
+        let frame = FolioReaderPageFrameCalculator.webViewFrame(input: FolioReaderPageFrameInput(
+            bounds: page, writingMode: "horizontal-tb", scrollDirection: .horizontalWithPagedContent,
+            spreadMinimumWidth: Self.minimumWidth,
+            currentMarginTop: 0, currentMarginBottom: 0, currentMarginLeft: 30, currentMarginRight: 30,
+            pageWidth: page.width, pageHeight: page.height, statusbarHeight: 0, pageIndicatorHeight: 0,
+            hidePageIndicator: true, reserveSafeAreaInsidePageFrame: false, reservePageIndicatorInsidePageFrame: false
+        ))
+        XCTAssertLessThan(frame.width, page.width)
+        let webView = chapter(size: frame.size, margins: 30)
+        XCTAssertEqual(columns(webView), 2)
+
+        // The paragraphs' boxes on the first screen, which span their column's text.
+        let boxes = try XCTUnwrap(evaluate("""
+            Array.from(document.querySelectorAll('p')).flatMap(p => Array.from(p.getClientRects()))
+                .filter(r => r.right > 0 && r.left < innerWidth).map(r => [r.left, r.right])
+            """, in: webView) as? [[Double]])
+        let half = Double(frame.width) / 2
+        let left = boxes.filter { $0[0] < half }, right = boxes.filter { $0[0] >= half }
+        let leftText = (try XCTUnwrap(left.map { $0[0] }.min()), try XCTUnwrap(left.map { $0[1] }.max()))
+        let rightText = (try XCTUnwrap(right.map { $0[0] }.min()), try XCTUnwrap(right.map { $0[1] }.max()))
+
+        let outerLeft = Double(frame.minX) + leftText.0
+        let outerRight = Double(page.maxX - frame.maxX) + Double(frame.width) - rightText.1
+        let gutter = rightText.0 - leftText.1
+        XCTAssertEqual(gutter, outerLeft, accuracy: 2)
+        XCTAssertEqual(outerRight, outerLeft, accuracy: 2)
+        // About half a full-width page's margin: the same share of a page's width.
+        let singleMargin = 0.15 * Double(page.width)
+        XCTAssertEqual(outerLeft, singleMargin / 2, accuracy: singleMargin / 10)
     }
 
     /// Wide media stay inside their column: an image `Bridge.js` marks as standing alone
