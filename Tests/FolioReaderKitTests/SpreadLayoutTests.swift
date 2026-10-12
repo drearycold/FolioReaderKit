@@ -155,6 +155,75 @@ class SpreadLayoutTests: XCTestCase {
         }
     }
 
+    /// A chapter set in the middle cell of a one-column table, between rows of navigation links, as
+    /// Word exports it (1984's later parts), wraps to its column. ASCII quotes allow no break on
+    /// either side, so the quoted words and full-width commas below make one unbreakable run wider
+    /// than a column, and a table is never narrower than its cells' longest run: every line in the
+    /// cell ran past the column's edge, where the spread clips it.
+    func testAChapterInATableCellWrapsToItsColumn() throws {
+        let words = "\"swan\"，\"gave\"，\"brought\"，\"spoke\"，\"taken\"，\"stealed\"，\"thinked\""
+        let paragraphs = (1...40).map { index in
+            "<p>第\(index)段：新话中其他的词也是一样，\(words)等等这些形式就都废除了，所有的复数都加上同样的词尾。</p>"
+        }.joined()
+        // As `tweakStyleOnly` leaves it: the table's width and the classes go, the cells' widths stay.
+        let navigation = "<tr><td width=\"563\"><p>一九八四　上页　下页</p></td></tr>"
+        let table = "<table border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>\(navigation)<tr><td id=\"chapter\" width=\"563\">\(paragraphs)</td></tr>\(navigation)</tbody></table>"
+        let webView = readerChapter(table, paged: true, size: Self.landscape, spreadMinimumWidth: Self.minimumWidth, margins: 30)
+        XCTAssertEqual(columns(webView), 2)
+        let runWidth = try XCTUnwrap(evaluate("""
+            (function () { const s = document.createElement('span'); s.style.whiteSpace = 'nowrap'; s.textContent = '\(words)';
+                document.querySelector('#chapter p').appendChild(s); const w = s.getBoundingClientRect().width; s.remove(); return w })()
+            """, in: webView) as? Double)
+        let bodyWidth = { () -> Double? in self.evaluate("parseFloat(getComputedStyle(document.body).width)", in: webView) as? Double }
+        XCTAssertGreaterThan(runWidth, try XCTUnwrap(bodyWidth()), "The run is wider than a column")
+        XCTAssertEqual(try XCTUnwrap(cellWidth(webView)), try XCTUnwrap(bodyWidth()), accuracy: 1, "The cell fills its column")
+        XCTAssertLessThanOrEqual(try XCTUnwrap(overflow(ofTextIn: "#chapter", webView)), 1, "No line runs past its column")
+
+        // The same on a phone, where the run is wider than the page.
+        resize(webView, to: CGSize(width: 402, height: 874), paged: true)
+        XCTAssertEqual(columns(webView), 1)
+        XCTAssertLessThanOrEqual(try XCTUnwrap(overflow(ofTextIn: "#chapter", webView)), 1, "No line runs past the page")
+
+        // Where the page has room, the cell keeps its width.
+        resize(webView, to: Self.portrait, paged: true)
+        XCTAssertEqual(columns(webView), 1)
+        XCTAssertEqual(try XCTUnwrap(cellWidth(webView)), 563, accuracy: 1)
+    }
+
+    /// The columns of a table with more than one cell to a row stay as wide as their longest word,
+    /// in a spread column too narrow for the whole table.
+    func testTableColumnsKeepTheirLongestWord() throws {
+        let rows = (1...3).map { index in
+            "<tr><td><span class=\"word\">Internationalization</span></td><td>第\(index)行：一段很长的说明文字，比这一栏还要宽得多，所以表格要把它折成好几行才放得下。</td></tr>"
+        }.joined()
+        let webView = readerChapter("<table><tbody>\(rows)</tbody></table>", paged: true, size: Self.landscape, spreadMinimumWidth: Self.minimumWidth, margins: 30)
+        XCTAssertEqual(columns(webView), 2)
+        let lines = evaluate("Array.from(document.querySelectorAll('.word')).map(w => w.getClientRects().length)", in: webView) as? [Int]
+        XCTAssertEqual(lines, [1, 1, 1], "Each word stays on one line")
+    }
+
+    /// The width of the cell that holds the chapter.
+    private func cellWidth(_ webView: WKWebView) -> Double? {
+        evaluate("parseFloat(getComputedStyle(document.getElementById('chapter')).width)", in: webView) as? Double
+    }
+
+    /// How far the lines inside `selector` run past the right edge of the text in their column, at
+    /// most; zero or less when every line fits.
+    private func overflow(ofTextIn selector: String, _ webView: WKWebView) -> Double? {
+        evaluate("""
+            (function () {
+                const column = innerWidth / folioColumnsPerScreen();
+                const textRight = column - parseFloat(getComputedStyle(document.body).paddingRight);
+                const range = document.createRange();
+                range.selectNodeContents(document.querySelector('\(selector)'));
+                return Math.max(...Array.from(range.getClientRects()).filter(r => r.width > 0).map(r => {
+                    const left = r.left + scrollX;
+                    return left + r.width - (Math.floor(left / column) * column + textRight);
+                }));
+            })()
+            """, in: webView) as? Double
+    }
+
     private func settle(_ webView: WKWebView) {
         let settled = expectation(description: "layout settled")
         WebViewLayoutWaiter.wait(for: webView, timeout: 3, paged: true) { _ in settled.fulfill() }

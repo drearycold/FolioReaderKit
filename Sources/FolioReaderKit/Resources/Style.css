@@ -59,6 +59,13 @@ table {
     border-spacing: 0;
     word-break: normal;
 }
+/* A table is never narrower than the longest run its cells can't break, so `word-break: normal`
+   keeps each column as wide as its longest word. A cell alone in its row has no other column to
+   squeeze: it breaks words as the body does, or one long run (quoted words between CJK commas)
+   would widen every line of a chapter set in a layout table past the page or the spread's column. */
+td:only-child, th:only-child {
+    word-break: break-word;
+}
 tbody, tfoot, thead {
     vertical-align: middle !important;
 }

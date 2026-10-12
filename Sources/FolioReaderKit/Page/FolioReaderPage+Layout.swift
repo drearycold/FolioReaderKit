@@ -73,6 +73,7 @@ extension FolioReaderPage {
         readerCenter.collectionView.collectionViewLayout.invalidateLayout()
         let frameForPage = readerCenter.frameForPage(currentPageNumber)
         readerCenter.collectionView.setContentOffset(frameForPage.origin, animated: false)
+        readerCenter.updateOtherVisiblePages(except: self)
 
         // Page progressive direction
         readerCenter.setCollectionViewProgressiveDirection()
@@ -175,12 +176,21 @@ writingMode
     
     /// The `folio_style_overflow` CSS for the current layout, with the spread setting in effect now,
     /// which it records (`spreadMinimumWidth`): a page that was in scroll mode or vertical writing
-    /// when the setting changed may have kept the old one.
+    /// when the setting changed may have kept the old one. It records the layout too (`recordLayout`).
     private func overflowCSS(for webView: FolioReaderWebView) -> String {
         if let readerCenter = folioReader.readerCenter {
             spreadMinimumWidth = readerCenter.spreadMinimumWidth
         }
+        recordLayout()
         return FolioReaderCSSBuilder.overflowCSS(overflow: webView.cssOverflowProperty, verticalWritingMode: writingMode == "vertical-rl", spreadMinimumWidth: spreadMinimumWidth, tiersMinimumHeight: pagesDown ? readerConfig.tiersMinimumHeight : nil)
+    }
+
+    /// Records the scroll direction and web view size the chapter is laid out for, which
+    /// `FolioReaderCenter.hasOtherLayout` compares with the current ones: when it is loaded, and when
+    /// its overflow style is chosen, once its writing mode is known.
+    func recordLayout() {
+        layoutScrollDirection = readerConfig.scrollDirection
+        layoutSize = webViewFrame().size
     }
 
     /// Continues once the web view's native content size reflects the current layout, or after
@@ -202,7 +212,8 @@ writingMode
         self.layoutAdapting = .style
         self.updatePageOffsetRate()
 
-        let styleState = FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame, userFontDescriptors: readerConfig.userFontDescriptors)
+        let styleState = currentStyleState()
+        recordStyle(styleState)
         let script = FolioReaderCSSInjector.runtimeStyleSource(
             themeMode: folioReader.themeMode,
             styleState: styleState,
@@ -235,8 +246,45 @@ writingMode
             }
         }
     }
-    
+
+    /// The style settings `updateRuntimeStyle` applies now.
+    func currentStyleState() -> FolioReaderStyleState {
+        FolioReaderStyleState(preferences: folioReader.preferences, isVerticalWritingMode: writingMode == "vertical-rl", reserveSafeArea: readerConfig.reserveSafeAreaInsidePageFrame, userFontDescriptors: readerConfig.userFontDescriptors)
+    }
+
+    /// Records the style settings and theme the chapter is styled with, which
+    /// `FolioReaderCenter.hasOtherStyle` and `hasOtherTheme` compare with the current ones.
+    func recordStyle(_ styleState: FolioReaderStyleState) {
+        self.styleState = styleState
+        styledThemeMode = folioReader.themeMode
+    }
+
+    /// Styles a chapter kept next to the current page with the current settings, and returns it to
+    /// `position`, the one it recorded: the offset ratio `updateRuntimeStyle` restores otherwise
+    /// lands elsewhere in reflowed text. Without a position it restores the ratio.
+    func restyle(restoring position: FolioReaderReadPosition?) {
+        guard let position = position else {
+            updateRuntimeStyle(delay: 0.4)
+            return
+        }
+        // Still this chapter: the cell may be reused, or the chapter reloaded, meanwhile.
+        let pageNumber = self.pageNumber
+        let loadGeneration = self.loadGeneration
+        updateRuntimeStyle(delay: 0.4) {
+            guard self.pageNumber == pageNumber, self.loadGeneration == loadGeneration else { return }
+            // handleAnchor waits while the page is adapting.
+            self.layoutAdapting = nil
+            self.restorePinned(position) {
+                self.updatePageOffsetRate()
+                self.updatePageInfo()
+            }
+        }
+    }
+
     func updateStyleBackgroundPadding(delay bySecond: Double, tryShrinking: Bool = true, completion: (() -> Void)? = nil) {
+        // Every layout pass ends here, a rotation's too: the padding, and the offsets set after it,
+        // fit this size.
+        layoutSize = webViewFrame().size
         let fillsScreens = self.byWritingMode(self.readerConfig.scrollDirection == .horizontalWithPagedContent, true)
         let step = BackgroundPaddingSearch.Step(screens: fillsScreens ? max(self.totalPages ?? 1, 1) : 1, shrinking: tryShrinking)
         applyBackgroundPadding(step, search: BackgroundPaddingSearch(), fillsScreens: fillsScreens, delay: bySecond, completion: completion)

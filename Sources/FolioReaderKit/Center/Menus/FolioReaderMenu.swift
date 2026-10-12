@@ -56,22 +56,21 @@ class FolioReaderMenu: UIViewController, UIGestureRecognizerDelegate {
     }
 
     override func viewWillAppear(_ animated: Bool) {
-        layoutSubviews(frame: self.view.frame)
-        
+        super.viewWillAppear(animated)
+
         reloadColors()
     }
-    
+
+    /// Lays the rows out for every size the view takes. `viewWillAppear` is too early: the menu
+    /// tab bar controller is reused, and its view keeps the size it last had (the old orientation
+    /// after a rotation) until the presentation animator sizes it.
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        layoutSubviews(frame: view.bounds)
+    }
+
     func layoutSubviews(frame: CGRect) {
         preconditionFailure("This method must be overriden")
-    }
-    
-    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
-        super.viewWillTransition(to: size, with: coordinator)
-        
-        coordinator.animate { [weak self] context in
-            self?.layoutSubviews(frame: CGRect(origin: .zero, size: size))
-        } completion: { context in
-            
-        }
     }
 }

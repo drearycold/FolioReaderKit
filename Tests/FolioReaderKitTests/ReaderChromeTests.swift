@@ -144,4 +144,26 @@ final class ReaderChromeTests: XCTestCase {
         XCTAssertEqual(tabBarController.mode, .tabBar)
         XCTAssertEqual(tabBarController.traitOverrides.horizontalSizeClass, .compact)
     }
+
+    /// The menu tab bar controller is reused, so after a rotation a menu appears at the old size
+    /// and the presentation animator sizes it afterwards.
+    func testPageMenuRowsFollowTheSizeTheMenuGetsAfterAppearing() {
+        let menu = FolioReaderPageMenu(folioReader: FolioReader(), readerConfig: FolioReaderConfig())
+        menu.view.frame = CGRect(x: 0, y: 0, width: 1133, height: 744)
+        menu.beginAppearanceTransition(true, animated: false)
+        menu.view.frame = CGRect(x: 0, y: 0, width: 744, height: 1133)
+        menu.view.layoutIfNeeded()
+        menu.endAppearanceTransition()
+
+        let rows: [UIView] = [
+            menu.dayNightSegment,
+            menu.layoutDirectionHorizontalSegment,
+            menu.layoutDirectionVerticalSegment,
+            menu.marginMenuVSegment,
+            menu.marginMenuHSegment
+        ]
+        for row in rows {
+            XCTAssertEqual(row.frame.width, 744)
+        }
+    }
 }
