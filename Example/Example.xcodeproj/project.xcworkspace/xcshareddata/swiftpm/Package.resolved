@@ -1,13 +1,13 @@
 {
-  "originHash" : "ab0ca8b89d8873267b3204d5a1a1516966d30528c687c43a703a0b4b15205e39",
+  "originHash" : "d9b9958bb60eb465b1b9044d0d7b561253dd08d9e29e7f08e2949032dfc0d576",
   "pins" : [
     {
       "identity" : "aexml",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tadija/AEXML.git",
       "state" : {
-        "revision" : "db806756c989760b35108146381535aec231092b",
-        "version" : "4.7.0"
+        "revision" : "a72fbb7823386d9d123d973f2448a33ae0f1ace7",
+        "version" : "4.7.1"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/scinfu/SwiftSoup.git",
       "state" : {
-        "revision" : "fd541c4b3fa7dcec2e7cfe049505b6e4382cd66b",
-        "version" : "2.13.2"
+        "revision" : "9598b4f4e5a0a18f8d96e664f209e9022cddd30a",
+        "version" : "2.14.1"
       }
     },
     {
