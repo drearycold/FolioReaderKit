@@ -325,14 +325,11 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
         
         //menuView.frame = CGRect(x: 0, y: frame.height-visibleHeight, width: frame.width, height: frame.height)
         dayNightSegment.frame = CGRect(x: 0, y: 0, width: frame.width, height: dayNightSegmentHeight)
-        dayNightSegment.segmentTitleFont = segmentFont  //to trigger segment width re-calculation
         lineAfterDayNight.frame = CGRect(x: 0, y: dayNightSegment.frame.maxY, width: frame.width, height: 1)
         
         layoutDirectionHorizontalSegment.frame = CGRect(x: 0, y: lineAfterDayNight.frame.maxY, width: frame.width, height: layoutDirectionSegmentHeight)
-        layoutDirectionHorizontalSegment.segmentTitleFont = segmentFont  //to trigger segment width re-calculation
         
         layoutDirectionVerticalSegment.frame = CGRect(x: 0, y: lineAfterDayNight.frame.maxY, width: frame.width, height: layoutDirectionSegmentHeight)
-        layoutDirectionVerticalSegment.segmentTitleFont = segmentFont  //to trigger segment width re-calculation
         
         self.folioReader.readerCenter?.currentPage?.byWritingMode(horizontal: {
             layoutDirectionHorizontalSegment.isHidden = false
@@ -342,7 +339,6 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
             if showsSpreadSegment {
                 lineB4Spread.frame = CGRect(x: 0, y: rowsMaxY, width: frame.width, height: 1)
                 layoutSpreadSegment.frame = CGRect(x: 0, y: lineB4Spread.frame.maxY, width: frame.width, height: layoutDirectionSegmentHeight)
-                layoutSpreadSegment.segmentTitleFont = segmentFont  //to trigger segment width re-calculation
                 // Spreads are pages: the choice only applies in paged mode.
                 let paged = (chosenScrollDirection ?? readerConfig.scrollDirection) == .horizontalWithPagedContent
                 layoutSpreadSegment.isUserInteractionEnabled = paged
@@ -360,7 +356,6 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
         
         
         marginMenuVSegment.frame = CGRect(x: 0, y: lineB4MarginV.frame.maxY, width: frame.width, height: marginMenuVSegmentHeight)
-        marginMenuVSegment.segmentTitleFont = segmentFont  //to trigger segment width re-calculation
 
         topMarginText.frame = CGRect(
             x: marginMenuVSegment.frame.width / 7 + 2,
@@ -386,7 +381,6 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
         lineB4MarginH.frame = CGRect(x: 0, y: marginMenuVSegment.frame.maxY, width: frame.width, height: 1)
         
         marginMenuHSegment.frame = CGRect(x: 0, y: lineB4MarginH.frame.maxY, width: frame.width, height: marginMenuVSegmentHeight)
-        marginMenuHSegment.segmentTitleFont = segmentFont  //to trigger segment width re-calculation
 
         leftMarginText.frame = CGRect(
             x: marginMenuHSegment.frame.width / 7 + 2,
@@ -439,7 +433,7 @@ class FolioReaderPageMenu: FolioReaderMenu, SMSegmentViewDelegate {
 
             self.folioReader.currentScrollDirection = index
             chosenScrollDirection = FolioReaderScrollDirection(rawValue: index)
-            layoutSubviews(frame: view.frame)
+            layoutSubviews(frame: view.bounds)
         }  else if segmentView.tag == 6 {
 
             let twoPages = index == 1
