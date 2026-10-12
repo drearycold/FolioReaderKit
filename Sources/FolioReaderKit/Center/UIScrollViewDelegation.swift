@@ -140,6 +140,16 @@ class ReaderScrollDelegateHandler: NSObject, UIScrollViewDelegate, UICollectionV
             recordPosition(afterScrolling: scrollView)
         }
     }
+
+    /// The page on screen. On iPad, every focus update (a page taking the first responder, a menu
+    /// closing) asks the collection view for its preferred focused cell, and the collection view
+    /// prepares that cell, from the data source if it isn't shown. Without an answer here it took
+    /// the item it last focused, else the first one: the chapter loaded again off screen in a
+    /// dequeued cell, evicting a kept neighbour (the cover reloaded on every return to Index).
+    /// The middle of the bounds is read from the layout, so it is on screen before its cell is.
+    func indexPathForPreferredFocusedView(in collectionView: UICollectionView) -> IndexPath? {
+        collectionView.indexPathForItem(at: CGPoint(x: collectionView.bounds.midX, y: collectionView.bounds.midY))
+    }
 }
 
 extension FolioReaderCenter {
