@@ -36,6 +36,12 @@ extension FolioReaderPage {
         )
     }
 
+    /// The width the web view pages by, its own: a spread's, or vertical writing's in paged mode, is
+    /// narrower than the page.
+    var pagingWidth: CGFloat {
+        webView?.frame.width ?? bounds.width
+    }
+
     /// The content offset that is `offset` along the pages.
     func contentOffsetPoint(alongPages offset: CGFloat) -> CGPoint {
         pagesDown ? CGPoint(x: 0, y: offset) : byWritingMode(

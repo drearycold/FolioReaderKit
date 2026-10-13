@@ -331,6 +331,11 @@ enum FolioReaderCSSBuilder {
     /// follows a rotation between one page and a spread (a body width, between one page and tiers).
     static let spreadColumnsReference = "var(\(spreadColumnsProperty), 1)"
 
+    /// With two pages to a screen (a spread's columns, or tiers), each one's `<body>` padding is a
+    /// full-size page's divided by this, and so is each outer margin the page adds outside the web
+    /// view (`FolioReaderPageFrameCalculator`).
+    static let columnPaddingDivisor = 4
+
     /// Two pages to a screen. `-webkit-paged-x` pages are always as wide as the viewport, and a
     /// paginated document lays out multi-column elements in one column, so the spread replaces it
     /// with columns on the root: two half-width columns fill each screen, and the ones that don't fit
@@ -344,11 +349,6 @@ enum FolioReaderCSSBuilder {
     /// full-width page's, the same share of a page's width, and the gutter is as wide as one, as in a
     /// printed book. Media limits are halved. `Bridge.js` reads the column count
     /// (`folioColumnsPerScreen`) where a page is measured in columns.
-    /// With two pages to a screen (a spread's columns, or tiers), each one's `<body>` padding is a
-    /// full-size page's divided by this, and so is each outer margin the page adds outside the web
-    /// view (`FolioReaderPageFrameCalculator`).
-    static let columnPaddingDivisor = 4
-
     static func spreadRules(minimumWidth: CGFloat) -> String {
         typealias P = CustomProperty
         let horizontal = "html body.\(BodyClass.horizontal)"

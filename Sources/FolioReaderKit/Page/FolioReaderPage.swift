@@ -101,6 +101,9 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             if layoutSpreadMinimumWidth != oldValue { setNeedsLayout() }
         }
     }
+    /// The outer margins of a spread or tiers outside the web view, as `layoutSubviews` last laid
+    /// them out (`hitTest`).
+    private var outerMarginsLaidOut = UIEdgeInsets.zero
     /// The web view size (`webViewFrame()`) the chapter is laid out for, which its background
     /// padding and content offset fit (`recordLayout`, `updateStyleBackgroundPadding`).
     var layoutSize = CGSize.zero
@@ -331,20 +334,22 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         super.layoutSubviews()
 
         webView?.setupScrollDirection()
-        let webViewFrame = self.webViewFrame()
+        let layout = FolioReaderPageFrameCalculator.webViewLayout(input: pageFrameInput)
+        let webViewFrame = layout.frame
         webView?.frame = webViewFrame
+        outerMarginsLaidOut = layout.outerMargins
         
         // The zones cover the margins around the web view, the corners with the top and bottom ones.
-        let panDeadZoneTopFrame = CGRect(x: 0, y: 0, width: frame.width, height: webViewFrame.minY)
+        let panDeadZoneTopFrame = CGRect(x: 0, y: 0, width: bounds.width, height: webViewFrame.minY)
         panDeadZoneTop?.frame = panDeadZoneTopFrame
         
-        let panDeadZoneBotFrame = CGRect(x: 0, y: webViewFrame.maxY, width: frame.width, height: frame.height - webViewFrame.maxY)
+        let panDeadZoneBotFrame = CGRect(x: 0, y: webViewFrame.maxY, width: bounds.width, height: bounds.height - webViewFrame.maxY)
         panDeadZoneBot?.frame = panDeadZoneBotFrame
         
         let panDeadZoneLeftFrame = CGRect(x: 0, y: webViewFrame.minY, width: webViewFrame.minX, height: webViewFrame.height)
         panDeadZoneLeft?.frame = panDeadZoneLeftFrame
         
-        let panDeadZoneRightFrame = CGRect(x: webViewFrame.maxX, y: webViewFrame.minY, width: frame.width - webViewFrame.maxX, height: webViewFrame.height)
+        let panDeadZoneRightFrame = CGRect(x: webViewFrame.maxX, y: webViewFrame.minY, width: bounds.width - webViewFrame.maxX, height: webViewFrame.height)
         panDeadZoneRight?.frame = panDeadZoneRightFrame
         
         print("\(#function) frame=\(frame) webViewFrame=\(webViewFrame)  panDeadZoneLeftFrame=\(panDeadZoneLeftFrame) panDeadZoneRightFrame=\(panDeadZoneRightFrame)")
@@ -366,12 +371,14 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
 
     /// A swipe that starts in the outer margins of a spread or of tiers, outside the web view, turns
-    /// the page as one on the text does: the margins' pan dead zones would swallow it.
+    /// the page as one on the text does: the margins' pan dead zones would swallow it. The margins
+    /// are the ones laid out with the web view and the zones, not the current settings', which change
+    /// before the page is laid out again.
     override open func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let view = super.hitTest(point, with: event)
         guard let webView = webView, let superview = webView.superview, let hit = view,
               [panDeadZoneTop, panDeadZoneBot, panDeadZoneLeft, panDeadZoneRight].contains(where: { $0 === hit }) else { return view }
-        let insets = FolioReaderPageFrameCalculator.outerMarginInsets(input: pageFrameInput)
+        let insets = outerMarginsLaidOut
         let margins = webView.frame.inset(by: UIEdgeInsets(top: -insets.top, left: -insets.left, bottom: -insets.bottom, right: -insets.right))
         return margins.contains(convert(point, to: superview)) ? webView.scrollView : view
     }
@@ -490,14 +497,15 @@ enum FolioReaderPageFrameCalculator {
     /// wide pages. They outgrew the 780 pt screens a pixel a page, the page count never matched the
     /// screens, and `updateStyleBackgroundPadding` never finished.
     static func webViewFrame(input: FolioReaderPageFrameInput) -> CGRect {
-        let metrics = FrameMetrics(input: input)
-        return metrics.pageFrame.inset(by: metrics.outerMarginInsets)
+        webViewLayout(input: input).frame
     }
 
-    /// A spread's or tiers' outer margins outside the web view (`FrameMetrics.outerMarginInsets`),
-    /// else zero.
-    static func outerMarginInsets(input: FolioReaderPageFrameInput) -> UIEdgeInsets {
-        FrameMetrics(input: input).outerMarginInsets
+    /// The web view's frame and the outer margins of a spread or tiers outside it
+    /// (`FrameMetrics.outerMarginInsets`, else zero).
+    static func webViewLayout(input: FolioReaderPageFrameInput) -> (frame: CGRect, outerMargins: UIEdgeInsets) {
+        let metrics = FrameMetrics(input: input)
+        let outerMargins = metrics.outerMarginInsets
+        return (metrics.pageFrame.inset(by: outerMargins), outerMargins)
     }
 
     /// Whether the page shows a spread at `minimumWidth`, in horizontal writing in paged mode: its
@@ -527,6 +535,13 @@ enum FolioReaderPageFrameCalculator {
 
 private struct FrameMetrics {
     let input: FolioReaderPageFrameInput
+    /// The web view's frame without the outer margins of a spread or tiers, computed once.
+    private(set) var pageFrame = CGRect.zero
+
+    init(input: FolioReaderPageFrameInput) {
+        self.input = input
+        pageFrame = computePageFrame()
+    }
 
     /// Status bar and page indicator space kept inside the page frame.
     var reserved: UIEdgeInsets {
@@ -556,8 +571,7 @@ private struct FrameMetrics {
         input.scrollDirection == .horizontalWithPagedContent || input.pagesDown ? padding : .zero
     }
 
-    /// The web view's frame without a spread's outer margins.
-    var pageFrame: CGRect {
+    private func computePageFrame() -> CGRect {
         let paged = pagedPadding
         return input.bounds
             .inset(by: reserved)

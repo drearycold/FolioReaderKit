@@ -219,7 +219,7 @@ writingMode
 
         self.layoutAdapting = .style
         self.updatePageOffsetRate()
-        // A spread's outer margins are outside the web view, so its frame follows the margins.
+        // A spread's or tiers' outer margins are outside the web view, so its frame follows the margins.
         self.setNeedsLayout()
 
         let styleState = currentStyleState()

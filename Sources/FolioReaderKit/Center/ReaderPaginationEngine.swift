@@ -174,11 +174,8 @@ open class ReaderPaginationEngine {
                 return
         }
         
-        // The web view pages by its own width: a spread's, or vertical writing's in paged mode, is
-        // narrower than the cell.
-        let pageSize = cell.webView?.frame.size ?? cell.frame.size
         // Pages that run down step a web view high, in y (`scrollPageToOffset` reads them so).
-        let contentOffsetX = cell.pagesDown ? cell.contentOffsetAlongPages + cell.pageLengthAlongPages : contentOffset.x + pageSize.width
+        let contentOffsetX = cell.pagesDown ? cell.contentOffsetAlongPages + cell.pageLengthAlongPages : contentOffset.x + cell.pagingWidth
         
         if contentOffsetX >= (cell.pagesDown ? cell.contentLengthAlongPages : contentOffsetXLimit) {
             changePageToNext(completion)
@@ -216,10 +213,7 @@ open class ReaderPaginationEngine {
                 return
         }
         
-        // The web view pages by its own width: a spread's, or vertical writing's in paged mode, is
-        // narrower than the cell.
-        let pageSize = cell.webView?.frame.size ?? cell.frame.size
-        let contentOffsetX = cell.pagesDown ? cell.contentOffsetAlongPages - cell.pageLengthAlongPages : contentOffset.x - pageSize.width
+        let contentOffsetX = cell.pagesDown ? cell.contentOffsetAlongPages - cell.pageLengthAlongPages : contentOffset.x - cell.pagingWidth
         
         if contentOffsetX < 0 {
             changePageToPrevious(completion)
@@ -241,15 +235,12 @@ open class ReaderPaginationEngine {
                 return
         }
         
-        // The web view pages by its own width: a spread's, or vertical writing's in paged mode, is
-        // narrower than the cell.
-        let pageSize = cell.webView?.frame.size ?? cell.frame.size
         var contentOffsetX: CGFloat = 0.0
         
         if cell.pagesDown {
             contentOffsetX = cell.contentLengthAlongPages - cell.pageLengthAlongPages
-        } else if contentSize.width > 0 && pageSize.width > 0 {
-            contentOffsetX = (pageSize.width * (contentSize.width / pageSize.width)) - pageSize.width
+        } else if contentSize.width > 0 && cell.pagingWidth > 0 {
+            contentOffsetX = contentSize.width - cell.pagingWidth
         }
         
         if contentOffsetX < 0 {
@@ -273,7 +264,7 @@ open class ReaderPaginationEngine {
         }
         
         // Pages that run down are a web view high, in y.
-        let pageLength = cell.pagesDown ? cell.pageLengthAlongPages : cell.webView?.frame.width ?? cell.frame.width
+        let pageLength = cell.pagesDown ? cell.pageLengthAlongPages : cell.pagingWidth
         let contentLength = cell.pagesDown ? cell.contentLengthAlongPages : contentSize.width
         var contentOffsetX: CGFloat = 0.0
         
