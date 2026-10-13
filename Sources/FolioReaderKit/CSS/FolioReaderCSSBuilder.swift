@@ -143,17 +143,21 @@ enum FolioReaderCSSBuilder {
             .textIndent: "calc((\(letterSpacing)em + 1em) * \(abs(state.textIndent)))\(state.textIndent < 0 ? " hanging" : "")",
             .paragraphSpaceBefore: state.isVerticalWritingMode ? "0em" : "1em",
             .paragraphSpaceAfter: state.isVerticalWritingMode ? "\(spaceAfter / 2)em" : "\(spaceAfter)em",
-            // Each margin step of 5 is 2.5% of the viewport.
-            .paddingTop: "\(Double(state.marginTop / 5) * 2.5)vh",
-            .paddingBottom: "\(Double(state.marginBottom / 5) * 2.5)vh",
-            .paddingLeft: "\(Double(state.marginLeft / 5) * 2.5)vw",
-            .paddingRight: "\(Double(state.marginRight / 5) * 2.5)vw",
+            .paddingTop: "\(paddingPercent(margin: state.marginTop))vh",
+            .paddingBottom: "\(paddingPercent(margin: state.marginBottom))vh",
+            .paddingLeft: "\(paddingPercent(margin: state.marginLeft))vw",
+            .paddingRight: "\(paddingPercent(margin: state.marginRight))vw",
             // The page frame keeps clear of the status bar only; in landscape the Dynamic Island or
             // notch is at the side, inside the web view. `env()` follows rotation without a refresh.
             .safeAreaLeft: state.reserveSafeArea ? "env(safe-area-inset-left, 0px)" : "0px",
             .safeAreaRight: state.reserveSafeArea ? "env(safe-area-inset-right, 0px)" : "0px",
         ]
         return CustomProperty.allCases.map { (name: $0.rawValue, value: values[$0] ?? "") }
+    }
+
+    /// The `<body>` padding for a margin setting, in percent of the viewport: each step of 5 is 2.5%.
+    static func paddingPercent(margin: Int) -> Double {
+        Double(margin / 5) * 2.5
     }
 
     /// `value` as a double-quoted CSS string.
@@ -327,16 +331,24 @@ enum FolioReaderCSSBuilder {
     /// follows a rotation between one page and a spread (a body width, between one page and tiers).
     static let spreadColumnsReference = "var(\(spreadColumnsProperty), 1)"
 
+    /// With two pages to a screen (a spread's columns, or tiers), each one's `<body>` padding is a
+    /// full-size page's divided by this, and so is each outer margin the page adds outside the web
+    /// view (`FolioReaderPageFrameCalculator`).
+    static let columnPaddingDivisor = 4
+
     /// Two pages to a screen. `-webkit-paged-x` pages are always as wide as the viewport, and a
     /// paginated document lays out multi-column elements in one column, so the spread replaces it
     /// with columns on the root: two half-width columns fill each screen, and the ones that don't fit
     /// run to the right, a screen at a time. Inside the media query, rotating switches between
     /// the two layouts without a native step, as `-webkit-paged-x` follows the viewport.
     ///
-    /// `<body>`'s left and right padding repeats in every column, so each column gets half the
-    /// margins a full-width page has: the same share of its width. Media limits are halved the same
-    /// way. `Bridge.js` reads the column count (`folioColumnsPerScreen`) where a page is measured in
-    /// columns.
+    /// `<body>`'s left and right padding repeats in every column, so the gutter is two columns'
+    /// padding, and evenly spaced columns can't make it narrower than both outer margins together.
+    /// Each column gets a quarter of a full-width page's margins, and the page adds as much again
+    /// outside the web view (`FolioReaderPageFrameCalculator`): each outer margin is about half a
+    /// full-width page's, the same share of a page's width, and the gutter is as wide as one, as in a
+    /// printed book. Media limits are halved. `Bridge.js` reads the column count
+    /// (`folioColumnsPerScreen`) where a page is measured in columns.
     static func spreadRules(minimumWidth: CGFloat) -> String {
         typealias P = CustomProperty
         let horizontal = "html body.\(BodyClass.horizontal)"
@@ -347,15 +359,15 @@ enum FolioReaderCSSBuilder {
                 /* Style.css limits media to 80vw, the settings images that stand alone to 84vw. */
                 img, svg, audio, video { max-width: 40vw !important; }
                 \(horizontal) {
-                    padding-left: calc(\(P.paddingLeft.reference) / 2 + \(P.safeAreaLeft.reference)) !important;
-                    padding-right: calc(\(P.paddingRight.reference) / 2 + \(P.safeAreaRight.reference)) !important;
+                    padding-left: calc(\(P.paddingLeft.reference) / \(columnPaddingDivisor) + \(P.safeAreaLeft.reference)) !important;
+                    padding-right: calc(\(P.paddingRight.reference) / \(columnPaddingDivisor) + \(P.safeAreaRight.reference)) !important;
                 }
                 \(scopedSelectors(descendant: "img.folioImg")) {
                     max-width: 42vw !important;
                 }
                 \(horizontal) img.folioImg {
-                    margin-left: calc(-1 * max(\(P.paddingLeft.reference) / 2 - 1.25vw, 0vw)) !important;
-                    margin-right: calc(-1 * max(\(P.paddingRight.reference) / 2 - 1.25vw, 0vw)) !important;
+                    margin-left: calc(-1 * max(\(P.paddingLeft.reference) / \(columnPaddingDivisor) - 1.25vw, 0vw)) !important;
+                    margin-right: calc(-1 * max(\(P.paddingRight.reference) / \(columnPaddingDivisor) - 1.25vw, 0vw)) !important;
                 }
             }
             """
@@ -370,8 +382,9 @@ enum FolioReaderCSSBuilder {
     ///
     /// `--folio-pages-down` tells `Bridge.js` (`folioPagesDown`) to measure pages in y. As in
     /// `spreadRules`, `<body>`'s inline padding (top and bottom here) repeats in every tier, so each
-    /// tier gets half the margins, and media limits are halved. An infinite `minimumHeight` never
-    /// shows tiers: the pages still run down, one to a screen.
+    /// tier gets a quarter of the margins and the page adds as much again above and below the web
+    /// view: the gap between the tiers is as wide as the margin above them. Media limits are halved.
+    /// An infinite `minimumHeight` never shows tiers: the pages still run down, one to a screen.
     static func tieredRules(minimumHeight: CGFloat) -> String {
         typealias P = CustomProperty
         let vertical = "html body.\(BodyClass.vertical)"
@@ -387,15 +400,15 @@ enum FolioReaderCSSBuilder {
                 /* Style.css limits media to 80vh, the settings images that stand alone to 84vh. */
                 img, svg, audio, video { max-height: 40vh !important; }
                 \(vertical) {
-                    padding-top: calc(\(P.paddingTop.reference) / 2) !important;
-                    padding-bottom: calc(\(P.paddingBottom.reference) / 2) !important;
+                    padding-top: calc(\(P.paddingTop.reference) / \(columnPaddingDivisor)) !important;
+                    padding-bottom: calc(\(P.paddingBottom.reference) / \(columnPaddingDivisor)) !important;
                 }
                 \(scopedSelectors(descendant: "img.folioImg")) {
                     max-height: 42vh !important;
                 }
                 \(vertical) img.folioImg {
-                    margin-top: calc(-1 * max(\(P.paddingTop.reference) / 2 - 1.25vh, 0vh)) !important;
-                    margin-bottom: calc(-1 * max(\(P.paddingBottom.reference) / 2 - 1.25vh, 0vh)) !important;
+                    margin-top: calc(-1 * max(\(P.paddingTop.reference) / \(columnPaddingDivisor) - 1.25vh, 0vh)) !important;
+                    margin-bottom: calc(-1 * max(\(P.paddingBottom.reference) / \(columnPaddingDivisor) - 1.25vh, 0vh)) !important;
                 }
             }
             """

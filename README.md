@@ -127,7 +127,7 @@ Set both `reserve…` options to `false` and the margins to `0` for edge-to-edge
 
 ### Two-page spread
 
-In paged mode, horizontal-writing books show two pages side by side while the page is landscape and wide enough. Each page gets half the left and right margins a full-width page has. A spread counts as one page in page numbers and progress. Users choose "One Page" or "Two Pages" in the page menu on iPad (`ReaderPreferences.currentLandscapeSpread`, stored under `currentLandscapeSpread`).
+In paged mode, horizontal-writing books show two pages side by side while the page is landscape and wide enough. Each page's outer margin is about half a full-width page's, the same share of its width, and the gutter between the pages is as wide as one outer margin, as in a printed book. A spread counts as one page in page numbers and progress. Users choose "One Page" or "Two Pages" in the page menu on iPad (`ReaderPreferences.currentLandscapeSpread`, stored under `currentLandscapeSpread`).
 
 | Option | Default | Effect |
 |---|---|---|
@@ -136,7 +136,7 @@ In paged mode, horizontal-writing books show two pages side by side while the pa
 
 ### Tiers for vertical writing
 
-In `.vertical`, vertical-writing books page top to bottom, chapters too. On a portrait page at least `tiersMinimumHeight` tall, each screen shows two tiers, one above the other, so lines are half as long; otherwise one page. Rotating keeps the reading position, and each tier gets half the top and bottom margins of a full-height page. Users choose "Tiered" in the vertical-writing row of the page menu (Paged | Tiered | Scroll), shown where a portrait page can reach `tiersMinimumHeight` (the screen's long side less the status bar and page indicator): by default every iPad and no iPhone, which keep Paged | Scroll unless `.vertical` is already in effect. An infinite `tiersMinimumHeight` never shows two tiers. `.vertical` is the setting horizontal books scroll top to bottom with, so choosing Tiered in a vertical-writing book makes horizontal books scroll, and the other way round; horizontal chapters in a vertical-writing book (a cover, a colophon) scroll too.
+In `.vertical`, vertical-writing books page top to bottom, chapters too. On a portrait page at least `tiersMinimumHeight` tall, each screen shows two tiers, one above the other, so lines are half as long; otherwise one page. Rotating keeps the reading position. The margins above and below the tiers are about half a full-height page's, and the gap between the tiers is as wide as one of them. Users choose "Tiered" in the vertical-writing row of the page menu (Paged | Tiered | Scroll), shown where a portrait page can reach `tiersMinimumHeight` (the screen's long side less the status bar and page indicator): by default every iPad and no iPhone, which keep Paged | Scroll unless `.vertical` is already in effect. An infinite `tiersMinimumHeight` never shows two tiers. `.vertical` is the setting horizontal books scroll top to bottom with, so choosing Tiered in a vertical-writing book makes horizontal books scroll, and the other way round; horizontal chapters in a vertical-writing book (a cover, a colophon) scroll too.
 
 | Option | Default | Effect |
 |---|---|---|

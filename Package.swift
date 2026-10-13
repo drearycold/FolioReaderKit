@@ -12,7 +12,8 @@ let package = Package(
 	],
 	dependencies: [
         .package(url: "https://github.com/cxa/MenuItemKit.git", from: "3.0.0"),
-        .package(url: "https://github.com/tadija/AEXML.git", from: "4.3.3"),
+        // 4.7.2 requires iOS 17 and changes nothing else.
+        .package(url: "https://github.com/tadija/AEXML.git", "4.3.3"..<"4.7.2"),
         .package(url: "https://github.com/ArtSabintsev/FontBlaster.git", from: "5.1.0"),
         .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.7.0"),
         .package(url: "https://github.com/readium/ZIPFoundation.git", from: "3.0.0"),

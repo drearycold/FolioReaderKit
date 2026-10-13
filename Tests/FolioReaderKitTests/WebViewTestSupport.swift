@@ -15,8 +15,9 @@ let webKitTimeout: TimeInterval = 30
 
 /// How long WebKit's first page and script may take on a CI runner (`warmUpWebKit`). On 2026-10-09
 /// the first WebKit test took 224 s in one run; in the next, WebPrivacy gave up only after 470 s and
-/// a 300 s wait failed. The job's 45-minute limit leaves room for this.
-let webKitWarmUpTimeout: TimeInterval = 900
+/// a 300 s wait failed. On 2026-10-12 it gave up after 960 s and a 900 s wait failed. The job's
+/// 45-minute limit leaves room for this: without the wait, the job takes about 12 minutes.
+let webKitWarmUpTimeout: TimeInterval = 1500
 
 /// Whether a test in this process has waited for WebKit's first page and script.
 @MainActor private var webKitIsWarm = false

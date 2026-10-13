@@ -23,7 +23,7 @@ extension FolioReaderPage {
 
     /// A page's length along the pages: a web view high when they run down (the page frame keeps the
     /// status bar and margins), else the page along the scroll direction, or the web view's width in
-    /// vertical writing.
+    /// vertical writing and in paged mode, where a spread's is narrower than the page.
     var pageLengthAlongPages: CGFloat {
         guard let webView = webView else { return 0 }
         if pagesDown {
@@ -31,9 +31,15 @@ extension FolioReaderPage {
         }
         guard let readerCenter = folioReader.readerCenter else { return 0 }
         return byWritingMode(
-            readerConfig.isDirection(readerCenter.pageHeight, readerCenter.pageWidth, readerCenter.pageHeight),
+            readerConfig.isDirection(readerCenter.pageHeight, webView.frame.width, readerCenter.pageHeight),
             webView.frame.width
         )
+    }
+
+    /// The width the web view pages by, its own: a spread's, or vertical writing's in paged mode, is
+    /// narrower than the page.
+    var pagingWidth: CGFloat {
+        webView?.frame.width ?? bounds.width
     }
 
     /// The content offset that is `offset` along the pages.
@@ -121,7 +127,7 @@ extension FolioReaderPage {
                     pageOffsetByProgress = self.byWritingMode(pageInPage * webViewFrameSize.width, contentSize.width - pageInPage * webViewFrameSize.width)
                 }
                 pageOffset = pageOffsetByProgress - self.byWritingMode(
-                    self.readerConfig.isDirection(readerCenter.pageHeight / 2, readerCenter.pageWidth / 2, readerCenter.pageHeight / 2),
+                    self.readerConfig.isDirection(readerCenter.pageHeight / 2, webViewFrameSize.width / 2, readerCenter.pageHeight / 2),
                     webViewFrameSize.width / 2
                 )
             }

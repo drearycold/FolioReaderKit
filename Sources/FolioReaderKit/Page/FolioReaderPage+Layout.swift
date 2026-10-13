@@ -21,9 +21,9 @@ extension FolioReaderPage {
     func applySpreadSetting() {
         guard let webView = webView else { return }
         // Where neither setting shows a spread (portrait, narrower than the minimum: the media query
-        // in `spreadRules`), only the rules for a later rotation change, and the pages stay as they are.
-        let size = webView.bounds.size
-        guard size.width > size.height, size.width >= readerConfig.spreadMinimumWidth else {
+        // in `spreadRules`), only the rules for a later rotation change, and the pages stay as they
+        // are. The web view's size would tell only for one page: a spread's is narrower.
+        guard fitsSpread(minimumWidth: readerConfig.spreadMinimumWidth) else {
             FolioReaderCSSInjector.apply(id: FolioReaderCSSInjector.StyleID.overflow, css: overflowCSS(for: webView), to: webView)
             return
         }
@@ -193,9 +193,11 @@ writingMode
 
     /// Records the scroll direction and web view size the chapter is laid out for, which
     /// `FolioReaderCenter.hasOtherLayout` compares with the current ones: when it is loaded, and when
-    /// its overflow style is chosen, once its writing mode is known.
+    /// its overflow style is chosen, once its writing mode is known. The spread setting too, which
+    /// the size depends on.
     func recordLayout() {
         layoutScrollDirection = readerConfig.scrollDirection
+        layoutSpreadMinimumWidth = spreadMinimumWidth
         layoutSize = webViewFrame().size
     }
 
@@ -217,6 +219,8 @@ writingMode
 
         self.layoutAdapting = .style
         self.updatePageOffsetRate()
+        // A spread's or tiers' outer margins are outside the web view, so its frame follows the margins.
+        self.setNeedsLayout()
 
         let styleState = currentStyleState()
         recordStyle(styleState)

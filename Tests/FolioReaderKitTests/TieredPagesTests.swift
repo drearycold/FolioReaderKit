@@ -137,15 +137,40 @@ class TieredPagesTests: XCTestCase {
         XCTAssertEqual(Int(ceil(webView.scrollView.contentSize.height / height)), screens)
     }
 
-    /// Each tier gets half the top and bottom margins of a full-height page.
-    func testMarginsAreHalvedInEachTier() throws {
-        let tiered = chapter(margins: 20)
-        let single = readerChapter("<p>縦書き</p>", paged: true, verticalWriting: true, size: Self.portrait, margins: 20)
-        let padding = "parseFloat(getComputedStyle(document.body).paddingTop)"
-        let tieredPadding = try XCTUnwrap(evaluate(padding, in: tiered) as? Double)
-        let singlePadding = try XCTUnwrap(evaluate(padding, in: single) as? Double)
-        XCTAssertEqual(singlePadding, 0.1 * Self.portrait.height, accuracy: 1)
-        XCTAssertEqual(tieredPadding, singlePadding / 2, accuracy: 1)
+    /// The gap between the tiers is as wide as the margin above them: each tier's padding is a
+    /// quarter of a full-height page's margins, and the page frame adds as much outside the web view.
+    /// Before, the tiers alone made the gap twice as wide.
+    func testTheGapBetweenTiersIsAsWideAsAnOuterMargin() throws {
+        let page = CGRect(origin: .zero, size: Self.portrait)
+        let frame = FolioReaderPageFrameCalculator.webViewFrame(input: FolioReaderPageFrameInput(
+            bounds: page, writingMode: "vertical-rl", scrollDirection: .vertical, pagesDown: true,
+            tiersMinimumHeight: Self.tiersMinimumHeight,
+            currentMarginTop: 20, currentMarginBottom: 20, currentMarginLeft: 20, currentMarginRight: 20,
+            pageWidth: page.width, pageHeight: page.height, statusbarHeight: 0, pageIndicatorHeight: 0,
+            hidePageIndicator: true, reserveSafeAreaInsidePageFrame: false, reservePageIndicatorInsidePageFrame: false
+        ))
+        XCTAssertLessThan(frame.height, page.height)
+        let webView = chapter(size: frame.size, margins: 20)
+        XCTAssertEqual(bodyBoxes(webView).first?[3] ?? 0, Double(frame.height) / 2, accuracy: 1, "Two tiers")
+
+        // The paragraphs' boxes on the first screen, which span their tier's text.
+        let boxes = try XCTUnwrap(evaluate("""
+            Array.from(document.querySelectorAll('p')).flatMap(p => Array.from(p.getClientRects()))
+                .filter(r => r.bottom > 0 && r.top < innerHeight).map(r => [r.top, r.bottom])
+            """, in: webView) as? [[Double]])
+        let half = Double(frame.height) / 2
+        let upper = boxes.filter { $0[0] < half }, lower = boxes.filter { $0[0] >= half }
+        let upperText = (try XCTUnwrap(upper.map { $0[0] }.min()), try XCTUnwrap(upper.map { $0[1] }.max()))
+        let lowerText = (try XCTUnwrap(lower.map { $0[0] }.min()), try XCTUnwrap(lower.map { $0[1] }.max()))
+
+        let outerTop = Double(frame.minY) + upperText.0
+        let outerBottom = Double(page.maxY - frame.maxY) + Double(frame.height) - lowerText.1
+        let gap = lowerText.0 - upperText.1
+        XCTAssertEqual(gap, outerTop, accuracy: 2)
+        XCTAssertEqual(outerBottom, outerTop, accuracy: 2)
+        // About half a full-height page's margin (10vh).
+        let singleMargin = 0.1 * Double(page.height)
+        XCTAssertEqual(outerTop, singleMargin / 2, accuracy: singleMargin / 10)
     }
 
     func testImagesFitTheirTier() throws {
