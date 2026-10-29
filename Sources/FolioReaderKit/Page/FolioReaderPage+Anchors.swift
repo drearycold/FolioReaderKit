@@ -12,13 +12,16 @@ extension FolioReaderPage {
      - parameter anchor:                The #anchor
      - parameter avoidBeginningAnchors: Sometimes the anchor is on the beggining of the text, there is not need to scroll
      - parameter animated:              Enable or not scrolling animation
+     - parameter onFailure:             Called instead of scrolling, and instead of `completion`, when
+                                        the anchor can't be found. Without it, a missing anchor counts
+                                        as the start of the chapter.
      */
-    public func handleAnchor(_ anchor: String, offsetInWindow: CGFloat, avoidBeginningAnchors: Bool, animated: Bool, flashTarget: Bool = true, completion: (() -> Void)? = nil) {
+    public func handleAnchor(_ anchor: String, offsetInWindow: CGFloat, avoidBeginningAnchors: Bool, animated: Bool, flashTarget: Bool = true, onFailure: (() -> Void)? = nil, completion: (() -> Void)? = nil) {
         guard !anchor.isEmpty else { return }
         
         guard let webView = webView, webView.isHidden == false, self.layoutAdapting == nil else {
             DispatchQueue.main.asyncAfter(delay: 0.1) {
-                self.handleAnchor(anchor, offsetInWindow: offsetInWindow, avoidBeginningAnchors: avoidBeginningAnchors, animated: animated, flashTarget: flashTarget, completion: completion)
+                self.handleAnchor(anchor, offsetInWindow: offsetInWindow, avoidBeginningAnchors: avoidBeginningAnchors, animated: animated, flashTarget: flashTarget, onFailure: onFailure, completion: completion)
             }
             return
         }
@@ -26,7 +29,12 @@ extension FolioReaderPage {
         // A new destination; `restorePinned` pins its position again once the scroll has started.
         self.pinnedPosition = nil
 
-        getAnchorOffset(anchor) { offset in
+        getAnchorOffset(anchor) { measured in
+            if measured == nil, let onFailure {
+                onFailure()
+                return
+            }
+            let offset = measured ?? 0
             if let infoLabelText = self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text {
                 self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text = "\(offset) \(infoLabelText)"
             }
@@ -128,6 +136,8 @@ extension FolioReaderPage {
                   !webView.scrollView.isTracking, !webView.scrollView.isDecelerating,
                   abs(webView.scrollView.contentOffset.x - target.x) < 1 else { return }
             self.getAnchorOffset(anchor) { offset in
+                // The anchor is gone (the chapter reloaded): nothing left to correct.
+                guard let offset else { return }
                 self.scrollVerticalWriting(toAnchor: anchor, measured: offset, animated: animated, retry: retry - 1)
             }
         }
@@ -136,14 +146,15 @@ extension FolioReaderPage {
     /**
      Get the #anchor offset in the page
 
-     - parameter anchor: The #anchor id
-     - returns: The element offset ready to scroll
+     - parameter anchor: The #anchor id, or a CFI
+     - returns: The element offset ready to scroll, or nil when the anchor can't be found (`Bridge.js`
+                answers an empty string, which `js` reads as nil)
      */
-    func getAnchorOffset(_ anchor: String, completion: @escaping ((CGFloat) -> ())) {
+    func getAnchorOffset(_ anchor: String, completion: @escaping ((CGFloat?) -> ())) {
         let horizontal = self.readerConfig.scrollDirection == .horizontalWithPagedContent
         self.webView?.js("getAnchorOffset(\"\(anchor)\", \(horizontal.description))") { strOffset in
             guard let strOffset = strOffset else {
-                completion(CGFloat(0))
+                completion(nil)
                 return
             }
             completion(CGFloat((strOffset as NSString).floatValue))

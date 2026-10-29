@@ -11938,8 +11938,13 @@
 	      peg$c58 = function () {
 	    return "=";
 	  },
-	      peg$c59 = /^[a-z]/,
-	      peg$c60 = peg$classExpectation([["a", "z"]], false, false),
+	      // FolioReaderKit patch: the `character` rule (src/parser.pegjs) took only ASCII letters,
+	      // digits and "-_.%", so a CFI with an id like `[第二章]` failed to parse (readium-cfi-js#73,
+	      // unfixed: the project is archived). EPUB CFI 1.1 (2.2) allows any Unicode character in an
+	      // assertion, and the parser decodes percent-encoding before parsing. This class is used
+	      // only by `character`.
+	      peg$c59 = /^[a-z\u0080-\uFFFF]/,
+	      peg$c60 = peg$classExpectation([["a", "z"], ["\u0080", "\uFFFF"]], false, false),
 	      peg$c61 = /^[A-Z]/,
 	      peg$c62 = peg$classExpectation([["A", "Z"]], false, false),
 	      peg$c63 = "-",

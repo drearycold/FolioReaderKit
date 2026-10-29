@@ -79,7 +79,16 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
                   FolioReaderCenter.isRestorableCFI(position.cfi, pageNumber: page.pageNumber) {
             self.readerContainer?.centerViewController?.pageIndicatorView?.infoLabel.text = position.cfi
             DispatchQueue.main.asyncAfter(delay: 0.2) {
-                page.handleAnchor(position.cfi, offsetInWindow: 0, avoidBeginningAnchors: true, animated: true) {
+                page.handleAnchor(position.cfi, offsetInWindow: 0, avoidBeginningAnchors: true, animated: true, onFailure: {
+                    // The CFI didn't resolve (the chapter changed, or an assertion the CFI library
+                    // can't read): the offset and progress recorded with it are the next best place.
+                    // Not pinned, so the position measured there is recorded.
+                    FolioLogger.log("restore cfi unresolved pageNumber=\(page.pageNumber) cfi=\(position.cfi)")
+                    page.scrollWebViewByPosition(
+                        pageOffset: position.pageOffset.forDirection(withConfiguration: self.readerConfig),
+                        pageProgress: position.chapterProgress
+                    )
+                }) {
                     // Keep the position restored to until the reader moves, as a rotation does: measuring
                     // again recorded the start of its line, a little earlier on every reopen.
                     page.pinnedPosition = position
