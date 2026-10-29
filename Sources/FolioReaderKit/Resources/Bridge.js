@@ -890,6 +890,10 @@ function getReadingTime(lang) {
 
 /**
  Get Vertical or Horizontal paged #anchor offset
+
+ An empty string when the target can't be found, which `FolioReaderPage.getAnchorOffset` reads as
+ nil. Not 0: that is a real offset, the start of the chapter, and a restore that couldn't resolve
+ its CFI stayed there instead of falling back to the position's recorded offset.
  */
 var getAnchorOffset = function(target, horizontal) {
     var elem = document.getElementById(target);
@@ -989,7 +993,7 @@ var getAnchorOffset = function(target, horizontal) {
     }
     
     if (!elem) {
-        return 0
+        return ""
     }
     
     // Measured like the text above, from the element's first box: where it starts if it is broken

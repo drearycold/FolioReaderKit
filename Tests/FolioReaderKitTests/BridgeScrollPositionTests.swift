@@ -179,6 +179,46 @@ class BridgeScrollPositionTests: XCTestCase {
         }
     }
 
+    /// pandoc names sections after their headings, so a Chinese book's ids are Chinese
+    /// (`<section id="共通线">`), and the CFI of a position asserts them. The CFI library's parser took
+    /// only ASCII in an assertion, so such a CFI never parsed: `getAnchorOffset` answered the start of
+    /// the chapter, and reopening the book went there.
+    func testAPositionUnderNonASCIIIdsRestores() {
+        let body = "<section id=\"共通线\"><h1>共通线</h1><section id=\"id_00_common_02a-第二章\"><h2>00_common_02a　第二章</h2>"
+            + Self.paragraphs(1...11)
+            + "<p id=\"第十二段\">第十二段：" + String(repeating: "敏捷的棕色狐狸跳过了懒狗，", count: 8) + "这一段到此为止。</p>"
+            + Self.paragraphs(13...30)
+            + "</section></section>"
+        for verticalWriting in [false, true] {
+            let webView = readerChapter(body, paged: false, verticalWriting: verticalWriting)
+            let last = lastCharacter(of: "第十二段", in: webView)
+            let recorded = verticalWriting
+                ? CGPoint(x: scrollOrigin(webView).x + last.maxX - webView.bounds.width - 5, y: 0)
+                : CGPoint(x: 0, y: last.minY + 5)
+            scrollNatively(webView, to: recorded)
+            let cfi = record(webView, verticalWriting: verticalWriting)
+            XCTAssertTrue(cfi.contains("[共通线]") && cfi.contains("[第十二段]"), "Recorded under the Chinese ids: \(cfi)")
+
+            scrollNatively(webView, to: verticalWriting ? scrollOrigin(webView) : .zero)
+            let restored = restore(cfi, in: webView, verticalWriting: verticalWriting)
+            if verticalWriting {
+                XCTAssertEqual(restored.x, recorded.x, accuracy: 6, "Vertical: back at the last column of 第十二段: \(cfi)")
+            } else {
+                XCTAssertEqual(restored.y, recorded.y, accuracy: 6, "Horizontal: back at the last line of 第十二段: \(cfi)")
+            }
+        }
+    }
+
+    /// A target that can't be found answers an empty string (nil to `FolioReaderPage.getAnchorOffset`),
+    /// not 0: that is the start of the chapter, where a restore that couldn't resolve its CFI stayed
+    /// instead of falling back to the position's recorded offset.
+    func testATargetThatCantBeFoundIsNoOffset() {
+        let webView = chapter(verticalWriting: false)
+        XCTAssertEqual(evaluate("getAnchorOffset(\"epubcfi(/6/2/4/2[gone]/1:0)\", false)", in: webView) as? String, "")
+        XCTAssertEqual(evaluate("getAnchorOffset(\"no-such-id\", false)", in: webView) as? String, "")
+        XCTAssertNotNil(evaluate("getAnchorOffset(\"p12\", false)", in: webView) as? Double, "An id that exists is still an offset")
+    }
+
     /// Positions are recorded with `<highlight>` blacklisted, which counts the text around a highlight
     /// as one node without the highlighted text. `getAnchorOffset` resolved them without it, so a
     /// position after a highlight landed at the end of the text before it, lines earlier here.
