@@ -152,6 +152,16 @@ isolated retry. YAEBR builds for iOS and Mac Catalyst with the local package
 through an external workspace; its existing FolioReader UI journey also passes
 on iPhone 17. The app's remote pin is unchanged.
 
+PR #24's first CI run passed the four new regressions but timed out in
+`TieredPagesTests.testRepeatedRotationsKeepTheScreen`, waiting for a resized
+viewport. Chapter fixtures were detached `WKWebView`s, which WebKit can
+suspend between scripts. `readerChapter` now keeps each view in a visible
+window until teardown, with automatic scroll insets disabled as in the reader.
+The generic loader stays detached so the waiter test can still release a view
+mid-test. Teardown hides the window and releases the hierarchy on the main
+actor. Timeouts, assertions and rotation counts are unchanged. The rotation
+case passes five consecutive local runs; the full 196-test suite passes.
+
 ## Verification
 
 ```bash
