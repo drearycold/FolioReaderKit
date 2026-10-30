@@ -5,6 +5,7 @@
 //  Copyright © 2026 FolioReader. All rights reserved.
 //
 
+import UIKit
 import WebKit
 import XCTest
 @testable import FolioReaderKit
@@ -50,6 +51,7 @@ extension XCTestCase {
                 <body>\(body)</body></html>
                 """, configuration: configuration)
 
+        hostWebView(webView)
         let state = FolioReaderStyleState(styleOverride: .PNode, font: "", fontSize: "20px", fontWeight: "400", letterSpacing: 0, lineHeight: 2, textIndent: 2, marginTop: margins, marginBottom: margins, marginLeft: margins, marginRight: margins, isVerticalWritingMode: verticalWriting)
         let mode = verticalWriting ? "vertical-rl" : "horizontal-tb"
         evaluate("writingMode = '\(mode)'; document.documentElement.style.writingMode = writingMode; "
@@ -139,6 +141,27 @@ extension XCTestCase {
         }
         wait(for: [loader.loaded], timeout: webKitTimeout)
         return webView
+    }
+
+    /// Keep layout tests in a visible window, as the reader is. WebKit may suspend a detached
+    /// view's content process between scripts, delaying viewport updates past the resize wait.
+    /// The teardown block retains the window through the test and releases its view hierarchy.
+    private func hostWebView(_ webView: WKWebView) {
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        let controller = UIViewController()
+        window.rootViewController = controller
+        controller.view.addSubview(webView)
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        window.isHidden = false
+        addTeardownBlock { [weak webView] in
+            let view = webView
+            await MainActor.run {
+                view?.stopLoading()
+                view?.removeFromSuperview()
+                window.isHidden = true
+                window.rootViewController = nil
+            }
+        }
     }
 
     /// Evaluates `script` and returns its result; a JS error fails the test.
