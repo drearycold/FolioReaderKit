@@ -136,6 +136,22 @@ To profile a book that isn't bundled, copy it into the Example app's Documents a
 
 **Finding:** more than 95% of each page load is the `didFinish` chain's fixed `asyncAfter` delays (0.2 s per stage plus `delaySec()`) and WebKit's own load, not CSS or JS work. Opening and parsing a small book is negligible, so #99 needs a many-entry EPUB to profile; none of the samples has more than 34 entries.
 
+## Chapter swipe snap (2026-10-30)
+
+YAEBR's iPad mini recording
+shows a held chapter drag jumping back by 125.5 pt. Reproduced by calling
+`pageDidLoad` on the exposed neighbour: `updateSubviewFrames` unconditionally
+reset the chapter collection's offset, as did an unchanged-size controller
+layout. It now realigns only when the page size changes, retaining the chapter
+read before the geometry changes; indicator/scrubber frames still update.
+`ChapterContainerLayoutTests` covers neighbour loading, intermediate offsets
+on both axes, real resizes and explicit navigation (the original code fails
+five assertions). Four tests pass on iPhone 17 and iPad mini iOS 18.5. Full
+suite: 196 tests; three WebKit/first-load cases failed initially and pass on
+isolated retry. YAEBR builds for iOS and Mac Catalyst with the local package
+through an external workspace; its existing FolioReader UI journey also passes
+on iPhone 17. The app's remote pin is unchanged.
+
 ## Verification
 
 ```bash

@@ -67,6 +67,10 @@ extension FolioReaderCenter {
 
         var collectionViewFrame = self.frameForCollectionView(outerBounds: screenBounds)
         collectionViewFrame = collectionViewFrame.insetBy(dx: tempCollectionViewInset, dy: tempCollectionViewInset)
+        // A neighbour can finish loading, or UIKit can lay out again, during a chapter swipe.
+        // Only a size change needs to reposition it; otherwise keep the native paging offset.
+        let sizeChanged = collectionViewFrame.size != CGSize(width: pageWidth, height: pageHeight)
+        let pageToKeep = sizeChanged ? currentPageNumber : nil
         pageWidth = collectionViewFrame.width
         pageHeight = collectionViewFrame.height
 //        let itemSize = CGSize(
@@ -78,15 +82,10 @@ extension FolioReaderCenter {
         self.pageIndicatorView?.frame = self.frameForPageIndicatorView(outerBounds: screenBounds)
         self.scrollScrubber?.frame = self.frameForScrollScrubber(outerBounds: screenBounds)
         
-        self.collectionView.setContentOffset(
-            self.readerConfig.isDirection(
-                CGPoint(x: 0, y: CGFloat(self.currentPageNumber-1) * pageHeight),
-                CGPoint(x: CGFloat(self.currentPageNumber-1) * pageWidth, y: 0),
-                CGPoint(x: CGFloat(self.currentPageNumber-1) * pageWidth, y: 0))
-            ,
-            animated: false
-        )
-        self.collectionViewLayout.invalidateLayout()
+        if let pageToKeep = pageToKeep {
+            self.collectionView.setContentOffset(frameForPage(pageToKeep).origin, animated: false)
+            self.collectionViewLayout.invalidateLayout()
+        }
     }
 
     func frameForPageIndicatorView(outerBounds: CGRect) -> CGRect {
