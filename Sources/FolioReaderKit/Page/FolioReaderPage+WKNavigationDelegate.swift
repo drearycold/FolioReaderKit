@@ -60,6 +60,9 @@ extension FolioReaderPage {
         guard let webView = webView as? FolioReaderWebView else {
             return
         }
+        mediaVisibilityScript = nil
+        isMediaFullscreen = false
+        folioReader.readerCenter?.updateMediaVisibility()
         let pageNumber = self.pageNumber
         
         print("\(#function) bridgeFinished pageNumber=\(String(describing: pageNumber))")

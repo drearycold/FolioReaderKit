@@ -35,7 +35,19 @@ class ViewController: UIViewController {
 
         self.setCover(self.bookOne, index: 0)
         self.setCover(self.bookTwo, index: 1)
+
+        let videoButton = UIButton(type: .system)
+        videoButton.setTitle("Embedded Video", for: .normal)
+        videoButton.translatesAutoresizingMaskIntoConstraints = false
+        videoButton.addTarget(self, action: #selector(openVideoSample), for: .touchUpInside)
+        view.addSubview(videoButton)
+        NSLayoutConstraint.activate([
+            videoButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            videoButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
+        ])
     }
+
+    @objc private func openVideoSample() { open(epub: .video) }
 
     private func readerConfiguration(forEpub epub: Epub) -> FolioReaderConfig {
         let config = FolioReaderConfig(withIdentifier: epub.readerIdentifier)

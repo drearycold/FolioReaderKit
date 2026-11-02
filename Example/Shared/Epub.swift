@@ -12,9 +12,11 @@ import FolioReaderKit
 enum Epub: Int {
     case bookOne = 0
     case bookTwo
+    case video
 
     var name: String {
         switch self {
+        case .video:        return "Embedded Video"
         case .bookOne:      return "1984" // standard eBook
         case .bookTwo:      return "The Silver Chair" // audio-eBook
         }
@@ -22,6 +24,7 @@ enum Epub: Int {
 
     var shouldHideNavigationOnTap: Bool {
         switch self {
+        case .video:        return true
         case .bookOne:      return false
         case .bookTwo:      return true
         }
@@ -29,6 +32,7 @@ enum Epub: Int {
 
     var scrollDirection: FolioReaderScrollDirection {
         switch self {
+        case .video:        return .horizontalWithPagedContent
         case .bookOne:      return .horizontalWithPagedContent
         case .bookTwo:      return .horizontalWithPagedContent
         }
@@ -50,6 +54,7 @@ enum Epub: Int {
 
     var readerIdentifier: String {
         switch self {
+        case .video:        return "READER_VIDEO"
         case .bookOne:      return "READER_ONE"
         case .bookTwo:      return "READER_TWO"
         }

@@ -20,6 +20,8 @@ extension FolioReaderPage {
             print("\(#function) tempDir=\(tempDir.absoluteString) tempFile=\(tempFile.absoluteString)")
             try? FileManager.default.removeItem(atPath: tempFile.path)
             FileManager.default.createFile(atPath: tempFile.path, contents: message.data(using: .utf8), attributes: nil)
+        case .mediaFullscreen:
+            isMediaFullscreen = message == "true"
         case .writingMode:
             print("writingMode \(message)")
         case .getComputedStyle:

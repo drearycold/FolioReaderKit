@@ -1899,3 +1899,69 @@ function getOffsetsOfElementsWithID(horizontal) {
 
     return JSON.stringify(offsets)
 }
+
+// Media belongs to the visible reader page. Pausing never starts playback again.
+var folioReaderVisible = true;
+var folioMediaPageVisible = true;
+var folioFullscreenVideo = null;
+function folioVideoIsFullscreen(video) {
+    return video === folioFullscreenVideo || video.webkitDisplayingFullscreen === true ||
+        document.fullscreenElement === video;
+}
+function folioPauseVideos(force) {
+    document.querySelectorAll('video').forEach(function(video) {
+        if (force || !folioVideoIsFullscreen(video)) video.pause();
+    });
+}
+function folioCheckVideoVisibility() {
+    document.querySelectorAll('video').forEach(function(video) {
+        if (folioVideoIsFullscreen(video)) return;
+        var rect = video.getBoundingClientRect();
+        if (!folioReaderVisible || !folioMediaPageVisible || document.hidden ||
+            rect.bottom <= 0 || rect.right <= 0 || rect.top >= innerHeight ||
+            rect.left >= innerWidth || rect.width === 0 || rect.height === 0) video.pause();
+    });
+}
+function folioSetReaderVisible(visible) {
+    folioReaderVisible = visible;
+    folioCheckVideoVisibility();
+}
+function folioSetMediaPageVisible(visible) {
+    folioMediaPageVisible = visible;
+    folioCheckVideoVisibility();
+}
+function folioMediaAtPoint(x, y) {
+    var element = document.elementFromPoint(x, y);
+    return !!(element && element.closest('video, audio'));
+}
+(function() {
+    function reportFullscreen() {
+        var handler = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.FolioReaderPage;
+        if (handler) handler.postMessage('mediaFullscreen ' + (folioFullscreenVideo ? 'true' : 'false'));
+    }
+    document.addEventListener('webkitbeginfullscreen', function(event) {
+        if (event.target.localName !== 'video') return;
+        folioFullscreenVideo = event.target;
+        reportFullscreen();
+    }, true);
+    document.addEventListener('webkitendfullscreen', function(event) {
+        if (event.target === folioFullscreenVideo) folioFullscreenVideo = null;
+        reportFullscreen();
+        setTimeout(folioCheckVideoVisibility, 0);
+    }, true);
+    document.addEventListener('fullscreenchange', function() {
+        folioFullscreenVideo = document.fullscreenElement;
+        reportFullscreen();
+        folioCheckVideoVisibility();
+    });
+    document.addEventListener('play', folioCheckVideoVisibility, true);
+    document.addEventListener('visibilitychange', folioCheckVideoVisibility);
+    var pending = false;
+    function scheduleCheck() {
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(function() { pending = false; folioCheckVideoVisibility(); });
+    }
+    window.addEventListener('scroll', scheduleCheck, true);
+    window.addEventListener('resize', scheduleCheck);
+})();

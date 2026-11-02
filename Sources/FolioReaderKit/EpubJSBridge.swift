@@ -17,10 +17,11 @@ class EpubJSBridge: NSObject, WKScriptMessageHandler {
         case bridgeFinished = "bridgeFinished"
         case getComputedStyle = "getComputedStyle"
         case writingMode = "writingMode"
+        case mediaFullscreen = "mediaFullscreen"
         case unknown = "unknown"
         
         static func from(message: String) -> (JSCommand, String) {
-            for command in [bridgeFinished, getComputedStyle, writingMode] {
+            for command in [bridgeFinished, getComputedStyle, writingMode, mediaFullscreen] {
                 if message.hasPrefix(command.rawValue) {
                     let content = message.suffix(message.count - command.rawValue.count).trimmingCharacters(in: .whitespaces)
                     return (command, content)

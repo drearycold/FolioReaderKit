@@ -58,6 +58,7 @@ class ReaderScrollDelegateHandler: NSObject, UIScrollViewDelegate, UICollectionV
             center.invalidatePendingBarReveal()
         }
 
+        center.updateMediaVisibility()
         center.scrollScrubber?.scrollViewDidScroll(scrollView)
 
         let isCollectionScrollView = (scrollView is UICollectionView)
@@ -139,6 +140,12 @@ class ReaderScrollDelegateHandler: NSObject, UIScrollViewDelegate, UICollectionV
         if !(scrollView is UICollectionView) {
             recordPosition(afterScrolling: scrollView)
         }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        guard let page = cell as? FolioReaderPage else { return }
+        page.mediaVisibilityScript = nil
+        page.webView?.js("folioSetMediaPageVisible(false)")
     }
 
     /// The page on screen. On iPad, every focus update (a page taking the first responder, a menu

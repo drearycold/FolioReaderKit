@@ -478,6 +478,7 @@ extension FolioReader {
 
     /// Closes and save the reader current instance.
     public func close() {
+        readerContainer?.stopMediaSession()
         self.saveReaderState() {
             self.isReaderOpen = false
             self.isReaderReady = false
