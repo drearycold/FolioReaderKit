@@ -138,41 +138,41 @@ open class EpubResourceServer {
                     let archive = try await Archive(url: archiveURL, accessMode: .read)
                     
                     var contentType = ReadiumGCDWebServerGetMimeTypeForExtension((resourcePath as NSString).pathExtension, nil)
+                    if let opf = container.book.opfResource?.href {
+                        let directory = (opf as NSString).deletingLastPathComponent
+                        let prefix = directory.isEmpty ? "" : directory + "/"
+                        if resourcePath.hasPrefix(prefix),
+                           let type = container.book.resources.resources[String(resourcePath.dropFirst(prefix.count))]?.mediaType?.name,
+                           !type.isEmpty {
+                            contentType = type
+                        }
+                    }
                     if contentType.contains("text/") {
                         contentType += ";charset=utf-8"
                     }
                     
-                    let stream = AsyncStream<Data> { continuation in
-                        Task {
-                            do {
-                                _ = try await archive.extract(entry) { data in
-                                    continuation.yield(data)
-                                }
-                                continuation.finish()
-                            } catch {
-                                print("EpubResourceServer zipfile-deflate-error \(resourcePath) error=\(error.localizedDescription)")
-                                continuation.finish()
-                            }
-                        }
+                    let modificationDate = entry.fileAttributes[.modificationDate] as? Date
+                    let lastModified = modificationDate.map { self.dateFormatter.string(from: $0) }
+                    let ifRange = request.headers["If-Range"]
+                    let range = EpubByteRange.parse(
+                        ifRange == nil || ifRange == lastModified ? request.headers["Range"] : nil,
+                        length: entry.uncompressedSize)
+                    if range == .unsatisfiable {
+                        let response = ReadiumGCDWebServerResponse(statusCode: 416)
+                        response.setValue("bytes */\(entry.uncompressedSize)", forAdditionalHeader: "Content-Range")
+                        response.setValue("bytes", forAdditionalHeader: "Accept-Ranges")
+                        completion(response)
+                        return
                     }
-                    
-                    let streamIterator = ReadiumStreamIterator(stream.makeAsyncIterator())
-                    
-                    let streamResponse = ReadiumGCDWebServerStreamedResponse(
-                          contentType: contentType,
-                          asyncStreamBlock: { streamCompletion in
-                              Task {
-                                  let data = await streamIterator.next()
-                                  streamCompletion(data ?? Data(), nil)
-                              }
-                          }
-                    )
-                    
-                    if let modificationDate = entry.fileAttributes[.modificationDate] as? Date {
-                        streamResponse.setValue(self.dateFormatter.string(from: modificationDate), forAdditionalHeader: "Last-Modified")
+                    let offsets: Range<UInt64>?
+                    if case let .partial(value) = range { offsets = value } else { offsets = nil }
+                    let streamResponse = ZipEntryResponse(archive: archive, entry: entry,
+                                                          contentType: contentType, range: offsets)
+                    if let lastModified = lastModified {
+                        streamResponse.setValue(lastModified, forAdditionalHeader: "Last-Modified")
                         streamResponse.cacheControlMaxAge = 60
                     }
-                    
+
                     completion(streamResponse)
                 } catch {
                     print("EpubResourceServer archive-error \(resourcePath) error=\(error.localizedDescription)")
@@ -204,19 +204,5 @@ open class EpubResourceServer {
             
             completion(fileResponse)
         })
-    }
-}
-
-/// Actor wrapping AsyncStream iterator for thread safety
-private actor ReadiumStreamIterator {
-    private var iterator: AsyncStream<Data>.AsyncIterator
-    init(_ iterator: AsyncStream<Data>.AsyncIterator) {
-        self.iterator = iterator
-    }
-    func next() async -> Data? {
-        var it = iterator
-        let data = await it.next()
-        iterator = it
-        return data
     }
 }

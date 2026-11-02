@@ -45,9 +45,9 @@ class ContainerLoadTests: XCTestCase {
         withExtendedLifetime(container) {}
     }
 
-    /// `viewWillDisappear` stops the resource server (a tab switch, a full-screen sheet). Reappearing
-    /// no longer reloads the book, so it must start the server again, on the port the pages use.
-    func testReappearingRestartsTheServerOnTheSamePort() throws {
+    /// A media full-screen presentation and a tab switch keep the session's server. Explicit close
+    /// ends it; returning to the reader keeps the pages' port and doesn't reload the book.
+    func testReappearingKeepsTheSessionServerOnTheSamePort() throws {
         let folioReader = FolioReader()
         let webServer = ReadiumGCDWebServer()
         let container = FolioReaderContainer(withConfig: FolioReaderConfig(), folioReader: folioReader, epubPath: samplePath, webServer: webServer)
@@ -57,10 +57,13 @@ class ContainerLoadTests: XCTestCase {
         let port = webServer.port
 
         container.viewWillDisappear(false)
+        container.viewDidDisappear(false)
+        XCTAssertTrue(webServer.isRunning, "Full-screen video can still fetch ranges")
         container.viewWillAppear(false)
         waitUntil("server running again") { webServer.port != 0 }
         XCTAssertEqual(webServer.port, port, "Pages keep their URLs")
-        container.viewWillDisappear(false)
+        folioReader.close()
+        XCTAssertFalse(webServer.isRunning, "Explicit close ends the media resource session")
         withExtendedLifetime(container) {}
     }
 

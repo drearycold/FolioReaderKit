@@ -34,6 +34,8 @@ open class FolioReaderContainer: UIViewController {
     var webServer: ReadiumGCDWebServer
     private var resourceServer: EpubResourceServer?
     private var didBecomeActiveObserver: NSObjectProtocol?
+    private var willResignActiveObserver: NSObjectProtocol?
+    var mediaReaderVisible = true
 
     /// The port pages load from. Stable while the server is suspended in the background, when
     /// `webServer.port` reads 0.
@@ -121,6 +123,8 @@ open class FolioReaderContainer: UIViewController {
     }
 
     deinit {
+        resourceServer?.stop()
+        if let observer = willResignActiveObserver { NotificationCenter.default.removeObserver(observer) }
         // Closed before any page was shown.
         firstPageInterval?.end("closed")
         if let didBecomeActiveObserver = didBecomeActiveObserver {
@@ -224,9 +228,12 @@ open class FolioReaderContainer: UIViewController {
             super.viewWillAppear(animated)
         }
 
+        mediaReaderVisible = true
+        centerViewController?.updateMediaVisibility()
+
         // Hosts can show the reader again without recreating it (tab switches, full-screen sheets).
         // Loading again would re-parse the book and re-apply the position it was opened at; the
-        // server, stopped when the reader disappeared, starts again. A page whose web content process
+        // server, suspended in the background, starts again. A page whose web content process
         // died while the reader was hidden reloads now: becoming active skipped it, off screen.
         guard loadedEpubPath != epubPath else {
             restartResourceServer()
@@ -312,8 +319,19 @@ open class FolioReaderContainer: UIViewController {
         }
     }
     
-    override open func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+    override open func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        mediaReaderVisible = false
+        centerViewController?.updateMediaVisibility()
+        if isBeingDismissed || isMovingFromParent || navigationController?.isBeingDismissed == true {
+            stopMediaSession()
+        }
+        // A native media full-screen controller can hide the reader while still fetching video.
+        // Keep the server for this reading session, including tab and full-screen transitions.
+    }
+
+    func stopMediaSession() {
+        centerViewController?.pauseVideos()
         resourceServer?.stop()
     }
 
@@ -330,6 +348,9 @@ open class FolioReaderContainer: UIViewController {
     /// ignored), and a page whose web content process was reclaimed waits to be reloaded.
     private func observeApplicationDidBecomeActive() {
         guard didBecomeActiveObserver == nil else { return }
+        willResignActiveObserver = NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.centerViewController?.pauseVideos()
+        }
         didBecomeActiveObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             guard let self = self, self.viewIfLoaded?.window != nil else { return }
             self.restartResourceServer()

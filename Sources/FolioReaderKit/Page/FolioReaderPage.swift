@@ -43,6 +43,8 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     /// load (`loadNavigation`) fails.
     var loadInterval: FolioSignpost.Interval?
     var loadNavigation: WKNavigation?
+    var isMediaFullscreen = false
+    var mediaVisibilityScript: String?
     
     open var pageOffsetRate: CGFloat = 0 {
         didSet {
@@ -186,6 +188,8 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
 
     public func setup(withReaderContainer readerContainer: FolioReaderContainer) {
+        webView?.js("folioPauseVideos(true)")
+        isMediaFullscreen = false
         self.readerContainer = readerContainer
         guard let readerContainer = self.readerContainer else { return }
 

@@ -57,7 +57,7 @@ class CodeExampleViewController: UIViewController {
 
         let readerConfiguration = self.readerConfiguration(forEpub: epub)
         switch epub {
-        case .bookOne:
+        case .bookOne, .video:
             epubReaderOne.presentReader(
                 parentViewController: self,
                 withEpubPath: bookPath,

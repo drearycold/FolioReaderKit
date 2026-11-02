@@ -31,26 +31,31 @@ extension FolioReaderPage {
     }
 
     @objc public func handleTapGesture(_ recognizer: UITapGestureRecognizer) {
-        delegate?.pageTap?(recognizer)
+        guard let webView = webView else { return }
+        let point = recognizer.location(in: webView)
+        let generation = loadGeneration
+        webView.js("String(folioMediaAtPoint(\(point.x), \(point.y)))") { [weak self] hit in
+            guard let self = self, generation == self.loadGeneration, hit != "true" else { return }
+            self.handleReaderTap(recognizer)
+        }
+    }
 
+    private func handleReaderTap(_ recognizer: UITapGestureRecognizer) {
+        delegate?.pageTap?(recognizer)
         guard let readerCenter = folioReader.readerCenter else { return }
         guard isValidBarRevealTap(recognizer) else {
             readerCenter.invalidatePendingBarReveal()
             return
         }
-
         if readerCenter.barHostingNavigationController?.isNavigationBarHidden == true {
             let pageNumberForTap = tapStartPageNumber ?? pageNumber
             webView?.js("getSelectedText()") { selected in
-                guard (selected == nil || selected?.isEmpty == true) else {
-                    return
-                }
-
+                guard selected == nil || selected?.isEmpty == true else { return }
                 readerCenter.requestBarReveal(forPageNumber: pageNumberForTap)
             }
-        } else if (self.readerConfig.shouldHideNavigationOnTap == true) {
+        } else if readerConfig.shouldHideNavigationOnTap {
             readerCenter.hideBars()
-            self.menuIsVisible = false
+            menuIsVisible = false
         }
     }
 

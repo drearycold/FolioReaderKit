@@ -156,3 +156,54 @@ FolioReaderKit was created by [Heberti Almeida](https://github.com/hebertialmeid
 
 ## License
 FolioReaderKit is available under the BSD 3-Clause license, which keeps the original copyright notice. See the [LICENSE](/LICENSE) file.
+### Embedded video (EPUB 3)
+
+Use HTML5 `video` in a spine XHTML document. H.264 video with AAC audio in an MP4
+container is the recommended baseline for iOS. The reader requires a user gesture
+and respects the book's `playsinline` attribute: with it, playback stays in the page;
+without it, iPhone uses the native full-screen player. The reader never inserts it.
+
+For a package at `EPUB/package.opf`, add these items to its existing manifest:
+
+```xml
+<item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/>
+<item id="movie" href="Video/demo.mp4" media-type="video/mp4"/>
+<item id="poster" href="Images/poster.jpg" media-type="image/jpeg"/>
+```
+
+Reference the chapter in the spine with `<itemref idref="chapter"/>`. Inside its
+XHTML body (`xmlns="http://www.w3.org/1999/xhtml"`), embed:
+
+```xml
+<video controls="controls" playsinline="playsinline" preload="metadata"
+       width="640" height="360" poster="../Images/poster.jpg"
+       style="display:block; width:100%; height:auto;">
+  <source src="../Video/demo.mp4" type="video/mp4"/>
+  <p>This reading system does not support video.</p>
+</video>
+<p>A text description or transcript of the video.</p>
+```
+
+Manifest paths are relative to the OPF; video and poster paths are relative to the
+chapter. Do not hard-code a localhost port. Use explicit attribute values and
+closed tags for well-formed XHTML. Native controls need no author script or
+`scripted` manifest property. A separate transcript remains available even when a
+browser supports the video element but cannot load its source.
+
+Resources stream directly from the EPUB with HTTP byte-range support, without
+extracting video files to disk. Store MP4 ZIP entries **without compression** when
+possible: already-compressed MP4 gains little from Deflate, whose range reads must
+inflate from the start to the requested offset. Put MP4 metadata before media data
+(`ffmpeg -movflags +faststart`) to improve startup.
+
+Videos pause when they leave the viewport or current chapter, when the reader is
+hidden, or when the app leaves the foreground. Native media full screen is exempt
+from visibility pauses; backgrounding or closing still pauses it. Returning never
+automatically resumes playback. Video progress is not persisted across chapter or
+WebView reloads. Autoplay, dedicated Picture in Picture integration, remote-media
+authentication, and coordination with TTS/media overlays are outside this support.
+
+The Example app's **Embedded Video** button opens a synthetic eight-second sample
+with inline/stored and full-screen/Deflate chapters. Its media is CC0, generated
+without third-party recordings. Regenerate it with
+`python3 scripts/generate_video_sample.py` (requires ffmpeg with libx264 and AAC).

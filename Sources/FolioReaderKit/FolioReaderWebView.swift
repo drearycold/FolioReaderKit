@@ -51,6 +51,8 @@ open class FolioReaderWebView: WKWebView {
         
         let configuration = WKWebViewConfiguration()
         configuration.dataDetectorTypes = .link
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = .all
         if let wkProcessorPool = readerContainer.folioReader.readerCenter?.wkProcessorPool {
             configuration.processPool = wkProcessorPool
         }

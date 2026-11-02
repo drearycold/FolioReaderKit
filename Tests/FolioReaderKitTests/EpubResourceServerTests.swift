@@ -127,7 +127,7 @@ class EpubResourceServerTests: XCTestCase {
         withExtendedLifetime(container) {}
     }
 
-    /// The reader stops the server when it disappears (a tab switch, a full-screen sheet).
+    /// An explicitly stopped server can restart without changing the pages' port.
     func testRestartingKeepsThePort() {
         let blocker = occupy(46436, mayBeTaken: true)
         defer { blocker?.stop() }
