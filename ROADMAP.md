@@ -115,6 +115,11 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 - Review follow-up: Deflate ranges now check cancellation on every inflated chunk, including discarded prefix chunks, and stop at the requested upper bound. A gated real-ZIP regression proves that closing a late-range response does not read another compressed block; stored ranges retain direct seeking.
 - Validation: iPhone 17, iOS 26.5 Simulator, **207 package tests passed**, including real WebKit metadata, playback and seeking to 6 s for both compression modes; corruption, bounded buffering/cancellation, HTTP ranges, visibility/full-screen policy, and spread/tier limits. CSS snapshot unchanged. Example and MultipleInstance-Example simulator builds passed. iPad mini (A17 Pro), iOS 26.5 Simulator: touched inline Play, observed moving frames through 7 s, entered and exited native full screen, and dragged its timeline; a fresh range request during full screen returned 206 with the correct 100-byte body. iPhone 17, iOS 26.5 Simulator: touched inline Play and observed the in-page timeline reach 8 s; the chapter without `playsinline` opened the native full-screen controller and rendered moving frames. The updated session-close assertions and a taller-video spread/tier test passed in a separate 4-test run. Physical devices and the full manual rotation/background matrix have not been checked.
 
+### Navigation-bar tap regression (2026-11-03)
+
+- Fixed taps being rejected after asynchronous media hit testing: UIKit can reset the recognizer before the callback, so the completed tap's validity and page are captured before JavaScript runs. Scroll, menu, configuration and page checks still run when the result returns; media taps remain excluded.
+- Six regression tests cover hide/reveal after recognizer reset, media exclusion, moved taps, scrolling during the hit test, and page reuse. Both normal-tap cases fail before the fix and pass afterwards. Full iPhone 17 / iOS 26.5 Simulator suite: **213 tests passed**; Example build passed. Touch-driven verification was attempted but the UI automation returned `noWindowsAvailable` when sending clicks.
+
 ### Phase 6: Backlog (not scheduled)
 
 - YAEBR #28 side-by-side reading. `MultipleInstance-Example` shows two readers on iPad.

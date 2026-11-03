@@ -32,23 +32,30 @@ extension FolioReaderPage {
 
     @objc public func handleTapGesture(_ recognizer: UITapGestureRecognizer) {
         guard let webView = webView else { return }
+        // UIKit can reset the recognizer before the asynchronous media hit test returns.
+        // Capture the completed tap's validity while its start/end locations are still available.
+        let validTap = isValidBarRevealTap(recognizer)
+        let pageNumberForTap = pageNumber
         let point = recognizer.location(in: webView)
         let generation = loadGeneration
         webView.js("String(folioMediaAtPoint(\(point.x), \(point.y)))") { [weak self] hit in
-            guard let self = self, generation == self.loadGeneration, hit != "true" else { return }
-            self.handleReaderTap(recognizer)
+            guard let self = self, generation == self.loadGeneration,
+                  pageNumberForTap == self.pageNumber, hit != "true" else { return }
+            self.handleReaderTap(recognizer, validTap: validTap, pageNumber: pageNumberForTap)
         }
     }
 
-    private func handleReaderTap(_ recognizer: UITapGestureRecognizer) {
+    private func handleReaderTap(_ recognizer: UITapGestureRecognizer, validTap: Bool, pageNumber: Int) {
         delegate?.pageTap?(recognizer)
         guard let readerCenter = folioReader.readerCenter else { return }
-        guard isValidBarRevealTap(recognizer) else {
+        // Motion, menus, settings, or the page may have changed while JavaScript was running.
+        guard validTap, readerConfig.hideBars == false, self.pageNumber == pageNumber,
+              readerCenter.isScrollMotionActive() == false, menuIsVisible == false else {
             readerCenter.invalidatePendingBarReveal()
             return
         }
         if readerCenter.barHostingNavigationController?.isNavigationBarHidden == true {
-            let pageNumberForTap = tapStartPageNumber ?? pageNumber
+            let pageNumberForTap = pageNumber
             webView?.js("getSelectedText()") { selected in
                 guard selected == nil || selected?.isEmpty == true else { return }
                 readerCenter.requestBarReveal(forPageNumber: pageNumberForTap)
