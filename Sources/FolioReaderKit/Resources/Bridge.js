@@ -1930,10 +1930,35 @@ function folioSetMediaPageVisible(visible) {
     folioMediaPageVisible = visible;
     folioCheckVideoVisibility();
 }
-function folioMediaAtPoint(x, y) {
-    var element = document.elementFromPoint(x, y);
-    return !!(element && element.closest('video, audio'));
+// Reader chrome must not steal taps from media or CSS radio/checkbox image cycles.
+function folioIsReaderControl(element) {
+    if (!element || !element.closest) return false;
+    if (element.closest('video, audio')) return true;
+    var label = element.closest('label');
+    var control = label && label.control;
+    return !!(control && control.localName === 'input' && !control.disabled &&
+        (control.type === 'radio' || control.type === 'checkbox'));
 }
+var folioLastControlTouch = null;
+function folioReaderControlAtPoint(x, y) {
+    var touch = folioLastControlTouch;
+    folioLastControlTouch = null;
+    if (touch && performance.now() - touch.time < 1000 &&
+        Math.hypot(touch.x - x, touch.y - y) <= 8) return touch.control;
+    return folioIsReaderControl(document.elementFromPoint(x, y));
+}
+(function() {
+    function recordControlTouch(event) {
+        var point = event.touches ? event.touches[0] : event;
+        if (!point) return;
+        folioLastControlTouch = { x: point.clientX, y: point.clientY,
+            time: performance.now(), control: folioIsReaderControl(event.target) };
+    }
+    // Capture the original target before label activation hides it or changes the image height.
+    // Every new touch, including ordinary text, replaces the record. Never cancel activation.
+    document.addEventListener('touchstart', recordControlTouch, { capture: true, passive: true });
+    document.addEventListener('mousedown', recordControlTouch, true);
+})();
 (function() {
     function reportFullscreen() {
         var handler = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.FolioReaderPage;
