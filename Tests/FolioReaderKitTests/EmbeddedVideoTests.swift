@@ -198,7 +198,7 @@ final class EmbeddedVideoTests: XCTestCase {
         let view = readerChapter("<video id='v' controls='controls' width='200' height='100'></video><p>Text</p>", paged: false)
         evaluate("var v = document.querySelector('video'); var pauses = 0; v.pause = function(){ pauses++; }; true", in: view)
         XCTAssertEqual(evaluate("v.hasAttribute('playsinline')", in: view) as? Bool, false)
-        XCTAssertEqual(evaluate("var r = v.getBoundingClientRect(); folioMediaAtPoint(r.left + 5, r.top + 5)", in: view) as? Bool, true)
+        XCTAssertEqual(evaluate("var r = v.getBoundingClientRect(); folioReaderControlAtPoint(r.left + 5, r.top + 5)", in: view) as? Bool, true)
         evaluate("folioSetReaderVisible(false); true", in: view)
         XCTAssertEqual(evaluate("pauses", in: view) as? Int, 1)
         evaluate("folioSetReaderVisible(true); true", in: view)

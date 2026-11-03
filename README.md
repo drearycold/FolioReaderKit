@@ -156,6 +156,15 @@ FolioReaderKit was created by [Heberti Almeida](https://github.com/hebertialmeid
 
 ## License
 FolioReaderKit is available under the BSD 3-Clause license, which keeps the original copyright notice. See the [LICENSE](/LICENSE) file.
+### CSS image-cycle controls
+
+Labels linked to radio or checkbox inputs (including labels wrapping an input) keep
+their taps for the book's controls, so CSS-only image cycles can switch pictures
+without showing or hiding the reader's navigation bar. No special class name or
+author JavaScript is required; patterns such as `.cg-cycle` with hidden inputs,
+`label for="…"`, and `:checked` sibling selectors work as written. Ordinary images,
+text, and labels without an active radio/checkbox association retain reader taps.
+
 ### Embedded video (EPUB 3)
 
 Use HTML5 `video` in a spine XHTML document. H.264 video with AAC audio in an MP4

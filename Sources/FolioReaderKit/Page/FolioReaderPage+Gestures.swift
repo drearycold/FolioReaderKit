@@ -32,13 +32,13 @@ extension FolioReaderPage {
 
     @objc public func handleTapGesture(_ recognizer: UITapGestureRecognizer) {
         guard let webView = webView else { return }
-        // UIKit can reset the recognizer before the asynchronous media hit test returns.
+        // UIKit can reset the recognizer before the asynchronous control hit test returns.
         // Capture the completed tap's validity while its start/end locations are still available.
         let validTap = isValidBarRevealTap(recognizer)
         let pageNumberForTap = pageNumber
         let point = recognizer.location(in: webView)
         let generation = loadGeneration
-        webView.js("String(folioMediaAtPoint(\(point.x), \(point.y)))") { [weak self] hit in
+        webView.js("String(folioReaderControlAtPoint(\(point.x), \(point.y)))") { [weak self] hit in
             guard let self = self, generation == self.loadGeneration,
                   pageNumberForTap == self.pageNumber, hit != "true" else { return }
             self.handleReaderTap(recognizer, validTap: validTap, pageNumber: pageNumberForTap)

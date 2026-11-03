@@ -89,7 +89,7 @@ private final class TapReaderCenter: FolioReaderCenter {
 private final class DeferredTapWebView: FolioReaderWebView {
     private var mediaCheck: JSCallback?
     override func js(_ script: String, completion: JSCallback? = nil) {
-        if script.contains("folioMediaAtPoint") { mediaCheck = completion }
+        if script.contains("folioReaderControlAtPoint") { mediaCheck = completion }
         else if script == "getSelectedText()" { completion?("") }
     }
     func completeMediaCheck(hit: Bool) {

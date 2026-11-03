@@ -120,6 +120,11 @@ YetAnotherEBookReader issues are never marked ✅ here and are never closed from
 - Fixed taps being rejected after asynchronous media hit testing: UIKit can reset the recognizer before the callback, so the completed tap's validity and page are captured before JavaScript runs. Scroll, menu, configuration and page checks still run when the result returns; media taps remain excluded.
 - Six regression tests cover hide/reveal after recognizer reset, media exclusion, moved taps, scrolling during the hit test, and page reuse. Both normal-tap cases fail before the fix and pass afterwards. Full iPhone 17 / iOS 26.5 Simulator suite: **213 tests passed**; Example build passed. Touch-driven verification was attempted but the UI automation returned `noWindowsAvailable` when sending clicks.
 
+### CSS image-cycle controls (2026-11-03)
+
+- Reader-bar taps now exclude labels associated with radio/checkbox inputs, including nested images and implicit label/input associations, without requiring a particular CSS class. Touch-start/mouse-down capture preserves the original target if label activation hides it or changes the image height; subsequent ordinary taps replace that record. Native label activation and CSS are unchanged.
+- Real WebKit tests cover HTML/XHTML, 2- and 24-image radio cycles, checkbox labels, a shrinking next image, and ordinary images/inactive labels. Full iPhone 17 / iOS 26.5 Simulator suite: **216 tests passed**; Example build passed; CSS snapshot unchanged.
+
 ### Phase 6: Backlog (not scheduled)
 
 - YAEBR #28 side-by-side reading. `MultipleInstance-Example` shows two readers on iPad.
